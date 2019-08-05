@@ -1,0 +1,19 @@
+<setup>
+    <block title="HTTP Target">
+        <text>Configure HTTP Event Collector Target</text>
+    </block>
+
+    <block title="HEC" endpoint="admin/alert_actions" entity="hep">
+        <text>Enter the remote HTTP Event Collector host (hostname or IP)</text>
+        <input field="param.api.hec_host">
+            <label>HEC Host</label>
+            <type>text</type>
+        </input>
+        <text>Enter the HTTP Event Collector token for the remote Splunk instance.</text>
+        <input field="param.api.hec_token">
+            <label>HEC Token</label>
+            <type>text</type>
+        </input>
+    </block>
+
+</setup>
