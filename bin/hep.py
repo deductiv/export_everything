@@ -40,7 +40,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	script = os.path.basename(__file__)
 
 	# Setup the logging handler
-	logger = setup_logger(logging.INFO, script.replace('.py', '.log'))
+	logger = setup_logger(logging.DEBUG, script.replace('.py', '.log'))
 	#logger.debug("Script %s called" % script)
 
 	try:
@@ -85,7 +85,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	hec_host = config['api.hec_host']
 
 	# Special event key fields that can be specified/overridden in the alert action
-	key_keys = ['source', 'sourcetype', 'host', 'index']
+	meta_keys = ['source', 'sourcetype', 'host', 'index']
 	
 	# Parse results CSV file directly
 	search_output_file = args.get('results_file')
@@ -103,17 +103,17 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 
 	rest_content = json.loads(rest_content)
 	rest_content = rest_content['entry'][0]['content']
+	#logger.debug("REST content: %s" % json.dumps(rest_content))
 
 	# Parse the real config arguments for variables from the saved search
-	output_vars = {}
-	for k in key_keys:
+	output_meta_fromevent = {}
+	for k in meta_keys:
 		okey = 'action.hep.param.output_' + k
 		if okey in rest_content.keys():
 			if '$result.' in rest_content[okey]:
-				output_vars[k] = rest_content[okey].replace("$", "").replace("result.", "")
-
-	
-	logger.debug("Output arguments: %s" % output_vars)
+				output_meta_fromevent[k] = rest_content[okey].replace("$", "").replace("result.", "")
+		
+	logger.debug("Source event meta fields: %s" % output_meta_fromevent)
 	logger.debug("Search results: %s" % json.dumps(results))
 	
 	# Create HEC object
@@ -130,21 +130,28 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 			payload.update({ "time": time.time() })
 		
 		# Remove conflicts for source/sourcetype/index/host
-		for k in key_keys:
+		for k in meta_keys:
+			okey = 'output_'+ k
+			# If the event contains a meta field
 			if k in event.keys():
-				okey = 'output_'+ k
-				if k in output_vars.keys():
+				# If we found it had a variable defined within it (e.g. $result.sourcetype$)
+				if k in output_meta_fromevent.keys():
 					# Field is in the event and in the alert action config. Use the alert action config value.
 					# Find variables to substitute
-					payload.update({ k: event[output_vars[k]]})
-				elif okey in config.keys():
-					# Static values from the alert action config, or other non-result variables like $name$
-					payload.update({ k: config[okey] })
+					#logger.debug("Checking for %s field in event" % output_meta_fromevent[k])
+					payload.update({ k: event[output_meta_fromevent[k]] })
 				else:
 					# Field is in the event but not in the alert action config.  Use the event value.
 					payload.update({ k: event[k] })
 				# Delete the field from the event, so it's not duplicated in the payload under the "event" field.
 				del(event[k])
+			elif okey in config.keys():
+				# Static values from the alert action config, or other non-result variables like $name$
+				payload.update({ k: config[okey] })
+				#logger.debug("%s set to %s" % (k, config[okey]))
+
+		if not "host" in event.keys():
+			payload.update({ "host": args['server_host'] })
 
 		# Only send _raw if the _raw field was included in the search result.
 		# (Don't include other fields/values)
