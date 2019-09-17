@@ -2,7 +2,7 @@
 # Push Splunk events to an HTTP listener (such as Splunk HEC) over JSON
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 1.0
+# Version: 1.01
 
 import os, sys
 import json
