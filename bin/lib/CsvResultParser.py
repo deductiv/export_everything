@@ -1,10 +1,11 @@
+from builtins import object
 import csv
 import os
 import json
 import gzip
 import re
 
-class CsvResultParser:
+class CsvResultParser(object):
 
     csv_data    = []
     field_names = []
@@ -25,7 +26,7 @@ class CsvResultParser:
 
         fields = []
         for line in self.csv_data:
-            for k in line.keys():
+            for k in list(line.keys()):
                 if k.startswith("__mv_"):
                     values = []
                     if line[k] != "":

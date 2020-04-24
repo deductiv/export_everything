@@ -1,16 +1,19 @@
-# hep.py
-# Push Splunk events to an HTTP listener (such as Splunk HEC) over JSON
+#!/usr/bin/env python
+# 
+# hep_alert.py
+# Push Splunk events to an HTTP listener (such as Splunk HEC) over JSON - Alert Action
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 1.01
+# Version: 1.02 (2020-04-24)
 
+from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
 import os, sys
 import json
-import urllib
-import httplib2
 import time
 import logging
-from logging import handlers
 
 # Add lib folder to import path
 path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib')
@@ -20,33 +23,19 @@ sys.path.append(path_prepend)
 # https://github.com/georgestarcher/Splunk-Class-httpevent
 from splunk_http_event_collector.http_event_collector import http_event_collector
 from CsvResultParser import *
-
-def setup_logger(level, filename):
-	logger = logging.getLogger(filename)
-	# Prevent the log messages from being duplicated in the python.log file
-	logger.propagate = False 
-	logger.setLevel(level)
-	
-	log_file = os.path.join( os.environ['SPLUNK_HOME'], 'var', 'log', 'splunk', filename )
-	file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=25000000, backupCount=2)
-	formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-	file_handler.setFormatter(formatter)
-	
-	logger.addHandler(file_handler)
-	
-	return logger
+from deductiv_helpers import *
 
 if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	script = os.path.basename(__file__)
 
 	# Setup the logging handler
-	logger = setup_logger(logging.DEBUG, script.replace('.py', '.log'))
-	#logger.debug("Script %s called" % script)
+	logger = setup_logger('INFO', 'hep.log')
+	logger.debug("HEP alert action called")
 
 	try:
 		stdin = sys.stdin.read()
 		args = json.loads(stdin)
-	except ValueError, e:
+	except ValueError as e:
 		logger.critical("Input could not be parsed in JSON: %s" % stdin)
 		logger.critical("Please check alert_actions.conf for payload_format = json")
 		exit(1)
@@ -57,7 +46,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 		savedsearch_name = args['search_name']
 		owner = args['owner']
 		logger.info("%s called by %s/%s for user %s" % (script, app, savedsearch_name, owner))
-	except BaseException, e:
+	except BaseException as e:
 		logger.error("Couldn't log script startup: %s", e.message)
 
 	http_proxy = os.environ.get('HTTP_PROXY')
@@ -65,11 +54,11 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	proxy_exceptions = os.environ.get('NO_PROXY')
 
 	if http_proxy is not None:
-		logger.info("HTTP proxy: %s" % http_proxy)
+		logger.debug("HTTP proxy: %s" % http_proxy)
 	if https_proxy is not None:
-		logger.info("HTTPS proxy: %s" % https_proxy)
+		logger.debug("HTTPS proxy: %s" % https_proxy)
 	if proxy_exceptions is not None:
-		logger.info("Proxy Exceptions: %s" % proxy_exceptions)
+		logger.debug("Proxy Exceptions: %s" % proxy_exceptions)
 
 	config = args.get('configuration')
 	session_key = args.get('session_key')
@@ -80,7 +69,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	server_uri = args.get('server_uri')
 
 	logger.debug("Imported config: %s" % config)
-
+	logger.debug(args)
 	hec_token = config['api.hec_token']
 	hec_host = config['api.hec_host']
 
@@ -96,9 +85,10 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	url = server_uri + search_uri + '?output_mode=json'
 	logging.debug("Connecting to URL: %s" % url)
 
-	# !!! Make validation optional later
-	rest_http = httplib2.Http(disable_ssl_certificate_validation=True)
-	rest_resp, rest_content = rest_http.request(url, 'GET', headers={'Authorization': 'Splunk %s' % session_key, 'Accept': 'application/json'})
+	## !!! Make validation optional later
+	#rest_http = httplib2.Http(disable_ssl_certificate_validation=True)
+	#rest_resp, rest_content = rest_http.request(url, 'GET', headers={'Authorization': 'Splunk %s' % session_key, 'Accept': 'application/json'})
+	rest_content, rest_resp = request('GET', url, '', {'Authorization': 'Splunk %s' % session_key, 'Accept': 'application/json'})
 	logger.debug("REST response: %s" % str(rest_resp))
 
 	rest_content = json.loads(rest_content)
@@ -109,7 +99,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	output_meta_fromevent = {}
 	for k in meta_keys:
 		okey = 'action.hep.param.output_' + k
-		if okey in rest_content.keys():
+		if okey in list(rest_content.keys()):
 			if '$result.' in rest_content[okey]:
 				output_meta_fromevent[k] = rest_content[okey].replace("$", "").replace("result.", "")
 		
@@ -133,9 +123,9 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 		for k in meta_keys:
 			okey = 'output_'+ k
 			# If the event contains a meta field
-			if k in event.keys():
+			if k in list(event.keys()):
 				# If we found it had a variable defined within it (e.g. $result.sourcetype$)
-				if k in output_meta_fromevent.keys():
+				if k in list(output_meta_fromevent.keys()):
 					# Field is in the event and in the alert action config. Use the alert action config value.
 					# Find variables to substitute
 					#logger.debug("Checking for %s field in event" % output_meta_fromevent[k])
@@ -145,17 +135,17 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 					payload.update({ k: event[k] })
 				# Delete the field from the event, so it's not duplicated in the payload under the "event" field.
 				del(event[k])
-			elif okey in config.keys():
+			elif okey in list(config.keys()):
 				# Static values from the alert action config, or other non-result variables like $name$
 				payload.update({ k: config[okey] })
 				#logger.debug("%s set to %s" % (k, config[okey]))
 
-		if not "host" in event.keys():
+		if not "host" in list(event.keys()):
 			payload.update({ "host": args['server_host'] })
 
 		# Only send _raw if the _raw field was included in the search result.
 		# (Don't include other fields/values)
-		if '_raw' in event.keys():
+		if '_raw' in list(event.keys()):
 			#logger.info("Using _raw from search result")
 			payload.update({ "event": event['_raw'] })
 		else:

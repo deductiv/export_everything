@@ -3,19 +3,13 @@
     Remember: Friends don't let friends send in non Common Information Model data: http://docs.splunk.com/Documentation/CIM/latest/User/Overview
         Please use CIM friendly field names when sending in data.
 """
-from __future__ import print_function
 
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import range
-from builtins import object
 import requests
 import json
 import time
 import socket
 import threading
-import queue
+import Queue
 
 __author__ = "george@georgestarcher.com (George Starcher)"
 http_event_collector_debug = False 
@@ -27,7 +21,7 @@ http_event_collector_SSL_verify = False
 _max_content_bytes = 100000 
 _number_of_threads = 10
 
-class http_event_collector(object):
+class http_event_collector:
 
             
     def __init__(self,token,http_event_server,host="",http_event_port='8088',http_event_server_ssl=True,max_bytes=_max_content_bytes):
@@ -35,7 +29,7 @@ class http_event_collector(object):
         self.batchEvents = []
         self.maxByteLength = max_bytes
         self.currentByteLength = 0
-        self.flushQueue = queue.Queue(0)
+        self.flushQueue = Queue.Queue(0)
         for x in range(_number_of_threads):
             t = threading.Thread(target=self.batchThread)
             t.daemon = True
@@ -60,8 +54,8 @@ class http_event_collector(object):
         self.server_uri = '%s://%s:%s/services/collector/event' % (protocol, http_event_server, http_event_port)
 
         if http_event_collector_debug:
-            print(self.token)
-            print(self.server_uri)                
+            print self.token
+            print self.server_uri                
 
     def sendEvent(self,payload,eventtime=""):
         # Method to immediately send an event to the http event collector
@@ -83,7 +77,7 @@ class http_event_collector(object):
 
         self.flushQueue.put(event)
         if http_event_collector_debug:
-            print("Single Submit: Sticking the event on the queue.")
+            print "Single Submit: Sticking the event on the queue."
         self.waitUntilDone()
 
     def batchEvent(self,payload,eventtime=""):
@@ -103,7 +97,7 @@ class http_event_collector(object):
 
         if (self.currentByteLength+payloadLength) > self.maxByteLength:
             if http_event_collector_debug:
-                print("Auto Flush: Sticking the batch on the queue.")
+                print "Auto Flush: Sticking the batch on the queue."
             self.flushQueue.put(self.batchEvents)
             self.batchEvents = []
             self.currentByteLength = 0
@@ -117,7 +111,7 @@ class http_event_collector(object):
         
         while True:
             if http_event_collector_debug:
-                print("Events received on thread. Sending to Splunk.")
+                print "Events received on thread. Sending to Splunk."
             payload = " ".join(self.flushQueue.get())
             headers = {'Authorization':'Splunk '+self.token}
             requests.post(self.server_uri, data=payload, headers=headers, verify=http_event_collector_SSL_verify)
@@ -131,7 +125,7 @@ class http_event_collector(object):
 
     def flushBatch(self):
         if http_event_collector_debug:
-            print("Manual Flush: Sticking the batch on the queue.")
+            print "Manual Flush: Sticking the batch on the queue."
         self.flushQueue.put(self.batchEvents)
         self.batchEvents = []
         self.currentByteLength = 0
