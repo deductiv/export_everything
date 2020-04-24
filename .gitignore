@@ -1,0 +1,14 @@
+# OSX noise
+.DS_Store
+
+# Compiled python files
+*.pyc
+
+# Tarballs
+*.tar.gz
+*.tgz
+*.spl
+
+# Local content
+local/
+local.meta
