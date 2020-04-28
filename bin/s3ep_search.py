@@ -184,7 +184,7 @@ class s3ep(ReportingCommand):
 				today = datetime.datetime.now().strftime("%F")
 				if self.outputfile is None:
 					# Boto is special. We need repr to give it the encoding it expects to match the hashing.
-					self.outputfile = repr(app + '_' + user + '_' +  + file_extensions[self.outputformat])
+					self.outputfile = repr(app + '_' + user + '_' + now + file_extensions[self.outputformat])
 				else:
 					self.outputfile = self.outputfile.replace("__now__", now)
 					self.outputfile = self.outputfile.replace("__nowft__", nowft)

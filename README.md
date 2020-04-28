@@ -25,7 +25,7 @@ Push Splunk events to AWS S3 over JSON or raw text.  The default AWS region and 
 - #####Output File
 **Syntax:** outputfile=&lt;[folder/]file name&gt;
 **Description:** The name of the file to be written to the S3 bucket
-**Default:** The name of the user plus the timestamp and the output format (e.g. `admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log
+**Default:** `app_username_epoch.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log
 **Keywords:** `__now__`=epoch, `__today__`=date in yyyy-mm-dd format, `__nowft__`=timestamp in yyyy-mm-dd_hhmmss format.
 - #####Output Format
 **Syntax:** *outputformat=*[json|raw|kv|csv|tsv|pipe]
