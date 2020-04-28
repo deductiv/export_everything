@@ -61,7 +61,7 @@ class s3ep(ReportingCommand):
 		**Syntax:** **outputfile=***<file name>*
 		**Description:** The name of the file to be written to the S3 bucket
 		**Default:** The name of the user plus the timestamp and the output format, e.g. admin_1588000000.log
-			json=.json, csv=.csv, kvpairs=.log, raw=.log''',
+			json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log''',
 		require=False)
 
 	outputformat = Option(
@@ -74,8 +74,8 @@ class s3ep(ReportingCommand):
 	fields = Option(
 		doc='''
 		**Syntax:** **fields=***"field1, field2, field3"*
-		**Description:** The fields to be written to the S3 file
-		**Default:** All''',
+		**Description:** Limit the fields to be written to the S3 file
+		**Default:** All (Unspecified)''',
 		require=False, validate=validators.List()) 
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
@@ -155,7 +155,9 @@ class s3ep(ReportingCommand):
 		file_extensions = {
 			'raw':  '.log',
 			'kv':   '.log',
+			'pipe': '.log',
 			'csv':  '.csv',
+			'tsv':  '.tsv',
 			'json': '.json'
 		}
 
