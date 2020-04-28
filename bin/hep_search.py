@@ -9,11 +9,10 @@
 from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()
-#import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
-#import httplib2
 import logging
 import sys, os
 import time
+from splunk.clilib import cli_common as cli
 
 # Add lib folder to import path
 path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib')
@@ -21,7 +20,6 @@ sys.path.append(path_prepend)
 
 import splunklib.client as client
 import splunklib.results as results
-from splunk.clilib import cli_common as cli
 from splunklib.searchcommands import StreamingCommand, dispatch, Configuration, Option, validators
 from CsvResultParser import *
 from deductiv_helpers import *
@@ -37,9 +35,9 @@ class hep(StreamingCommand):
 	doc='''
 	**Syntax:**
 	search | hep host=[host_value|$host_field$]
-	         source=[source_value|$source_field$]
-	         sourcetype=[sourcetype_value|$sourcetype_field$]
-	         index=[index_value|$index_field$] 
+			source=[source_value|$source_field$]
+			sourcetype=[sourcetype_value|$sourcetype_field$]
+			index=[index_value|$index_field$] 
 
 	**Description**
 	Push Splunk events to an HTTP listener (such as Splunk HEC) over JSON.
@@ -122,17 +120,22 @@ class hep(StreamingCommand):
 		dispatch = self._metadata.searchinfo.dispatch_dir
 
 		try:
-	 		cfg = cli.getConfStanza('alert_actions','hep')
-	 		#logger.debug(str(cfg))
-			hec_token = cfg['param.api.hec_token']
-			hec_host = cfg['param.api.hec_host']
-	 	except BaseException as e:
-	 		logger.critical("Error reading app configuration. No target servers: " + repr(e))
-	 		exit(1)
+			cfg = cli.getConfStanza('hep','hec')
+			#logger.debug(str(cfg))
+			hec_token = cfg['hec_token']
+			hec_host = cfg['hec_host']
+			hec_port = cfg['hec_port']
+			hec_ssl = cfg['hec_ssl']
+		except BaseException as e:
+			logger.critical("Error reading target server configuration: " + repr(e))
+			exit(1)
 
+		if len(hec_host) == 0:
+			logger.critical("No host specified. Exiting.")
+			exit(1)
 
 		# Create HEC object
-		hec = http_event_collector(hec_token, hec_host)
+		hec = http_event_collector(hec_token, hec_host, http_event_port=hec_port, http_event_server_ssl=hec_ssl)
 
 		# Special event key fields that can be specified/overridden in the alert action
 		meta_keys = ['source', 'sourcetype', 'host', 'index']

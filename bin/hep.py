@@ -22,6 +22,7 @@ sys.path.append(path_prepend)
 # Use the library from George Starcher for HTTP Event Collector
 # https://github.com/georgestarcher/Splunk-Class-httpevent
 from splunk_http_event_collector.http_event_collector import http_event_collector
+from splunk.clilib import cli_common as cli
 from CsvResultParser import *
 from deductiv_helpers import *
 
@@ -30,7 +31,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 
 	# Setup the logging handler
 	logger = setup_logger('INFO', 'hep.log')
-	logger.debug("HEP alert action called")
+	logger.info("HEP alert action called")
 
 	try:
 		stdin = sys.stdin.read()
@@ -70,8 +71,16 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 
 	logger.debug("Imported config: %s" % config)
 	logger.debug(args)
-	hec_token = config['api.hec_token']
-	hec_host = config['api.hec_host']
+
+	try:
+		cfg = cli.getConfStanza('hep','hec')
+		hec_token = cfg['hec_token']
+		hec_host = cfg['hec_host']
+		hec_port = cfg['hec_port']
+		hec_ssl = cfg['hec_ssl']
+	except BaseException as e:
+		logger.critical("Error reading target server configuration: " + repr(e))
+		exit(1)
 
 	# Special event key fields that can be specified/overridden in the alert action
 	meta_keys = ['source', 'sourcetype', 'host', 'index']
@@ -85,9 +94,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	url = server_uri + search_uri + '?output_mode=json'
 	logging.debug("Connecting to URL: %s" % url)
 
-	## !!! Make validation optional later
-	#rest_http = httplib2.Http(disable_ssl_certificate_validation=True)
-	#rest_resp, rest_content = rest_http.request(url, 'GET', headers={'Authorization': 'Splunk %s' % session_key, 'Accept': 'application/json'})
+	# Get the configuration of the search from the server
 	rest_content, rest_resp = request('GET', url, '', {'Authorization': 'Splunk %s' % session_key, 'Accept': 'application/json'})
 	logger.debug("REST response: %s" % str(rest_resp))
 
@@ -95,19 +102,21 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	rest_content = rest_content['entry'][0]['content']
 	#logger.debug("REST content: %s" % json.dumps(rest_content))
 
-	# Parse the real config arguments for variables from the saved search
+	# Parse the real alert action config arguments for variables from the saved search
+	# Create a dict with field:value pairs, e.g. source:source (target field:source data/search results field name)
 	output_meta_fromevent = {}
 	for k in meta_keys:
 		okey = 'action.hep.param.output_' + k
 		if okey in list(rest_content.keys()):
-			if '$result.' in rest_content[okey]:
+			#logger.debug("REST response okey field " + okey + " is " + rest_content[okey])
+			if '$result.' in rest_content[okey] or rest_content[okey] == "$name$" or rest_content[okey] == "$savedsearch_name$":
 				output_meta_fromevent[k] = rest_content[okey].replace("$", "").replace("result.", "")
-		
+	
 	logger.debug("Source event meta fields: %s" % output_meta_fromevent)
 	logger.debug("Search results: %s" % json.dumps(results))
 	
 	# Create HEC object
-	hec = http_event_collector(hec_token, hec_host)
+	hec = http_event_collector(hec_token, hec_host, http_event_port=hec_port, http_event_server_ssl=hec_ssl)
 
 	for event in results:
 		#logger.debug("Event: %s" % event)
@@ -121,6 +130,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 		
 		# Remove conflicts for source/sourcetype/index/host
 		for k in meta_keys:
+			# Output key
 			okey = 'output_'+ k
 			# If the event contains a meta field
 			if k in list(event.keys()):
@@ -129,9 +139,12 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 					# Field is in the event and in the alert action config. Use the alert action config value.
 					# Find variables to substitute
 					#logger.debug("Checking for %s field in event" % output_meta_fromevent[k])
-					payload.update({ k: event[output_meta_fromevent[k]] })
+					if output_meta_fromevent[k] == "savedsearch_name" or output_meta_fromevent[k] == "name":
+						payload.update({ k: savedsearch_name })
+					else:
+						payload.update({ k: event[output_meta_fromevent[k]] })
 				else:
-					# Field is in the event but not in the alert action config.  Use the event value.
+					# Field is in the event but not in the alert action config. Use the event value.
 					payload.update({ k: event[k] })
 				# Delete the field from the event, so it's not duplicated in the payload under the "event" field.
 				del(event[k])
