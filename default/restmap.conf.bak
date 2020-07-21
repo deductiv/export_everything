@@ -1,0 +1,24 @@
+[admin:hep]
+match=/hep
+members = hep_setup
+#members=hep_hec_config,hep_aws_config,hep_setup
+
+#[admin:hep_setup]
+#match=/hep_setup
+#members=hep_setup
+
+#[admin_external:hep_hec_config]
+#handlertype = python
+#handlerfile = hep_hec_config.py
+#handleractions = list, edit
+
+#[admin_external:hep_aws_config]
+#handlertype = python
+#handlerfile = hep_aws_config.py
+#handleractions = list, edit
+
+[admin_external:hep_setup]
+handlertype = python
+handlerfile = hep_setup.py
+handleractions = edit, list
+#capability = configure_hep

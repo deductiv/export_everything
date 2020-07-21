@@ -1,0 +1,103 @@
+<dashboard stylesheet="application.css">
+  <label>Documentation</label>
+  <row>
+    <panel>
+      <html>
+<body>
+  <style>
+     .dashboard-view-controls {
+        display: none !important;
+    }
+  </style>
+<h1>Event Push - Splunk Add-On by Deductiv</h1>
+<p>This app allows you to push Splunk search results to remote destinations.  Currently supports:</p>
+<ul>
+<li>Amazon Web Services (AWS) S3 Buckets (search command)</li>
+<li>Splunk HTTP Event Collector (alert action + search command)</li>
+</ul>
+<h2>AWS S3 Event Push Search Command (s3ep)</h2>
+<h3>Syntax</h3>
+<pre><code>search | s3ep credential=&lt;credential name&gt; bucket=&lt;bucket&gt; outputfile=&lt;[folder/]filename&gt; outputformat=[json|raw|kv|csv|tsv|pipe] compression=[true|false] fields=&lt;fields list&gt;</code></pre>
+<h3>Description</h3>
+<p>Push Splunk events to AWS S3 over JSON or raw text.  The S3 bucket can be configured in the app setup page or in hep.conf directly. It can be configured to use the assumed role of the search head EC2 instance, or up to 20 OAuth credentials can be configured.</p>
+<h3>Arguments</h3>
+<ul>
+<li>
+<h4>Credential</h4>
+<p><strong>Syntax:</strong> credential=&lt;credential name&gt;<br />
+<strong>Description:</strong> The name/alias of the configured credential<br />
+<strong>Default:</strong> The credential specified in the "default_credential" setting in hep.conf will be used. This can be specified in the file by ID (e.g. credential1) or alias. If none is set and use_arn is enabled in the configuration, the assumed role of the local EC2 instance will be used.  </p>
+</li>
+<li>
+<h4>Bucket</h4>
+<p><strong>Syntax:</strong> bucket=&lt;bucket name&gt;<br />
+<strong>Description:</strong> The name of the destination S3 bucket<br />
+<strong>Default:</strong> The bucket name defined in hep.conf, aws stanza  </p>
+</li>
+<li>
+<h4>Output File</h4>
+<p><strong>Syntax:</strong> outputfile=&lt;[folder/]file name&gt;<br />
+<strong>Description:</strong> The name of the file to be written to the S3 bucket. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.<br />
+<strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log<br />
+<strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.  </p>
+</li>
+<li>
+<h4>Output Format</h4>
+<p><strong>Syntax:</strong> <em>outputformat=</em>[json|raw|kv|csv|tsv|pipe]<br />
+<strong>Description:</strong> The format written for the output events/search results<br />
+<strong>Default:</strong> <em>csv</em>  </p>
+</li>
+<li>
+<h4>Fields</h4>
+<p><strong>Syntax:</strong> <em>fields=</em>"field1, field2, field3"<br />
+<strong>Description:</strong> Limit the fields to be written to the S3 file<br />
+<strong>Default:</strong> All (Unspecified)  </p>
+</li>
+<li>
+<h4>Compression</h4>
+<p><strong>Syntax:</strong> <em>compression=</em>[true|false]<br />
+<strong>Description:</strong> Compress the output into a .gz file before uploading to S3<br />
+<strong>Default:</strong> false, unless outputfile ends in .gz  </p>
+</li>
+</ul>
+<h2>Splunk HEC Event Push Search Command (hep)</h2>
+<h3>Syntax</h3>
+<pre><code>search | hep host=[host_value|$host_field$] source=[source_value|$source_field$] sourcetype=[sourcetype_value|$sourcetype_field$] index=[index_value|$index_field$]</code></pre>
+<h3>Description</h3>
+<p>Push Splunk events to an HTTP listener (such as Splunk HEC) over JSON.</p>
+<h4>Arguments</h4>
+<ul>
+<li>
+<h4>Host</h4>
+<p><strong>Syntax:</strong> host=[host_value|$host_field$]<br />
+<strong>Description:</strong> Field or string to be assigned to the host field on the pushed event<br />
+<strong>Default:</strong> $host$, or if not defined, the hostname of the sending host (from inputs.conf)  </p>
+</li>
+<li>
+<h4>Source</h4>
+<p><strong>Syntax:</strong> source=[source_value|$source_field$]<br />
+<strong>Description:</strong> Field or string to be assigned to the source field on the pushed event<br />
+<strong>Default:</strong> $source$, or if not defined, it is omitted  </p>
+</li>
+<li>
+<h4>Sourcetype</h4>
+<p><strong>Syntax:</strong> sourcetype=[sourcetype_value|$sourcetype_field$]<br />
+<strong>Description:</strong> Field or string to be assigned to the sourcetype field on the pushed event<br />
+<strong>Default:</strong> $sourcetype$, or if not defined, json  </p>
+</li>
+<li>
+<h4>Index</h4>
+<p><strong>Syntax:</strong> index=[index_value|$index_field$]<br />
+<strong>Description:</strong> The remote index in which to store the pushed event<br />
+<strong>Default:</strong> $index$, or if not defined, the remote endpoint's default.  </p>
+</li>
+</ul>
+<h1>Support</h1>
+<p>Having trouble with the app? Feel free to <a href="mailto:contact@deductiv.net">email us</a> and we’ll help you sort it out. You can also <a href="https://splunk-usergroups.slack.com/team/U30E9LS79">reach the author</a> on the Splunk Community Slack.</p>
+<h1>Roadmap</h1>
+<p>We welcome your input on our app feature roadmap, which can be found on <a href="https://trello.com/b/YbFOsuKJ/deductiv-http-event-push-app-for-splunk">Trello</a>.</p>
+</body>
+</html>
+    </panel>
+  </row>
+</dashboard>

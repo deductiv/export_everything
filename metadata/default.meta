@@ -1,4 +1,7 @@
 []
 export = system
-access = read : [ admin ], write : [ admin ]
+access = read : [ admin, power, user ], write : [ admin, power ]
+
+[views]
+export = none
 
