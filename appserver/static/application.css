@@ -1,0 +1,107 @@
+:root {
+    --level1-color: #426E86;
+    --level1-color-alt: #426E86;
+    --level2-color: #42B8D7;
+    --level2-color-alt: #42B8D7;
+    --level3-color: #87352F;
+    --level3-color-alt: #914944;
+    --level4-color: #426E86;
+
+}
+
+/* Splunk 7.1+ navigation bar color */
+.splunk-header.splunk-view.splunk-header.splunk-view > div[data-view="views/shared/appbar/Master"] {
+    background-color: #426E86;
+}
+
+h1 {
+    color: var(--level1-color);
+    clear: both;
+    padding-top: 15px;
+    padding-bottom: 25px;
+    font-size: 24px !important;
+}
+h2 {
+    color: var(--level2-color);
+    clear: both;
+    padding-bottom: 15px;
+    padding-top: 15px;
+    /*width: 275px;*/
+    /*text-align: right;*/
+    margin-left: 50px;
+    font-size: 18px !important;
+    font-weight: bold !important;
+}
+h3 {
+    color: var(--level3-color);
+    font-size: 16px !important;
+}
+h4 {
+    color: var(--level4-color);
+    font-size: 14px !important;
+}
+hr {
+    clear: both;
+    height: 3px;
+    background: var(--level3-color);
+    width: 600px;
+    margin-left: 5%;
+}
+code {
+    color: var(--level1-color);
+}
+.form-horizontal {
+    margin-left: 50px !important;
+}
+.form .control-label {
+    float: left;
+    width: 220px;
+    padding-top: 5px;
+    text-align: right;
+    clear: both;
+}
+.form input, .form select {
+    float: left;
+    margin-left: 25px !important;
+    margin-bottom: 15px;
+}
+.form input[type=text], .form input[type=password], .form select {
+    width: 350px;
+}
+.form input[type=checkbox] {
+    margin-top: 8px;
+    text-align: left;
+}
+.modal-footer {
+    clear: both;
+    width: 570px;
+    margin-left: 50px;
+}
+.custom-btn {
+    background-color: var(--level3-color) !important;
+}
+.custom-btn:hover {
+    background-color: var(--level3-color-alt) !important;
+}
+.credential-btn {
+    margin-left: 25px;
+}
+#credential_delete {
+    position: relative;
+    top: 20px;
+    left: -96px;
+}
+#cred_id {
+    margin-bottom: 0px;
+}
+#credentials_footnote {
+    clear: both;
+    margin-left: 300px;
+    margin-top: 0;
+    padding-top: 0;
+}
+.result_message {
+    color: var(--level3-color);
+    font-weight: bold;
+    margin-top: -15px;
+}

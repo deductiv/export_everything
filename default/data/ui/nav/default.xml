@@ -1,0 +1,5 @@
+<nav search_view="search" color="#426E86">
+  <view name="documentation" default='true' />
+  <view name="setup" />
+  <view name="search" />
+</nav>

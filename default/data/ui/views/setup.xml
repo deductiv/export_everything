@@ -1,0 +1,79 @@
+<dashboard script="setup.js" stylesheet="application.css">
+  <label>App Setup</label>
+  <row>
+    <panel>
+      <html>
+<body>
+  <style>
+     .dashboard-view-controls {
+        display: none !important;
+    }
+  </style>
+<form action="/en-US/splunkd/__raw/servicesNS/nobody/deductiv_hep/deductiv/hep_setup">
+  <div class="form form-horizontal form-complex">
+    <h1>HTTP Event Collector Event Push (hep)</h1>
+    <p id="hec_message" class="result_message" style="display: none"></p>
+    <label class="control-label" for="hec_host">Destination Host</label>
+    <input class="controls controls-block controls_text" type="text" id="hec_host"/>
+    
+    <label class="control-label" for="hec_port">Destination Port (Default 8088)</label>
+    <input class="controls controls-block controls_text" type="text" id="hec_port"/>
+    
+    <label class="control-label" for="hec_token">Destination Host Token Value</label>
+    <input class="controls controls-block controls_text" type="text" id="hec_token"/>
+    
+    <label class="control-label" for="hec_ssl">SSL</label>
+    <input class="controls controls-block" type="checkbox" id="hec_ssl"/>
+  
+  </div>
+  <hr/>
+  <div class="form form-horizontal form-complex">
+    <h1>Amazon Web Services S3 Event Push (s3ep)</h1>
+    <p id="aws_message" class="result_message" style="display: none"></p>
+    
+    <label class="control-label" for="use_arn">Authenticate Using Assumed Role</label>
+    <input class="controls controls-block" type="checkbox" id="use_arn"/>
+    
+    <label class="control-label" for="default_s3_bucket">Default S3 Bucket</label>
+    <input class="controls controls-block controls_text" type="text" id="default_s3_bucket"/>
+    
+    <h2>AWS Credentials - New/Edit</h2>
+    
+    <label class="control-label" for="cred_alias">Credential Name/Alias</label>
+    <input class="controls controls-block controls_text" type="text" id="cred_alias"/>
+    
+    <label class="control-label" for="cred_accesskey">Access Key ID</label>
+    <input class="controls controls-block controls_text" type="text" id="cred_accesskey"/>
+    
+    <label class="control-label" for="cred_secretkey">Secret Access Key</label>
+    <input class="controls controls-block controls_text" type="password" id="cred_secretkey"/>
+    
+    <label class="control-label" for="cred_default">Set as Default</label>
+    <input class="controls controls-block" type="checkbox" id="cred_default"/>
+  </div>
+
+  <div class="form form-horizontal form-complex">
+    <h2>AWS Credentials - Configured</h2>
+    <label class="control-label" for="cred_id">Configured Credentials</label>
+    <select id="cred_id" size="10" style="height: 100%;"></select>
+    <input type="hidden" name="cred_id_hidden" id="cred_id_hidden"/>
+  </div>
+  <div id="credential_buttons"> 
+    <button type="button" id="credential_modify" class="btn credential-btn pull-left">Modify</button> <br/>
+    <button type="button" id="credential_delete" class="btn credential-btn pull-left">Delete</button>
+  </div>
+  <div>
+      <p id="credentials_footnote">* Default</p>
+  </div>
+  <div class="modal-footer">
+    <button type="button" id="setup_save" class="btn btn-primary custom-btn">Save</button>
+    <!--<input type="submit" class="btn btn-primary custom-btn" id="setup_save"/>-->
+  </div>
+
+</form>
+
+</body>
+</html>
+    </panel>
+  </row>
+</dashboard>

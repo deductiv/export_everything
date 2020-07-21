@@ -1,0 +1,8 @@
+[expose:hep]
+methods = GET,POST
+pattern = hep**
+
+[expose:hep_setup]
+methods = GET,POST
+pattern = hep_setup**
+

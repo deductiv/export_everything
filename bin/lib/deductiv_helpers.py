@@ -26,9 +26,11 @@ def get_credentials(app, session_key):
 	for i, c in list(entities.items()):
 		# c.keys() = ['clear_password', 'password', 'username', 'realm', 'eai:acl', 'encr_password']
 		credentials.append( {'realm': c["realm"], 'username': c["username"], "password": c["clear_password"] } )
-	return credentials
-
-	raise Exception("No credentials have been found")	
+	
+	if len(credentials) > 0:
+		return credentials
+	else:
+		raise Exception("No credentials have been found")	
 
 # HTTP request wrapper
 def request(method, url, data, headers):
