@@ -44,41 +44,8 @@ from deductiv_helpers import *
 import event_file
 import boto3
 
-
-########									########
-########  Start import code for decryption  ########
-########									########
-
-# Import the correct version of cryptography
-# https://pypi.org/project/cryptography/
-os_platform = platform.system()
-py_major_ver = sys.version_info[0]
-
-# Import the correct version
-if os_platform == 'Linux':
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
-	elif py_major_ver == 2:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_linux_x86_64')
-elif os_platform == 'Darwin':
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
-	elif py_major_ver == 2:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_darwin_x86_64')
-elif os_platform == 'Windows':
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
-	elif py_major_ver == 2:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_win_amd64')
-
-sys.path.append(path_prepend)
-#import cryptography
 # https://github.com/HurricaneLabs/splunksecrets/blob/master/splunksecrets.py
 from splunksecrets import decrypt
-
-########									########
-########  End import code for decryption    ########
-########									########
 
 def str2bool(v):
 	return str(v).lower() in ("yes", "y", "true", "t", "1") or v == 1
@@ -303,6 +270,7 @@ class s3ep(ReportingCommand):
 		
 		event_counter = 0
 		# Write the output file to disk in the dispatch folder
+		logger.debug("Writing events to file %s in %s format. Compression=%s\n\tfields=%s", local_output_file, self.outputformat, self.compression, self.fields)
 		for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compression):
 			yield event
 			event_counter += 1
@@ -392,4 +360,5 @@ class s3ep(ReportingCommand):
 		
 
 dispatch(s3ep, sys.argv, sys.stdin, sys.stdout, __name__)
+
 
