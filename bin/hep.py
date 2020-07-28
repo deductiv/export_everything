@@ -30,7 +30,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	script = os.path.basename(__file__)
 
 	# Setup the logging handler
-	logger = helpers.setup_logger('DEBUG', 'hep.log')
+	logger = helpers.setup_logger('INFO', 'hep.log')
 	logger.info("HEP alert action called")
 
 	try:

@@ -74,7 +74,7 @@ class SetupApp(admin.MConfigHandler):
 	# Update settings once they are saved by the user
 	def handleEdit(self, confInfo):
 		facility = 'edit'
-		logger = setup_logger('DEBUG', 'hep_setup.log') # pylint: disable=undefined-variable
+		logger = setup_logger('INFO', 'hep_setup.log') # pylint: disable=undefined-variable
 		logger.debug("Setup edit handler started")
 		# Read the splunk.secret file
 		with open(os.path.join(os.getenv('SPLUNK_HOME'), 'etc', 'auth', 'splunk.secret'), 'r') as ssfh:
