@@ -43,19 +43,19 @@
 </li>
 <li>
 <h4>Output Format</h4>
-<p><strong>Syntax:</strong> <em>outputformat=</em>[json|raw|kv|csv|tsv|pipe]<br />
+<p><strong>Syntax:</strong> outputformat=[json|raw|kv|csv|tsv|pipe]<br />
 <strong>Description:</strong> The format written for the output events/search results<br />
 <strong>Default:</strong> <em>csv</em>  </p>
 </li>
 <li>
 <h4>Fields</h4>
-<p><strong>Syntax:</strong> <em>fields=</em>"field1, field2, field3"<br />
+<p><strong>Syntax:</strong> fields="field1, field2, field3"<br />
 <strong>Description:</strong> Limit the fields to be written to the S3 file<br />
 <strong>Default:</strong> All (Unspecified)  </p>
 </li>
 <li>
 <h4>Compression</h4>
-<p><strong>Syntax:</strong> <em>compression=</em>[true|false]<br />
+<p><strong>Syntax:</strong> compression=[true|false]<br />
 <strong>Description:</strong> Compress the output into a .gz file before uploading to S3<br />
 <strong>Default:</strong> false, unless outputfile ends in .gz  </p>
 </li>
