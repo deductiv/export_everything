@@ -30,7 +30,7 @@ def flush_buffer_gzip(list, output_file):
 		f.writelines(list)
 
 def write_events_to_file(events, fields, local_output, outputformat, compression):
-	logger = dhelp.setup_logging('event_file')
+	logger = dhelp.setup_logging('hep')
 
 	# Buffer variables
 	buf = []
@@ -84,7 +84,11 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 				logger.warning("No raw field when raw output selected.")
 		elif outputformat == "csv" or outputformat == "tsv" or outputformat == "pipe":
 			for key, value in list(event.items()):
+				logger.debug("Key = %s, Value = %s", key, value)
 				if key in event_keys:
+					# Convert list to string value
+					if isinstance(value, list):
+						value = '"' + delimiter.join(value).replace('"', r'\"') + '"'
 					if outputformat == "csv":
 						# Escape any double-quotes
 						if '"' in value:

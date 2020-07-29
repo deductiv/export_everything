@@ -16,7 +16,7 @@ class CsvResultParser(object):
             raise Exception("File %s not found." % file_path)
 
         else:
-            with gzip.open(file_path) as fh:
+            with gzip.open(file_path, mode='rt') as fh:
                 reader = csv.DictReader(fh)
                 self.field_names = reader.fieldnames
                 for row in reader:

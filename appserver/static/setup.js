@@ -170,7 +170,19 @@ require([
 				assign_value_to_element(key, config.aws[key]);
 			}
 		}
-		
+		if ( $('#cred_id').children('option').length == 0 ) {
+			next_credential = "credential1";
+		} else {
+			// Find the minimum unused ID # for the next credential to be set
+			for ( var c=1; c<=20; c++ ) {
+				cs = 'credential' + c.toString();
+				// If this credential is not set for either config
+				if (!( config.aws[cs] )) {
+					next_credential = cs;
+					break;
+				}
+			}
+		}
 		for (var key in config.hec) {
 			if (config.hec[key] != undefined && config.hec[key].length > 0) {
 				//console.log('hec ' + key + ' = ' + config.hec[key]);

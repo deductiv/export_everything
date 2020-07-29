@@ -4,7 +4,7 @@
 # Push Splunk events to an HTTP listener (such as Splunk HEC) over JSON - Alert Action
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 1.02 (2020-04-24)
+# Version: 1.1.2 (2020-07-27)
 
 from __future__ import print_function
 from future import standard_library
@@ -23,14 +23,14 @@ sys.path.append(path_prepend)
 # https://github.com/georgestarcher/Splunk-Class-httpevent
 from splunk_http_event_collector.http_event_collector import http_event_collector
 from splunk.clilib import cli_common as cli
-from CsvResultParser import *
-from deductiv_helpers import *
+from CsvResultParser import CsvResultParser
+import deductiv_helpers as helpers
 
 if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	script = os.path.basename(__file__)
 
 	# Setup the logging handler
-	logger = setup_logger('INFO', 'hep.log')
+	logger = helpers.setup_logger('INFO', 'hep.log')
 	logger.info("HEP alert action called")
 
 	try:
@@ -95,7 +95,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	logging.debug("Connecting to URL: %s" % url)
 
 	# Get the configuration of the search from the server
-	rest_content, rest_resp = request('GET', url, '', {'Authorization': 'Splunk %s' % session_key, 'Accept': 'application/json'})
+	rest_content, rest_resp = helpers.request('GET', url, None, {'Authorization': 'Splunk %s' % session_key, 'Accept': 'application/json'})
 	logger.debug("REST response: %s" % str(rest_resp))
 
 	rest_content = json.loads(rest_content)
