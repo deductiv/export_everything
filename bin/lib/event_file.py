@@ -22,7 +22,7 @@ import deductiv_helpers as dhelp
 
 
 def flush_buffer(list, output_file):
-	with open(output_file, "a") as f:
+	with open(output_file, "ab") as f:
 		f.writelines(list)
 
 def flush_buffer_gzip(list, output_file):
@@ -73,7 +73,7 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 					header += field + delimiter
 				# Strip off the last delimiter
 				header = header[:-1] + '\n'
-				buf.append(header)
+				buf.append(header.encode('utf-8'))
 
 		output_text = ''
 		# Build the row of text
@@ -123,7 +123,7 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 				json_event = event
 			output_text = json.dumps(json_event)
 
-		buf.append(output_text + '\n')
+		buf.append((output_text + '\n').encode('utf-8'))
 		event_counter += 1
 		# Append text entry to list
 		if len(buf) == buffer_flush_count:
