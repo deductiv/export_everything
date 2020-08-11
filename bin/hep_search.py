@@ -14,9 +14,9 @@ import sys, os
 import time
 from splunk.clilib import cli_common as cli
 
-# Add lib folder to import path
-path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib')
-sys.path.append(path_prepend)
+# Add lib folders to import path
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 
 import splunklib.client as client
 import splunklib.results as results
