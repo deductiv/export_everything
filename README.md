@@ -27,15 +27,15 @@ Push Splunk events to AWS S3 over JSON or raw text.  The S3 bucket can be config
     **Default:** `app_username_epoch.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
     **Keywords:** `__now__`=epoch, `__today__`=date in yyyy-mm-dd format, `__nowft__`=timestamp in yyyy-mm-dd_hhmmss format.  
 - #### Output Format
-    **Syntax:** *outputformat=*[json|raw|kv|csv|tsv|pipe]  
+    **Syntax:** outputformat=[json|raw|kv|csv|tsv|pipe]  
     **Description:** The format written for the output events/search results  
     **Default:** *csv*  
 - #### Fields
-    **Syntax:** *fields=*"field1, field2, field3"  
+    **Syntax:** fields="field1, field2, field3"  
     **Description:** Limit the fields to be written to the S3 file  
     **Default:** All (Unspecified)  
 - #### Compression
-    **Syntax:** *compression=*[true|false]  
+    **Syntax:** compression=[true|false]  
     **Description:** Compress the output into a .gz file before uploading to S3  
     **Default:** false, unless outputfile ends in .gz  
 
