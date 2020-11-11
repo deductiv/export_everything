@@ -83,13 +83,10 @@ code {
 .custom-btn:hover {
     background-color: var(--level3-color-alt) !important;
 }
-.credential-btn {
-    margin-left: 25px;
-}
-#credential_delete {
-    position: relative;
-    top: 20px;
-    left: -96px;
+#credential_buttons {
+    width: 100px;
+    float: left;
+    margin-left:  25px;
 }
 #cred_id {
     margin-bottom: 0px;
@@ -103,5 +100,5 @@ code {
 .result_message {
     color: var(--level3-color);
     font-weight: bold;
-    margin-top: -15px;
+    /*margin-top: -15px;*/
 }

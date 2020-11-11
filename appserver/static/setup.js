@@ -114,14 +114,15 @@ require([
 			// Parse the credential
 			var [alias, username, password] = v.split(':');
 			if (alias != undefined && username != undefined && password != undefined ) {
-				if ( alias.length = 0 ) {
+				if ( alias.length == 0 ) {
 					alias = id;
 				}
+				var option_html;
 				// Put an asterisk next to the default credential
 				if ( default_credential == id || default_credential == alias ) {
-					var option_html = `<option value="${id}">${alias} *</option>`
+					option_html = `<option value="${id}">${alias} *</option>`;
 				} else {
-					var option_html = `<option value="${id}">${alias}</option>`
+					option_html = `<option value="${id}">${alias}</option>`;
 				}
 				// Append the option to the select box
 				$('#cred_id').append(option_html);
@@ -130,7 +131,7 @@ require([
 				for ( var c=1; c<=20; c++ ) {
 					cs = 'credential' + c.toString();
 					// If this credential is not set for either config
-					if (!( new_config['aws'][cs] || config['aws'][cs] )) {
+					if (!( new_config.aws[cs] || config.aws[cs] )) {
 						//console.log(cs + ' is not set');
 						next_credential = cs;
 						break;
@@ -148,7 +149,7 @@ require([
 	//var uri = Splunk.util.make_url(`/splunkd/__raw/servicesNS/nobody/${app}/deductiv/hep_setup?output_mode=json`);
 	var uri = Splunk.util.make_url(`/splunkd/__raw/servicesNS/nobody/${app}/hep/hep_setup?output_mode=json`);
 	var config = {};
-	var new_config = { aws: {}, hec: {} };
+	var new_config = { settings: {}, aws: {}, hec: {} };
 	var default_credential = null;
 	var next_credential;
 	var credential_num_pattern = /[0-9]{1,2}$/;
@@ -161,10 +162,16 @@ require([
 		checkbox_ids.push(cb.id);
 	});
 
-
 	function populate_form() {
 		// Populate the form values
-		for (var key in config.aws) {
+		var key;
+		for (key in config.settings) {
+			if (config.settings[key] != undefined && config.settings[key].length > 0) {
+				//console.log('hec ' + key + ' = ' + config.hec[key]);
+				assign_value_to_element(key, config.settings[key]);
+			}
+		}
+		for (key in config.aws) {
 			if (config.aws[key] != undefined && config.aws[key].length > 0) {
 				//console.log('aws ' + key + ' = ' + config.aws[key]);
 				assign_value_to_element(key, config.aws[key]);
@@ -183,7 +190,7 @@ require([
 				}
 			}
 		}
-		for (var key in config.hec) {
+		for (key in config.hec) {
 			if (config.hec[key] != undefined && config.hec[key].length > 0) {
 				//console.log('hec ' + key + ' = ' + config.hec[key]);
 				assign_value_to_element(key, config.hec[key]);
@@ -200,7 +207,7 @@ require([
 		});
 
 		// Get the default credential first
-		default_credential = config.aws['default_credential'];
+		default_credential = config.aws.default_credential;
 
 		// Populate the form values
 		populate_form();
@@ -209,12 +216,11 @@ require([
 		console.log("Failed with error: " + e.status); 
 	}); // end get/fail
 
-
 	// Clicked the AWS credential modify button
 	$(document).on('click', '#credential_modify', function(event) {
 		// Load the credential fields into the form
 		var cred_key = $( "#cred_id" ).val();
-		cred = config['aws'][cred_key];
+		cred = config.aws[cred_key];
 		//console.log(cred);
 		var [alias, username, password] = cred.split(':');
 
@@ -236,17 +242,17 @@ require([
 	$(document).on('click', '#credential_delete', function(event) {
 		// Load the credential fields from the form
 		var cred_key = $( "#cred_id" ).val();
-		cred = config['aws'][cred_key];
+		cred = config.aws[cred_key];
 		console.log(cred);
 		var [alias, username, password] = cred.split(':');
 
-		new_config['aws'][cred_key] = '';
+		new_config.aws[cred_key] = '';
 		// Unset the default if we're deleting the default credential
 		if ( default_credential == cred_key || default_credential == alias ) {
-			new_config['aws']['default_credential'] = '';
+			new_config.aws.default_credential = '';
 			default_credential = '';
 		}
-		console.log(new_config['aws']);
+		console.log(new_config.aws);
 		// Delete the option from the #cred_id select box
 		$( `#cred_id option[value="${cred_key}"]`).remove();
 	});
@@ -254,10 +260,9 @@ require([
 	$(document).on("click", "#setup_save", function(event){
 		// Button clicked
 		console.log("Saving configuration changes");
-			
-		//new_config = { aws: {}, hec: {} };
+		
 		checkboxes = $('input[type=checkbox]').toArray();
-		texts = $('input[type=text], input[type=password]').toArray();
+		texts = $('input[type=text], input[type=password], #log_level').toArray();
 		hiddens = $('input[type=hidden]').toArray();
 		
 		// See if a new credential is being added
@@ -271,40 +276,41 @@ require([
 				cred_key = next_credential;
 			}
 			asterisk_pattern = /^\*+$/;
+			var secret_key;
 			if ($('#cred_secretkey').val() != undefined && $('#cred_secretkey').val().match(asterisk_pattern) == null) {
 				// We have a newly entered value for secret key
-				var secret_key = $('#cred_secretkey').val().trim()
+				secret_key = $('#cred_secretkey').val().trim();
 			} else {
 				// Use the one from the originally downloaded config
-				var secret_key = config['aws'][cred_key].split(':')[2];
+				secret_key = config.aws[cred_key].split(':')[2];
 			}
 			// Concatenate the 3 values to make the credential
 			new_cred = $('#cred_alias').val().trim() + ':' + $('#cred_accesskey').val().trim() + ':' + secret_key;
 			// See if this is the same as configured before
-			if ( new_cred != config['aws'][cred_key] ) {
-				new_config['aws'][cred_key] = new_cred;
+			if ( new_cred != config.aws[cred_key] ) {
+				new_config.aws[cred_key] = new_cred;
 			}
 
-			if ( config['aws'][cred_key] != undefined ) {
-				original_alias = config['aws'][cred_key].split(':')[0];
+			if ( config.aws[cred_key] != undefined ) {
+				original_alias = config.aws[cred_key].split(':')[0];
 			}
 
 			// Check to see if we are setting this as the default credential
 			if ( bool($('#cred_default').prop('checked'))) {
 				default_credential = cred_key;
-				new_config['aws']['default_credential'] = default_credential;
+				new_config.aws.default_credential = default_credential;
 
 			// Get the original alias in case it matches the default_credential (default_credential can be alias or ID)
-			} else if (default_credential == cred_key || (config['aws'][cred_key] != undefined && default_credential == config['aws'][cred_key].split(':')[0] )) {
+			} else if (default_credential == cred_key || (config.aws[cred_key] != undefined && default_credential == config.aws[cred_key].split(':')[0] )) {
 				// Was it set before? If it was already set before, unset it.
 				default_credential = '';
-				new_config['aws']['default_credential'] = '';
+				new_config.aws.default_credential = '';
 			}
 			// Clear the form fields
 			cred_fields = ['cred_alias', 'cred_accesskey', 'cred_secretkey', 'cred_id_hidden'];
 			cred_fields.forEach(function(c) {
 				$('#' + c).val('');
-			})
+			});
 			$('#cred_default').prop('checked', false);
 
 			// Update the select box option
@@ -312,113 +318,85 @@ require([
 			assign_value_to_element(cred_key, new_cred);
 		}
 
-		hec_fields = ['hec_host', 'hec_token', 'hec_port', 'hec_ssl'];
-		aws_fields = ['use_arn', 'default_s3_bucket'];
+		fields = {
+			"settings": ['log_level'],
+			"hec": ['hec_host', 'hec_token', 'hec_port', 'hec_ssl'],
+			"aws": ['use_arn', 'default_s3_bucket']
+		};
 		
-		checkboxes.forEach(function(f) {
-			id = f.id;
-			if ( hec_fields.includes(id) ) {
-				val = $('#' + id).prop('checked');
-				// Check to see if the configuration has changed
-				console.log(JSON.stringify(config));
-				if ( config['hec'][id] != undefined ) {
-					if ( bool(val) != bool(config['hec'][id]) ) {
-						// If there has been a change, add to the new config
-						new_config['hec'][id] = val;
+		checkboxes.forEach(function(checkbox) {
+			id = checkbox.id;
+			for (var section in fields) {
+				if ( fields[section].includes(id) ) {
+					val = $('#' + id).prop('checked');
+					// Check to see if the configuration has changed
+					//console.log(JSON.stringify(config));
+					if ( config[section][id] != undefined ) {
+						if ( bool(val) != bool(config[section][id]) ) {
+							// If there has been a change, add to the new config
+							new_config[section][id] = val;
+						}
 					}
-				}
-			} else if ( aws_fields.includes(id) ) {
-				val = $('#' + id).prop('checked');
-				// Check to see if the configuration has changed
-				if ( bool(val) != bool(config['aws'][id]) ) {
-					// If there has been a change, add to the new config
-					new_config['aws'][id] = val;
 				}
 			}
 		});
 		
-		texts.forEach(function(f) {
-			id = f.id;
-			if ( hec_fields.includes(id) ) {
-				val = $('#' + id).val();
-				// Check to see if the configuration has changed
-				if ( val != config['hec'][id] && (val.length > 0 || config['hec'][id] > 0 )) {
-					new_config['hec'][id] = val;
+		texts.forEach(function(text) {
+			id = text.id;
+			for (var section in fields) {
+				if ( fields[section].includes(id) ) {
+					val = $('#' + id).val();
+					// Check to see if the configuration has changed
+					if ( val != config[section][id] && (val.length > 0 || config[section][id].length > 0 )) {
+						new_config[section][id] = val;
+					}
 				}
-			} else if ( aws_fields.includes(id) ) {
-				val = $('#' + id).val();
-				// Check to see if the configuration has changed
-				if ( val != config['aws'][id] && (val.length > 0 || config['aws'][id] > 0 )) {
-					new_config['aws'][id] = val;
-				}
-			} 
+			}
+		});
+		
+		Object.keys(fields).forEach(function (section) {
+			console.log('section = ' + section);
+			if (Object.keys(new_config[section]).length > 0 ) {
+				// Submit HEC settings
+				var uri = Splunk.util.make_url(`/splunkd/__raw/servicesNS/nobody/${app}/hep/hep_setup/${section}`);
+				var status_div = `#${section}_message`;
+				//console.log(JSON.stringify(new_config[section]));
+				$.ajax({
+					url: uri,
+					type: 'POST',
+					headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+					data: $.param(new_config[section]),
+					success: function (data) {
+						//console.log(data);
+						console.log(status_div);
+						// Update the screen to show this was successful
+						$(status_div).html(`The update to the ${section} configuration was successful.`);
+						$(status_div).show();
+						$('html, body').animate({ scrollTop: 0 }, 'fast');
+						// Fade out after 5 seconds
+						setTimeout(function(){ $(status_div).fadeOut(); }, 5000);
+					},
+					error: function(e) {
+						console.log(e);
+						// Update the screen to show this didn't work
+						$(status_div).html(`The update to the ${section} configuration failed: ${e}`);
+						$(status_div).show();
+					},
+					cache: false,
+					contentType: false,
+					processData: false
+				});
+			}
 		});
 
-		if (Object.keys(new_config.hec).length > 0 ) {
-			// Submit HEC settings
-			var uri = Splunk.util.make_url(`/splunkd/__raw/servicesNS/nobody/${app}/hep/hep_setup/hec`);
-			console.log(JSON.stringify(new_config.hec));
-			$.ajax({
-				url: uri,
-				type: 'POST',
-				headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-				data: $.param(new_config.hec),
-				success: function (data) {
-					//console.log(data);
-					// Update the screen to show this was successful
-					$('#hec_message').html('HEC configuration update successful.');
-					$('#hec_message').show();
-					// Fade out after 5 seconds
-					setTimeout(function(){ $('#hec_message').fadeOut(); }, 5000);
-				},
-				error: function(e) {
-					console.log(e);
-					// Update the screen to show this didn't work
-					$('#hec_message').html('The update to the HEC configuration failed: ' + e);
-					$('#hec_message').show();
-				},
-				cache: false,
-				contentType: false,
-				processData: false
-			});
-		}
-
-		if (Object.keys(new_config.aws).length > 0 ) {
-			// Submit AWS settings
-			var uri = Splunk.util.make_url(`/splunkd/__raw/servicesNS/nobody/${app}/hep/hep_setup/aws`);
-			console.log(JSON.stringify(new_config.aws));
-			$.ajax({
-				url: uri,
-				type: 'POST',
-				headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-				data: $.param(new_config.aws),
-				success: function (data) {
-					//console.log(data);
-					// Update the screen to show this was successful
-					$('#aws_message').html('AWS configuration update successful.');
-					$('#aws_message').show();
-					// Fade out after 5 seconds
-					setTimeout(function(){ $('#aws_message').fadeOut(); }, 5000);
-				},
-				error: function(e) {
-					console.log(e);
-					// Update the screen to show this didn't work
-					$('#aws_message').html('The update to the AWS configuration failed: ' + e);
-					$('#aws_message').show();
-				},
-				cache: false,
-				contentType: false,
-				processData: false,
-			});
-		} 
 		// Apply new_config to config
 		for (var key1 in new_config) {
 			for (var key2 in new_config[key1]) {
 				config[key1][key2] = new_config[key1][key2];
 			}
+			new_config[key1] = {};
 		}
-
-		new_config = { aws: {}, hec: {} };
+		
 		// Refresh the #cred_id select box
 		$('#cred_id').empty();
 		populate_form();

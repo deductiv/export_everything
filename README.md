@@ -1,6 +1,6 @@
-# Event Push - Splunk Add-On by Deductiv
+# ![App icon](static/appIcon.png) Event Push - Splunk Add-On by [Deductiv](https://www.deductiv.net/)  
 
-This app allows you to push Splunk search results to remote destinations.  Currently supports:
+This app uploads Splunk search results to remote destinations.  Currently supports:
 
 - Amazon Web Services (AWS) S3 Buckets (search command)
 - Splunk HTTP Event Collector (alert action + search command)

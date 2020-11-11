@@ -19,7 +19,7 @@
 # Push Splunk search results to AWS S3 - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 1.1.2 (2020-06-29)
+# Version: 1.1.3 (2020-11-11)
 
 from __future__ import print_function
 from builtins import str
@@ -30,17 +30,17 @@ import sys, os, platform
 import time, datetime
 import random
 import re
+from deductiv_helpers import setup_logger, eprint
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-
-import splunklib.client as client
-import splunklib.results as results
+# pylint: disable=import-error
 from splunk.clilib import cli_common as cli
 import splunk.entity as entity
+import splunklib.client as client
+import splunklib.results as results
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
-from deductiv_helpers import *
 import event_file
 import boto3
 
@@ -116,9 +116,23 @@ class s3ep(ReportingCommand):
 
 	#define main function
 	def reduce(self, events):
+
+		try:
+			cfg = cli.getConfStanza('hep','settings')
+		except BaseException as e:
+			raise Exception("Could not read configuration: " + repr(e))
+		
+		# Facility info - prepended to log lines
+		facility = os.path.basename(__file__)
+		facility = os.path.splitext(facility)[0]
+		try:
+			logger = setup_logger(cfg["log_level"], 'hep.log', facility)
+		except BaseException as e:
+			raise Exception("Could not create logger: " + repr(e))
+
 		#script = os.path.basename(__file__)
 
-		logger = setup_logging('hep')
+		#logger = setup_logging('hep')
 		logger.info('S3EP search command initiated')
 
 		# Enumerate proxy settings
@@ -142,20 +156,19 @@ class s3ep(ReportingCommand):
 		dispatch = self._metadata.searchinfo.dispatch_dir
 
 		try:
-			cfg = cli.getConfStanza('hep','aws')
-			logger.debug(str(cfg))
+			aws_cfg = cli.getConfStanza('hep','aws')
+			logger.debug(str(aws_cfg))
 		except BaseException as e:
 			logger.critical("Error reading app configuration. No target servers: " + repr(e))
 			exit(1)
 		
-		
 		# Check to see if we have credentials or if use_arn is specified
 		# Check first for credential being specified
-		if self.credential is not None or len(cfg['default_credential']) > 0:
+		if self.credential is not None or len(aws_cfg['default_credential']) > 0:
 			# A credential was given explicitly or a default is specified.
 			credentials = {}
-			logger.debug("Default credential: %s", str(cfg['default_credential']))
-			for key, value in list(cfg.items()):
+			logger.debug("Default credential: %s", str(aws_cfg['default_credential']))
+			for key, value in list(aws_cfg.items()):
 				if value is not None and len(value) > 0:
 					#logger.debug("Key string: " + key)
 					#logger.debug("Key value: " + value)
@@ -164,7 +177,7 @@ class s3ep(ReportingCommand):
 						default = False
 						try:
 							alias, username, password_encrypted = value.split(':')
-							if cfg['default_credential'] in [alias, key]:
+							if aws_cfg['default_credential'] in [alias, key]:
 								default = True
 							credentials[alias] = {
 								'username':				username,
@@ -213,12 +226,12 @@ class s3ep(ReportingCommand):
 				print("Could not find or decrypt the specified credential")
 				exit(230494)
 			
-		elif str2bool(cfg['use_arn']):
+		elif str2bool(aws_cfg['use_arn']):
 			logger.debug("Using ARN to connect")
 		
 		if self.bucket is None:
-			if 'default_s3_bucket' in list(cfg.keys()):
-				t = cfg['default_s3_bucket']
+			if 'default_s3_bucket' in list(aws_cfg.keys()):
+				t = aws_cfg['default_s3_bucket']
 				if t is not None and len(t) > 0:
 					self.bucket = t
 				else:
@@ -249,7 +262,7 @@ class s3ep(ReportingCommand):
 			logger.debug('Compression: %s', self.compression)
 		else:
 			try:
-				self.compression = cfg.get('compression')
+				self.compression = aws_cfg.get('compression')
 			except:
 				self.compression = False
 		
@@ -284,7 +297,7 @@ class s3ep(ReportingCommand):
 		
 		logger.debug("Staging file: %s" % local_output_file)
 
-		use_arn = cfg['use_arn']
+		use_arn = aws_cfg['use_arn']
 		random_number = str(random.randint(10000, 100000))
 
 		if self.credential is not None:

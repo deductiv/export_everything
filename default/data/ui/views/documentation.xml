@@ -5,8 +5,14 @@
       <html>
 <body>
   <style>
-     .dashboard-view-controls {
-        display: none !important;
+    .dashboard-view-controls {
+      display: none !important;
+    }
+    .option_block {
+      margin-bottom: 0;
+    }
+    li {
+      margin-top: 8px;
     }
   </style>
 <h1>Event Push - Splunk Add-On by Deductiv</h1>
@@ -24,40 +30,40 @@
 <ul>
 <li>
 <h4>Credential</h4>
-<p><strong>Syntax:</strong> credential=&lt;credential name&gt;<br />
-<strong>Description:</strong> The name/alias of the configured credential<br />
-<strong>Default:</strong> The credential specified in the "default_credential" setting in hep.conf will be used. This can be specified in the file by ID (e.g. credential1) or alias. If none is set and use_arn is enabled in the configuration, the assumed role of the local EC2 instance will be used.  </p>
+<p class="option_block"><strong>Syntax:</strong> credential=&lt;credential name&gt;</p>
+<p class="option_block"><strong>Description:</strong> The name/alias of the configured credential</p>
+<p class="option_block"><strong>Default:</strong> The credential specified in the "default_credential" setting in hep.conf will be used. This can be specified in the file by ID (e.g. credential1) or alias. If none is set and use_arn is enabled in the configuration, the assumed role of the local EC2 instance will be used.  </p>
 </li>
 <li>
 <h4>Bucket</h4>
-<p><strong>Syntax:</strong> bucket=&lt;bucket name&gt;<br />
-<strong>Description:</strong> The name of the destination S3 bucket<br />
-<strong>Default:</strong> The bucket name defined in hep.conf, aws stanza  </p>
+<p class="option_block"><strong>Syntax:</strong> bucket=&lt;bucket name&gt;</p>
+<p class="option_block"><strong>Description:</strong> The name of the destination S3 bucket</p>
+<p class="option_block"><strong>Default:</strong> The bucket name defined in hep.conf, aws stanza  </p>
 </li>
 <li>
 <h4>Output File</h4>
-<p><strong>Syntax:</strong> outputfile=&lt;[folder/]file name&gt;<br />
-<strong>Description:</strong> The name of the file to be written to the S3 bucket. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.<br />
-<strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log<br />
-<strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.  </p>
+<p class="option_block"><strong>Syntax:</strong> outputfile=&lt;[folder/]file name&gt;</p>
+<p class="option_block"><strong>Description:</strong> The name of the file to be written to the S3 bucket. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p>
+<p class="option_block"><strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log</p>
+<p class="option_block"><strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.  </p>
 </li>
 <li>
 <h4>Output Format</h4>
-<p><strong>Syntax:</strong> outputformat=[json|raw|kv|csv|tsv|pipe]<br />
-<strong>Description:</strong> The format written for the output events/search results<br />
-<strong>Default:</strong> <em>csv</em>  </p>
+<p class="option_block"><strong>Syntax:</strong> outputformat=[json|raw|kv|csv|tsv|pipe]</p>
+<p class="option_block"><strong>Description:</strong> The format written for the output events/search results</p>
+<p class="option_block"><strong>Default:</strong> <em>csv</em>  </p>
 </li>
 <li>
 <h4>Fields</h4>
-<p><strong>Syntax:</strong> fields="field1, field2, field3"<br />
-<strong>Description:</strong> Limit the fields to be written to the S3 file<br />
-<strong>Default:</strong> All (Unspecified)  </p>
+<p class="option_block"><strong>Syntax:</strong> fields="field1, field2, field3"</p>
+<p class="option_block"><strong>Description:</strong> Limit the fields to be written to the S3 file</p>
+<p class="option_block"><strong>Default:</strong> All (Unspecified)  </p>
 </li>
 <li>
 <h4>Compression</h4>
-<p><strong>Syntax:</strong> compression=[true|false]<br />
-<strong>Description:</strong> Compress the output into a .gz file before uploading to S3<br />
-<strong>Default:</strong> false, unless outputfile ends in .gz  </p>
+<p class="option_block"><strong>Syntax:</strong> compression=[true|false]</p>
+<p class="option_block"><strong>Description:</strong> Compress the output into a .gz file before uploading to S3</p>
+<p class="option_block"><strong>Default:</strong> false, unless outputfile ends in .gz  </p>
 </li>
 </ul>
 <h2>Splunk HEC Event Push Search Command (hep)</h2>
@@ -69,27 +75,27 @@
 <ul>
 <li>
 <h4>Host</h4>
-<p><strong>Syntax:</strong> host=[host_value|$host_field$]<br />
-<strong>Description:</strong> Field or string to be assigned to the host field on the pushed event<br />
-<strong>Default:</strong> $host$, or if not defined, the hostname of the sending host (from inputs.conf)  </p>
+<p class="option_block"><strong>Syntax:</strong> host=[host_value|$host_field$]</p>
+<p class="option_block"><strong>Description:</strong> Field or string to be assigned to the host field on the pushed event</p>
+<p class="option_block"><strong>Default:</strong> $host$, or if not defined, the hostname of the sending host (from inputs.conf)  </p>
 </li>
 <li>
 <h4>Source</h4>
-<p><strong>Syntax:</strong> source=[source_value|$source_field$]<br />
-<strong>Description:</strong> Field or string to be assigned to the source field on the pushed event<br />
-<strong>Default:</strong> $source$, or if not defined, it is omitted  </p>
+<p class="option_block"><strong>Syntax:</strong> source=[source_value|$source_field$]</p>
+<p class="option_block"><strong>Description:</strong> Field or string to be assigned to the source field on the pushed event</p>
+<p class="option_block"><strong>Default:</strong> $source$, or if not defined, it is omitted  </p>
 </li>
 <li>
 <h4>Sourcetype</h4>
-<p><strong>Syntax:</strong> sourcetype=[sourcetype_value|$sourcetype_field$]<br />
-<strong>Description:</strong> Field or string to be assigned to the sourcetype field on the pushed event<br />
-<strong>Default:</strong> $sourcetype$, or if not defined, json  </p>
+<p class="option_block"><strong>Syntax:</strong> sourcetype=[sourcetype_value|$sourcetype_field$]</p>
+<p class="option_block"><strong>Description:</strong> Field or string to be assigned to the sourcetype field on the pushed event</p>
+<p class="option_block"><strong>Default:</strong> $sourcetype$, or if not defined, json  </p>
 </li>
 <li>
 <h4>Index</h4>
-<p><strong>Syntax:</strong> index=[index_value|$index_field$]<br />
-<strong>Description:</strong> The remote index in which to store the pushed event<br />
-<strong>Default:</strong> $index$, or if not defined, the remote endpoint's default.  </p>
+<p class="option_block"><strong>Syntax:</strong> index=[index_value|$index_field$]</p>
+<p class="option_block"><strong>Description:</strong> The remote index in which to store the pushed event</p>
+<p class="option_block"><strong>Default:</strong> $index$, or if not defined, the remote endpoint's default.  </p>
 </li>
 </ul>
 <h1>Support</h1>

@@ -16,7 +16,7 @@
 
 # REST endpoint for configuration via setup.xml
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 1.0
+# Version: 1.1.3 (2020-11-11)
 
 from builtins import str
 from builtins import range
@@ -24,17 +24,20 @@ import logging
 import sys, os, platform
 import re
 
-# Add lib folder to import path
-path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib')
-sys.path.append(path_prepend)
-import splunk.admin as admin 		# pylint: disable=import-error
-import splunk.entity as en 			# pylint: disable=import-error
-from deductiv_helpers import * 		# pylint: disable=import-error
+# Add lib folders to import path
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+# pylint: disable=import-error
+import splunk.admin as admin
+import splunk.rest as rest
+import splunk.entity as en
+from splunk.clilib import cli_common as cli
+from deductiv_helpers import setup_logger, eprint
 
 # https://github.com/HurricaneLabs/splunksecrets/blob/master/splunksecrets.py
 from splunksecrets import encrypt, encrypt_new
 
-options = ['hec_host', 'hec_token', 'hec_port', 'hec_ssl', 
+options = ['log_level', 'hec_host', 'hec_token', 'hec_port', 'hec_ssl', 
 	'use_arn', 'default_s3_bucket', 'default_credential']
 for i in range(1, 20):
 	options.append('credential' + str(i)) # credential1 through credential19
@@ -44,7 +47,7 @@ class SetupApp(admin.MConfigHandler):
 	# Set up supported arguments
 	def setup(self):
 		facility = 'setup'
-		logger = setup_logger('INFO', 'hep_setup.log') # pylint: disable=undefined-variable
+		logger = setup_logger('INFO', 'hep_setup.log', 'setup') # pylint: disable=undefined-variable
 		logger.debug("Setup setup started")
 		logger.debug("%s Requested action: %s", facility, (self.requestedAction))
 		if self.requestedAction == admin.ACTION_EDIT:
@@ -58,7 +61,7 @@ class SetupApp(admin.MConfigHandler):
 	# Read default settings
 	def handleList(self, confInfo):
 		facility = 'list'
-		logger = setup_logger('INFO', 'hep_setup.log') # pylint: disable=undefined-variable
+		logger = setup_logger('INFO', 'hep_setup.log', 'setup') # pylint: disable=undefined-variable
 		logger.info("Setup list handler started")
 		#logger.debug(str(list(self.supportedArgs.items())))
 		confDict = self.readConf("hep")
@@ -74,7 +77,7 @@ class SetupApp(admin.MConfigHandler):
 	# Update settings once they are saved by the user
 	def handleEdit(self, confInfo):
 		facility = 'edit'
-		logger = setup_logger('INFO', 'hep_setup.log') # pylint: disable=undefined-variable
+		logger = setup_logger('INFO', 'hep_setup.log', 'setup') # pylint: disable=undefined-variable
 		logger.debug("Setup edit handler started")
 		# Read the splunk.secret file
 		with open(os.path.join(os.getenv('SPLUNK_HOME'), 'etc', 'auth', 'splunk.secret'), 'r') as ssfh:

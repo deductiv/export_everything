@@ -10,9 +10,23 @@
     }
   </style>
 <form action="/en-US/splunkd/__raw/servicesNS/nobody/deductiv_hep/deductiv/hep_setup">
+
   <div class="form form-horizontal form-complex">
-    <h1>HTTP Event Collector Event Push (hep)</h1>
+
+    <p id="settings_message" class="result_message" style="display: none"></p>
+    <p id="aws_message" class="result_message" style="display: none"></p>
     <p id="hec_message" class="result_message" style="display: none"></p>
+    <h1>General Settings</h1>
+    <label class="control-label" for="log_level">Log Level</label>
+    <select class="controls controls-block controls_text" style="width: 150px" id="log_level">
+      <option value="DEBUG">Debug</option>
+      <option value="INFO">Info</option>
+      <option value="WARNING">Warning</option>
+      <option value="ERROR">Error</option>
+      <option value="CRITICAL">Critical</option>
+    </select>
+
+    <h1>HTTP Event Collector Event Push (hep)</h1>
     <label class="control-label" for="hec_host">Destination Host</label>
     <input class="controls controls-block controls_text" type="text" id="hec_host"/>
     
@@ -29,7 +43,6 @@
   <hr/>
   <div class="form form-horizontal form-complex">
     <h1>Amazon Web Services S3 Event Push (s3ep)</h1>
-    <p id="aws_message" class="result_message" style="display: none"></p>
     
     <label class="control-label" for="use_arn">Authenticate Using Assumed Role</label>
     <input class="controls controls-block" type="checkbox" id="use_arn"/>

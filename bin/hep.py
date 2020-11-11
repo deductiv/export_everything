@@ -4,7 +4,7 @@
 # Push Splunk events to an HTTP listener (such as Splunk HEC) over JSON - Alert Action
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 1.1.2 (2020-07-27)
+# Version: 1.1.3 (2020-11-11)
 
 from __future__ import print_function
 from future import standard_library
@@ -13,25 +13,32 @@ from builtins import str
 import os, sys
 import json
 import time
-import logging
 
-# Add lib folder to import path
-path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib')
-sys.path.append(path_prepend)
-
-# Use the library from George Starcher for HTTP Event Collector
-# https://github.com/georgestarcher/Splunk-Class-httpevent
-from splunk_http_event_collector.http_event_collector import http_event_collector
+# Add lib folders to import path
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+# pylint: disable=import-error
 from splunk.clilib import cli_common as cli
 from CsvResultParser import CsvResultParser
+from splunk_http_event_collector.http_event_collector import http_event_collector # https://github.com/georgestarcher/Splunk-Class-httpevent
 import deductiv_helpers as helpers
 
 if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	script = os.path.basename(__file__)
 
-	# Setup the logging handler
-	logger = helpers.setup_logger('INFO', 'hep.log')
-	logger.info("HEP alert action called")
+	try:
+		cfg = cli.getConfStanza('hep','settings')
+	except BaseException as e:
+		raise Exception("Could not read configuration: " + repr(e))
+	
+	# Facility info - prepended to log lines
+	facility = os.path.basename(__file__)
+	facility = os.path.splitext(facility)[0]
+	try:
+		logger = helpers.setup_logger(cfg["log_level"], 'hep.log', facility)
+		logger.info("HEP alert action called")
+	except BaseException as e:
+		raise Exception("Could not create logger: " + repr(e))
 
 	try:
 		stdin = sys.stdin.read()
@@ -48,7 +55,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 		owner = args['owner']
 		logger.info("%s called by %s/%s for user %s" % (script, app, savedsearch_name, owner))
 	except BaseException as e:
-		logger.error("Couldn't log script startup: %s", e.message)
+		logger.error("Couldn't log script startup: %s", repr(e))
 
 	http_proxy = os.environ.get('HTTP_PROXY')
 	https_proxy = os.environ.get('HTTPS_PROXY')
@@ -92,10 +99,10 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 	# Make sure Splunk didn't feed us substituted values for all events from event #1
 	# Query the REST API for the search endpoint
 	url = server_uri + search_uri + '?output_mode=json'
-	logging.debug("Connecting to URL: %s" % url)
+	logger.debug("Connecting to URL: %s" % url)
 
 	# Get the configuration of the search from the server
-	rest_content, rest_resp = helpers.request('GET', url, None, {'Authorization': 'Splunk %s' % session_key, 'Accept': 'application/json'})
+	rest_content, rest_resp = helpers.request('GET', url, '', {'Authorization': 'Splunk %s' % session_key, 'Accept': 'application/json'})
 	logger.debug("REST response: %s" % str(rest_resp))
 
 	rest_content = json.loads(rest_content)
