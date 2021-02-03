@@ -19,6 +19,7 @@
 <p>This app allows you to push Splunk search results to remote destinations.  Currently supports:</p>
 <ul>
 <li>Amazon Web Services (AWS) S3 Buckets (search command)</li>
+<li>Box.com (search command)</li>
 <li>Splunk HTTP Event Collector (alert action + search command)</li>
 </ul>
 <h2>AWS S3 Event Push Search Command (s3ep)</h2>
@@ -63,6 +64,45 @@
 <h4>Compression</h4>
 <p class="option_block"><strong>Syntax:</strong> compression=[true|false]</p>
 <p class="option_block"><strong>Description:</strong> Compress the output into a .gz file before uploading to S3</p>
+<p class="option_block"><strong>Default:</strong> false, unless outputfile ends in .gz  </p>
+</li>
+</ul>
+<h2>Box Event Push Search Command (boxep)</h2>
+<h3>Syntax</h3>
+<pre><code>search | boxep folder=&lt;/folder&gt; outputfile=&lt;filename&gt; outputformat=[json|raw|kv|csv|tsv|pipe] compression=[true|false] fields=&lt;fields list&gt;</code></pre>
+<h3>Description</h3>
+<p>Push Splunk events to Box over JSON or raw text. Box must be configured with a Custom App using Server Authentication (with JWT) and a certificate generated. Once that is complete, the app must be submitted for approval by the administrator.</p>
+<h3>Arguments</h3>
+<ul>
+<li>
+<h4>Folder</h4>
+<p class="option_block"><strong>Syntax:</strong> folder=&lt;folder path&gt;</p>
+<p class="option_block"><strong>Description:</strong> The name of the destination folder</p>
+<p class="option_block"><strong>Default:</strong> /</p>
+</li>
+<li>
+<h4>Output File</h4>
+<p class="option_block"><strong>Syntax:</strong> outputfile=&lt;file name&gt;</p>
+<p class="option_block"><strong>Description:</strong> The name of the file to be written to the Box folder. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p>
+<p class="option_block"><strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log</p>
+<p class="option_block"><strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.  </p>
+</li>
+<li>
+<h4>Output Format</h4>
+<p class="option_block"><strong>Syntax:</strong> outputformat=[json|raw|kv|csv|tsv|pipe]</p>
+<p class="option_block"><strong>Description:</strong> The format written for the output events/search results</p>
+<p class="option_block"><strong>Default:</strong> <em>csv</em>  </p>
+</li>
+<li>
+<h4>Fields</h4>
+<p class="option_block"><strong>Syntax:</strong> fields="field1, field2, field3"</p>
+<p class="option_block"><strong>Description:</strong> Limit the fields to be written to the output file</p>
+<p class="option_block"><strong>Default:</strong> All (Unspecified)  </p>
+</li>
+<li>
+<h4>Compression</h4>
+<p class="option_block"><strong>Syntax:</strong> compression=[true|false]</p>
+<p class="option_block"><strong>Description:</strong> Compress the output into a .gz file before uploading to Box</p>
 <p class="option_block"><strong>Default:</strong> false, unless outputfile ends in .gz  </p>
 </li>
 </ul>

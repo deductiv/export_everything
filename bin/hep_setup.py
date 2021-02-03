@@ -16,7 +16,7 @@
 
 # REST endpoint for configuration via setup.xml
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 1.1.3 (2020-11-11)
+# Version: 1.1.5 (2021-02-03)
 
 from builtins import str
 from builtins import range
@@ -38,7 +38,8 @@ from deductiv_helpers import setup_logger, eprint
 from splunksecrets import encrypt, encrypt_new
 
 options = ['log_level', 'hec_host', 'hec_token', 'hec_port', 'hec_ssl', 
-	'use_arn', 'default_s3_bucket', 'default_credential']
+	'use_arn', 'default_s3_bucket', 'default_credential', 
+	'default_folder', 'enterpriseID', 'clientID', 'clientSecret', 'publicKeyID', 'privateKey', 'passphrase']
 for i in range(1, 20):
 	options.append('credential' + str(i)) # credential1 through credential19
 
@@ -77,7 +78,7 @@ class SetupApp(admin.MConfigHandler):
 	# Update settings once they are saved by the user
 	def handleEdit(self, confInfo):
 		facility = 'edit'
-		logger = setup_logger('INFO', 'hep_setup.log', 'setup') # pylint: disable=undefined-variable
+		logger = setup_logger('DEBUG', 'hep_setup.log', 'setup') # pylint: disable=undefined-variable
 		logger.debug("Setup edit handler started")
 		# Read the splunk.secret file
 		with open(os.path.join(os.getenv('SPLUNK_HOME'), 'etc', 'auth', 'splunk.secret'), 'r') as ssfh:
@@ -95,18 +96,21 @@ class SetupApp(admin.MConfigHandler):
 				new_config[k] = ''
 			else:
 				#logger.debug('%s Setting %s to %s', facility, k, v)
-				if k[:10] == 'credential' and not '$7$' in v:
+				if (k[:10] == 'credential' or k == 'clientSecret' or k == 'passphrase') and not '$7$' in v:
 					logger.debug('%s Value has an unencrypted password. Encrypting.', facility)
 					# Split the value into alias/username/password
-					alias, username, password = v.split(':')
 					#logger.debug(alias)
 					#logger.debug(username)
 					#logger.debug(password)
-					try:
-						v = alias + ":" + username + ":" + encrypt_new(splunk_secret, password)
-					except BaseException as e:
-						logger.error("%s Error saving encrypted password for %s: %s", facility, alias, repr(e))
-						continue
+					if k[:10] == 'credential':
+						try:
+							alias, username, password = v.split(':')
+							v = alias + ":" + username + ":" + encrypt_new(splunk_secret, password)
+						except BaseException as e:
+							logger.error("%s Error saving encrypted password for %s: %s", facility, alias, repr(e))
+							continue
+					else:
+						v = encrypt_new(splunk_secret, v)
 				new_config[k] = v
 		logger.debug("%s Writing new config for %s: %s", facility, config_id, str(new_config))
 		try:

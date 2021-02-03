@@ -141,6 +141,7 @@ require([
 		} else if (checkbox_ids.includes(id)) {
 			$('#' + id).prop('checked', bool(v));
 		} else {
+			v = v.replace(/(?:\\r|\\n)+/g, "\n");
 				$('#' + id).val(v);
 		}
 	}
@@ -149,7 +150,7 @@ require([
 	//var uri = Splunk.util.make_url(`/splunkd/__raw/servicesNS/nobody/${app}/deductiv/hep_setup?output_mode=json`);
 	var uri = Splunk.util.make_url(`/splunkd/__raw/servicesNS/nobody/${app}/hep/hep_setup?output_mode=json`);
 	var config = {};
-	var new_config = { settings: {}, aws: {}, hec: {} };
+	var new_config = { settings: {}, aws: {}, hec: {}, box: {} };
 	var default_credential = null;
 	var next_credential;
 	var credential_num_pattern = /[0-9]{1,2}$/;
@@ -194,6 +195,11 @@ require([
 			if (config.hec[key] != undefined && config.hec[key].length > 0) {
 				//console.log('hec ' + key + ' = ' + config.hec[key]);
 				assign_value_to_element(key, config.hec[key]);
+			}
+		}
+		for (key in config.box) {
+			if (config.box[key] != undefined && config.box[key].length > 0) {
+				assign_value_to_element(key, config.box[key]);
 			}
 		}
 	}
@@ -321,7 +327,8 @@ require([
 		fields = {
 			"settings": ['log_level'],
 			"hec": ['hec_host', 'hec_token', 'hec_port', 'hec_ssl'],
-			"aws": ['use_arn', 'default_s3_bucket']
+			"aws": ['use_arn', 'default_s3_bucket'],
+			"box": ['default_folder', 'enterpriseID', 'clientID', 'clientSecret', 'publicKeyID', 'privateKey', 'passphrase']
 		};
 		
 		checkboxes.forEach(function(checkbox) {
@@ -345,7 +352,7 @@ require([
 			id = text.id;
 			for (var section in fields) {
 				if ( fields[section].includes(id) ) {
-					val = $('#' + id).val();
+					val = $('#' + id).val().replace(/[\r\n]+/g, "\\n");
 					// Check to see if the configuration has changed
 					if ( val != config[section][id] && (val.length > 0 || config[section][id].length > 0 )) {
 						new_config[section][id] = val;

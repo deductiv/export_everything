@@ -60,12 +60,12 @@ code {
     text-align: right;
     clear: both;
 }
-.form input, .form select {
+.form input, .form select, .form textarea {
     float: left;
     margin-left: 25px !important;
     margin-bottom: 15px;
 }
-.form input[type=text], .form input[type=password], .form select {
+.form input[type=text], .form input[type=password], .form textarea, .form select {
     width: 350px;
 }
 .form input[type=checkbox] {

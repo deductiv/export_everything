@@ -16,6 +16,7 @@
     <p id="settings_message" class="result_message" style="display: none"></p>
     <p id="aws_message" class="result_message" style="display: none"></p>
     <p id="hec_message" class="result_message" style="display: none"></p>
+    <p id="box_message" class="result_message" style="display: none"></p>
     <h1>General Settings</h1>
     <label class="control-label" for="log_level">Log Level</label>
     <select class="controls controls-block controls_text" style="width: 150px" id="log_level">
@@ -78,9 +79,37 @@
   <div>
       <p id="credentials_footnote">* Default</p>
   </div>
+  <hr/>
+  <div class="form form-horizontal form-complex">
+
+    <h1 style="padding-bottom: 5px;">Box (boxep)</h1>
+    <div style="width: 700px; padding-bottom: 15px;">
+      <p>In your <a href="https://app.box.com/developers/console/newapp">Box admin portal</a>, create a new Custom App with Server Authentication (with JWT) and create a new key pair to get this information. Then, submit the new app for authorization.</p>
+    </div>
+    <label class="control-label" for="default_folder">Default Folder</label>
+    <input class="controls controls-block controls_text" type="text" value="/" id="default_folder"/>
+    
+    <label class="control-label" for="enterpriseID">Enterprise ID</label>
+    <input class="controls controls-block controls_text" type="text" id="enterpriseID"/>
+    
+    <label class="control-label" for="clientID">Client ID</label>
+    <input class="controls controls-block controls_text" type="text" id="clientID"/>
+    
+    <label class="control-label" for="clientSecret">Client Secret</label>
+    <input class="controls controls-block controls_text" type="password" id="clientSecret"/>
+    
+    <label class="control-label" for="publicKeyID">Public Key ID</label>
+    <input class="controls controls-block controls_text" type="text" id="publicKeyID"/>
+    
+    <label class="control-label" for="privateKey">Private Key</label>
+    <textarea class="controls controls-block controls_text" id="privateKey"/>
+    
+    <label class="control-label" for="passphrase">Passphrase</label>
+    <input class="controls controls-block controls_text" type="password" id="passphrase"/>
+    
+  </div>
   <div class="modal-footer">
     <button type="button" id="setup_save" class="btn btn-primary custom-btn">Save</button>
-    <!--<input type="submit" class="btn btn-primary custom-btn" id="setup_save"/>-->
   </div>
 
 </form>
