@@ -39,6 +39,36 @@ Push Splunk events to AWS S3 over JSON or raw text.  The S3 bucket can be config
     **Description:** Compress the output into a .gz file before uploading to S3  
     **Default:** false, unless outputfile ends in .gz  
 
+## Box Event Push Search Command (boxep)
+### Syntax:
+    search | boxep folder=<folder path> outputfile=<filename> outputformat=[json|raw|kv|csv|tsv|pipe] compression=[true|false] fields=<fields list>
+
+### Description
+Push Splunk events to Box over JSON or raw text. Box must be configured with a Custom App using Server Authentication (with JWT) and a certificate generated. Once that is complete, the app must be submitted for approval by the administrator.
+
+### Arguments  
+- #### Folder  
+    **Syntax:** folder=&lt;folder path&gt;  
+    **Description:** The name of the destination folder  
+    **Default:** /  
+- #### Output File
+    **Syntax:** outputfile=&lt;file name&gt;  
+    **Description:** The name of the file to be written to the Box folder. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.  
+    **Default:** `app_username_epoch.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
+    **Keywords:** `__now__`=epoch, `__today__`=date in yyyy-mm-dd format, `__nowft__`=timestamp in yyyy-mm-dd_hhmmss format.  
+- #### Output Format
+    **Syntax:** outputformat=[json|raw|kv|csv|tsv|pipe]  
+    **Description:** The format written for the output events/search results  
+    **Default:** *csv*  
+- #### Fields
+    **Syntax:** fields="field1, field2, field3"  
+    **Description:** Limit the fields to be written to the output file  
+    **Default:** All (Unspecified)  
+- #### Compression
+    **Syntax:** compression=[true|false]  
+    **Description:** Compress the output into a .gz file before uploading to Box  
+    **Default:** false, unless outputfile ends in .gz  
+
 ## Splunk HEC Event Push Search Command (hep)
 ### Syntax:
     search | hep host=[host_value|$host_field$] source=[source_value|$source_field$] sourcetype=[sourcetype_value|$sourcetype_field$] index=[index_value|$index_field$]

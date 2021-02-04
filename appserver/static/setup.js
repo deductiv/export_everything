@@ -268,7 +268,7 @@ require([
 		console.log("Saving configuration changes");
 		
 		checkboxes = $('input[type=checkbox]').toArray();
-		texts = $('input[type=text], input[type=password], #log_level').toArray();
+		texts = $('input[type=text], input[type=password], #log_level, textarea').toArray();
 		hiddens = $('input[type=hidden]').toArray();
 		
 		// See if a new credential is being added
