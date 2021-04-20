@@ -6,7 +6,7 @@
     --level3-color: #87352F;
     --level3-color-alt: #914944;
     --level4-color: #426E86;
-
+    --white-color: #fff;
 }
 
 /* Splunk 7.1+ navigation bar color */
@@ -52,6 +52,7 @@ code {
 }
 .form-horizontal {
     margin-left: 50px !important;
+    overflow: auto;
 }
 .form .control-label {
     float: left;
@@ -74,14 +75,15 @@ code {
 }
 .modal-footer {
     clear: both;
-    width: 570px;
-    margin-left: 50px;
 }
 .custom-btn {
     background-color: var(--level3-color) !important;
 }
 .custom-btn:hover {
     background-color: var(--level3-color-alt) !important;
+}
+#setup_save {
+    float:left;
 }
 #credential_buttons {
     width: 100px;
@@ -90,6 +92,7 @@ code {
 }
 #cred_id {
     margin-bottom: 0px;
+    height: 100%;
 }
 #credentials_footnote {
     clear: both;
@@ -102,3 +105,412 @@ code {
     font-weight: bold;
     /*margin-top: -15px;*/
 }
+
+/* Password field fillable */
+input.MuiInputBase-input.MuiInput-input[type="password"], .password_field {
+  font-family: monospace;
+}
+input.MuiInputBase-input.MuiInput-input[type="password"]::placeholder, .password_field::placeholder {
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+}
+/* Navigation tabs */
+.eventpush_setup, #tab_container {
+  height: 100%;
+  min-height: 550px;
+}
+#tab_container, #tab_container > div {
+    padding: 0px;
+    margin: 0px;
+    height: 100%;
+    background-color: var(--white-color);
+}
+
+#tabs > div > div {
+    margin-bottom: 0px;
+}
+#tabs_list {
+  height: 100%;
+  border-bottom: 0px;
+}
+
+/* Underline marks under tabs */
+.nav-tabs > li.react-tabs__tab--selected > a:before {
+  height: 2px;
+  background-color: var(--level3-color);
+}
+.nav-tabs>li>a:before {
+  background-color: inherit;
+  -webkit-transition: none;
+  transition: none;
+}
+.tab-pane.react-tabs__tab-panel--selected {
+display: flex;
+padding-right: 50px;
+height: calc(100% - 26px);
+}
+.tab-pane, .tab-pane > div {
+background-color: var(--white-color);
+}
+
+/* Footer (below form/table) - deprecated */
+#setup_footer  {
+    margin-top: -5px; 
+    float: left; 
+    width: 100%;
+}
+#setup_footer_messages {
+    margin-top: -5px; 
+    float: left; 
+    width: 100%;
+}
+
+/* Dropdown formatting */
+.MuiSelect-root {
+  width: 150px;
+}
+.MuiListItem-root, .MuiSelect-root, .MuiMenuItem-root, .MuiFormControl-root, label.MuiFormLabel-root, label.MuiFormLabel-root.Mui-focused, .MuiTableCell-root.MuiTableCell-body {
+  font-family: "Splunk Platform Sans","Proxima Nova",Roboto,Droid,Helvetica Neue,Helvetica,Arial,sans-serif;
+  font-size: 12px;
+  transform: none !important;
+  transition: none !important;
+  color: rgba(0, 0, 0, 0.87);
+}
+/* Form inputs on General tab */
+label.MuiFormLabel-root {
+  padding-top: 10px;
+}
+.MuiInputBase-root {
+  font-family: "Splunk Platform Sans","Proxima Nova",Roboto,Droid,Helvetica Neue,Helvetica,Arial,sans-serif;
+  margin-left: 200px;
+  margin-top: 0px !important;
+  width: 150px;
+}
+.MuiMenuItem-root, .MuiInputBase-root, label.MuiFormLabel-root {
+  font-size: 14px !important;
+}
+
+/* Table formatting for Material-Table (React) */
+.MuiIconButton-root {
+  color: var(--level2-color) !important;
+  padding: 0 3px;
+
+}
+.MuiTableCell-head {
+  background-color: var(--level1-color);
+  padding: 0 3px;
+}
+input.MuiInputBase-input.MuiInput-input, textarea.MuiInputBase-input.MuiInput-input {
+  padding: 3px 5px;
+  margin-left: 0 !important;
+  margin-bottom: 0;
+  font-size: 12px;
+  width: 100%;
+}
+.MuiFormControl-root.MuiTextField-root {
+  width: 100%;
+}
+button.MuiButtonBase-root.MuiIconButton-root, .MuiInput-multiline.MuiInputBase-multiline {
+  padding: 0;
+}
+th.MuiTableCell-root.MuiTableCell-head {
+  padding: 5px 3px 1px 3px;
+  font-size: 12px;
+  text-align: bottom;
+  line-height: normal;
+}
+textarea.MuiInputBase-inputMultiline {
+  border: 1px solid #c3cbd4;
+  /*line-height: 24px;*/
+  color: #5c6773;
+  font-size: 10px;
+}
+td.MuiTableCell-root.MuiTableCell-body.MuiTableCell-alignLeft {
+  padding: 5px 3px;
+  font-size: 12px;
+}
+/* Action column */
+td:first-child.MuiTableCell-root.MuiTableCell-body > div {
+  width: 50%;
+  margin-left: 25%;
+}
+/* Table Checkbox */
+label.MuiFormControlLabel-root {
+  padding-left: 10px;
+}
+/* Text shown when clicking the delete button in the table */
+.MuiTypography-h6 {
+  font-size: 14px !important;
+}
+
+
+
+/********************** Borrowed from TA AWS for Tabs *********************/
+
+.main-section-body .nav-tabs {
+    margin-bottom:0;
+  }
+
+.navbar .nav > li > .dropdown-menu:before,
+.navbar .nav > li > .dropdown-menu:after
+{
+	display: none;
+}
+
+
+/*  Common styles */
+.nav-tabs:before,
+    .nav-tabs:after,
+    .nav-pills:before,
+    .nav-pills:after {
+  display: table;
+  content: "";
+  /*  Fixes Opera/contenteditable bug: */
+  /*  http://nicolasgallagher.com/micro-clearfix-hack/#comment-36952 */
+  line-height: 0;
+}
+.nav-tabs:after, .nav-pills:after {
+  clear: both;
+}
+.nav-tabs > li,
+.nav-pills > li {
+  float: left;
+}
+.nav-tabs > li > a,
+.nav-pills > li > a {
+  padding-right: 12px;
+  padding-left: 12px;
+  margin-right: 2px;
+  line-height: 14px; /*  keeps the overall height an even number */
+}
+
+
+/*  Tabs */
+/*  ================== */
+
+
+/* splunk style tabs
+    * extends: nav
+    * overrides: bootstrap default nav-tabs
+
+    <ul class="nav nav-tabs">
+        <li><a href="#">tab</a></li>
+        <li class="active"><a href="#">tab</a></li>
+        <li><a href="#">tab</a></li>
+    </ul>
+
+*/
+
+.nav-tabs {
+    background-color: rgb(243, 243, 243);
+    background-image: linear-gradient(to bottom, rgb(247, 247, 247), #eee);
+    /*  Standard, IE10 */
+    background-repeat: repeat-x;
+    background-color: #eee;
+    border: 1px solid #bfbfbf;
+    border-top-color: #bfbfbf;
+    border-bottom-color: #bfbfbf;
+    color: #333;
+    box-shadow: inset 0px 1px 0 rgb(252, 252, 252);
+    text-shadow: none;
+    border-left: none;
+    border-right: none;
+    padding: 0;
+    height: 24px;
+    list-style-type: none;
+}
+
+.nav-tabs > li {
+  position: relative;
+  margin: -1px 0 -1px -1px;
+  font-size: 14px;
+}
+
+.nav-tabs > li:first-child {
+  margin-left: -10px;
+  padding-left: 10px;
+}
+
+.nav-tabs > li:before {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: skew(20deg, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /*  See https://github.com/twitter/bootstrap/issues/5319 */
+  -webkit-backface-visibility: visible;
+  backface-visibility: visible;
+  background-color: rgb(243, 243, 243);
+  background-image: linear-gradient(to bottom, rgb(247, 247, 247), #eee);
+  /*  Standard, IE10 */
+  background-repeat: repeat-x;
+  background-color: #eee;
+  border: 1px solid #bfbfbf;
+  border-top-color: #bfbfbf;
+  border-bottom-color: #bfbfbf;
+  color: #333;
+  box-shadow: inset 0px 1px 0 rgb(252, 252, 252);
+  text-shadow: none;
+  z-index: 1;
+}
+
+.nav-tabs > li:hover:before  {
+  background-color: rgb(248, 248, 248);
+  background-image: linear-gradient(to bottom, #f8f8f8, #f8f8f8);
+  /*  Standard, IE10 */
+  background-repeat: repeat-x;
+  background-color: #f8f8f8;
+  border-color: rgb(199, 199, 199);
+  border-top-color: rgb(199, 199, 199);
+  border-bottom-color: rgb(199, 199, 199);
+  background-position: 0 0;
+  box-shadow: 0px 1px 1px rgba(0,0,0,0.08);
+  color: #333;
+  text-decoration: none;
+  box-shadow: none;
+}
+
+.nav-tabs > li > a {
+  border-radius: 0;
+  border: none;
+  padding: 0 30px 0 20px;
+  margin: 0;
+  line-height: 26px;
+  color:#333;
+  position: relative;
+  background: none !important;
+}
+
+.nav-tabs > li > a:focus {
+  box-shadow: 0 0 0 0 #52A8EC;
+  z-index:1;
+}
+
+/*  active state */
+
+.nav-tabs > .react-tabs__tab--selected, .nav-tabs > .react-tabs__tab--selected:hover {
+  margin: -1px 10px -1px -10px;
+  border-bottom: 1px solid var(--white-color);
+  border-right: none;
+}
+
+.nav-tabs > .react-tabs__tab--selected:first-child, .nav-tabs > .react-tabs__tab--selected:hover:first-child {
+  padding-left: 0;
+}
+
+.nav-tabs > .react-tabs__tab--selected:before, .nav-tabs > .react-tabs__tab--selected:hover:before {
+  background: var(--white-color);
+  border: 1px solid #bfbfbf;
+  border-right: none;
+  border-top-color: #bfbfbf;
+  border-bottom: 1px solid var(--white-color);
+  transform: skew(-20deg, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /*  See https://github.com/twitter/bootstrap/issues/5319 */
+  -webkit-backface-visibility: visible;
+  backface-visibility: visible;
+  bottom: 0;
+}
+
+.nav-tabs > .react-tabs__tab--selected:after, .nav-tabs > .react-tabs__tab--selected:hover:after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0;
+  right: -10px;
+  bottom: 0;
+  width: 20px;
+  background: var(--white-color);
+  border-right: 1px solid #bfbfbf;
+  border-top: 1px solid #bfbfbf;
+  border-bottom: 1px solid var(--white-color);
+  transform: skew(20deg, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  /*  See https://github.com/twitter/bootstrap/issues/5319 */
+  -webkit-backface-visibility: visible;
+  backface-visibility: visible;
+}
+
+.nav-tabs > .react-tabs__tab--selected > a, .nav-tabs > .react-tabs__tab--selected > a:hover, .nav-tabs > .react-tabs__tab--selected > a:focus, .nav-tabs > .react-tabs__tab--selected:hover > a, .nav-tabs > .react-tabs__tab--selected:hover > a:hover, .nav-tabs > .react-tabs__tab--selected:hover > a:focus {
+  position:relative;
+  z-index: 1;
+  filter: e(%("progid:DXImageTransform.Microsoft.gradient(enabled = false)"));
+  border: none;
+  outline-offset: -3px;
+  padding: 0 30px;
+  margin-right: -10px;
+}
+/*  nav-tabs */
+
+
+/*  PILLS */
+/*  ----- */
+
+/*  Links rendered as pills */
+.nav-pills > li > a {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  border-radius: 5px;
+}
+
+/*  Active state */
+.nav-pills > .react-tabs__tab--selected > a,
+.nav-pills > .react-tabs__tab--selected > a:hover,
+.nav-pills > .react-tabs__tab--selected > a:focus {
+  color: var(--white-color);
+  /*background-color: #1e93c6;*/
+}
+
+/*  STACKED NAV */
+/*  ----------- */
+
+/*  Stacked tabs and pills */
+.nav-stacked > li {
+  float: none;
+}
+.nav-stacked > li > a {
+  margin-right: 0; /*  no need for the gap between nav items */
+}
+
+/*  Tabs */
+.nav-tabs.nav-stacked {
+  border-bottom: 0;
+}
+.nav-tabs.nav-stacked > li > a {
+  border: 1px solid #ddd;
+  border-radius: 0;
+}
+.nav-tabs.nav-stacked > li:first-child > a {
+  border-top-right-radius: 4px;
+  border-top-left-radius: 4px;
+}
+.nav-tabs.nav-stacked > li:last-child > a {
+  border-bottom-right-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+.nav-tabs.nav-stacked > li > a:hover,
+.nav-tabs.nav-stacked > li > a:focus {
+  border-color: #ddd;
+  z-index: 2;
+}
+.toggle-tab {
+  height: 26px;
+  z-index: 1;
+}
+
+/*  Pills */
+.nav-pills.nav-stacked > li > a {
+  margin-bottom: 3px;
+}
+.nav-pills.nav-stacked > li:last-child > a {
+  margin-bottom: 1px; /*  decrease margin to match sizing of stacked tabs */
+}
+
