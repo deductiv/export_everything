@@ -1,9 +1,9 @@
 import React, {forwardRef} from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import 'react-tabs/style/react-tabs.css';
-import MaterialTable from 'material-table';
 import { FormControl, TextField, Select, InputLabel, MenuItem, Checkbox, Button } from '@material-ui/core';
-import uuid from 'uuid';
+import MaterialTable from '@material-table/core';
+import uuid from 'react-native-uuid';
 import Search from "@material-ui/icons/Search";
 import FirstPage from "@material-ui/icons/FirstPage";
 import LastPage from "@material-ui/icons/LastPage";
@@ -19,6 +19,7 @@ import Add from "@material-ui/icons/Add";
 import Remove from '@material-ui/icons/Remove';
 import SaveAlt from '@material-ui/icons/SaveAlt';
 import { withSnackbar } from 'notistack';
+import { useMutex } from 'react-context-mutex';
 import validator from 'validator';
 
 const tableIcons = {
@@ -41,50 +42,35 @@ const tableIcons = {
 };
 
 const validators = {
-	number: (field, value) => {
-		if (validator.isEmpty(value)) {
-			return {helperText: `${field} is empty`, isValid: false};
+	number: (value) => {
+		if (value === undefined || !validator.isFloat(value) || !validator.isInt(value)) {
+			return {isValid: false};
 		}
-		if (!validator.isFloat(value) || !validator.isInt(value)) {
-			return {helperText: `${field} is not a number`, isValid: false};
+		return {isValid: true}
+	},
+	bool: (value) => {
+		if (value === undefined || (value !== true && value !== false)) {
+			return {isValid: false};
+		}
+		return {isValid: true}
+	},
+	string: (value) => {
+		if (value === undefined || validator.isEmpty(value) || !validator.isAscii(value)) {
+			return {isValid: false};
+		}
+		return {isValid: true}
+	},
+	time: (value) => {
+		if (value === undefined || !validator.isDate(value)) {
+			return {isValid: false};
 		}
 		return true
 	},
-	bool: (field, value) => {
-		if (validator.isEmpty(value)) {
-			return {helperText: `${field} is empty`, isValid: false};
+	uuid: (value) => {
+		if (value === undefined || !validator.isUUID(value, 4)) {
+			return {isValid: false};
 		}
-		if (!validator.isBoolean(value)) {
-			return {helperText: `${field} is not a boolean`, isValid: false};
-		}
-		return true
-	},
-	string: (field, value) => {
-		if (validator.isEmpty(value)) {
-			return {helperText: `${field} is empty`, isValid: false};
-		}
-		if (!validator.isAscii(value)) {
-			return {helperText: `${field} is not an ASCII string`, isValid: false};
-		}
-		return true
-	},
-	time: (field, value) => {
-		if (validator.isEmpty(value)) {
-			return {helperText: `${field} is empty`, isValid: false};
-		}
-		if (!validator.isDate(value)) {
-			return {helperText: `${field} is not a date`, isValid: false};
-		}
-		return true
-	},
-	uuid: (field, value) => {
-		if (validator.isEmpty(value)) {
-			return {helperText: `${field} is empty`, isValid: false};
-		}
-		if (!validator.isUUID(value, 4)) {
-			return {helperText: `${field} is not a UUID`, isValid: false};
-		}
-		return true
+		return {isValid: true}
 	}
 }
 
@@ -93,6 +79,25 @@ const notistack_options = (variant) => {
 	return {
 		variant: variant,
 		autoHideDuration: 3000
+	}
+}
+
+const booleanize = (value) => {
+	if (value === undefined){
+		return false;
+	} else if (typeof(value) == 'string'){
+		value = value.toLowerCase();
+	}
+	switch(value){
+		case true:
+		case "true":
+		case 1:
+		case "1":
+		case "on":
+		case "yes":
+			return true;
+		default: 
+			return false;
 	}
 }
 
@@ -117,121 +122,167 @@ const table_options = {
 		padding: '0'}
 };
 
-const columns = {
-	ep_hec: [
-		{ title: "Stanza", field: "stanza", hidden: true },
-		{ title: "Name/Alias", field: "alias", width: "20%" }, 
-		{ title: "Hostname", field: "host", width: "35%" },
-		{ title: "TCP Port", field: "port", width: "10%" },
-		{ title: "HEC Token", field: "token", width: "20%" },
-		{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1 },
-		{ title: "Default", field: "default", type: "boolean", width: "5%" }
-	],
-	ep_aws_s3: [
-		{ title: "Stanza", field: "stanza", hidden: true },
-		{ title: "Name/Alias", field: "alias", width: "15%" }, 
-		{ title: "Default Bucket ID", field: "default_s3_bucket", width: "20%" },
-		{ title: "Use ARN", field: "use_arn", type: "boolean", width: "7%" },
-		{ title: "Access Key ID", field: "access_key_id", width: "19%" },
-		{ title: "Secret Access Key", field: "secret_key", width: "19%", cellStyle: cell_format,
-			render: rowData => <p className="password_field">{ ((rowData.secret_key === undefined) ? '' : '*'.repeat(16))}</p>,
-			editComponent: props => (
-				<TextField
-					type="password"
-					value={props.value}
-					inputProps={{ "placeholder": "Secret Access Key" }}
-					onChange={e => props.onChange(e.target.value)}
-					onRowDataChange={event => { console.log(event.target.id); console.log(event.target.value); if (props.rowData.use_arn) { console.log("Disable the input here"); props.disabled = true; } }}
-				/>) },
-		{ title: "Endpoint URL (Blank for AWS S3)", field: "endpoint_url", width: "20%" },
-		{ title: "Default", field: "default", type: "boolean", width: "5%" }
-	],
-	ep_box: [
-		{ title: "Stanza", field: "stanza", hidden: true },
-		{ title: "Name/Alias", field: "alias", width: "14%" }, 
-		{ title: "Default Folder", field: "default_folder", width: "20%" }, 
-		{ title: "Enterprise ID", field: "enterprise_id", width: "10%" },
-		{ title: "Client ID", field: "client_id", width: "9%" },
-		{ title: "Client Secret", field: "client_secret", width: "9%",
-			render: rowData => <p className="password_field">{((rowData.client_secret === undefined) ? '' : '*'.repeat(16))}</p>,
-			editComponent: props => (
-				<TextField
-					type="password"
-					value={props.value}
-					inputProps={{"placeholder": "Client Secret"}}
-					onChange={e => props.onChange(e.target.value)}
-				/>) },
-		{ title: "Public Key ID", field: "public_key_id", width: "9%" },
-		{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, 
-			render: rowData => <p style={{width: '100%', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'}}>{((rowData.privateKey === undefined) ? '' : rowData.privateKey)}</p>,
-			editComponent: ({ value, onChange }) => (
-				<TextField
-					onChange={e => onChange(e.target.value)}
-					value={value}
-					placeholder="Private Key"
-					multiline
-					rows={1}
-					rowsMax={4}
-					/>) },
-		{ title: "Passphrase", field: "passphrase", width: "8%", 
-			render: rowData => <p className="password_field">{((rowData.passphrase === undefined) ? '' : '*'.repeat(16))}</p>,
-			editComponent: props => (
-				<TextField
-					type="password"
-					value={props.value}
-					inputProps={{"placeholder": "Passphrase"}}
-					onChange={e => props.onChange(e.target.value)}
-				/>) },
-		{ title: "Default", field: "default", type: "boolean", width: "5%" },
-		{ title: "Compress", field: "compression", type: "boolean", width: "5%" }
-	]
-};
+const center_table_header_styles = {
+	width: '100%',
+	textAlign: 'center',
+	paddingBottom: '5px'
+}
+
 
 
 
 class App extends React.Component {
 	constructor(props) {
 		super(props);
-		
+
 		this.state = {
+			error_states: { 
+				secret_key: true, 
+				private_key: true,
+				client_secret: true,
+				passphrase: true
+			},
 			ep_general: {},
 			// table lists
 			ep_hec: [], 
 			ep_aws: [],
 			ep_box: []
 		}
-		
-		this.updateParentState = this.updateParentState.bind(this);
 
 		this.get_config_stanza("ep_general", "settings").then((d) => {
 			this.setState({"ep_general": d});
 		})
 		this.refresh_tables();
 		
-		//const { enqueueSnackbar, closeSnackbar } = useSnackbar();
+		this.validate_secret_key = this.validate_secret_key.bind(this);
+		this.validate_password_field = this.validate_password_field.bind(this);
+		this.refresh_tables = this.refresh_tables.bind(this);
+		this.dict_to_querystring = this.dict_to_querystring.bind(this);
+		this.rest_to_rows = this.rest_to_rows.bind(this);
+		this.list_table_fields = this.list_table_fields.bind(this);
+		this.unset_default_entry = this.unset_default_entry.bind(this);
+		this.get_config_stanza = this.get_config_stanza.bind(this);
+		this.get_config = this.get_config.bind(this);
+		this.put_config_item = this.put_config_item.bind(this);
+		this.add_row_data = this.add_row_data.bind(this);
+		this.update_config_item = this.update_config_item.bind(this);
+		this.update_row_data = this.update_row_data.bind(this);
+		this.delete_config_item = this.delete_config_item.bind(this);
+		this.delete_row_data = this.delete_row_data.bind(this);
+		this.updateParentState = this.updateParentState.bind(this);
+
 	}
 
-	booleanize(value) {
-		if (value === undefined){
-			return false;
-		} else if (typeof(value) == 'string'){
-			value = value.toLowerCase();
+	columns = {
+		ep_hec: [
+			{ title: "Stanza", field: "stanza", hidden: true },
+			{ title: "Name/Alias", field: "alias", width: "20%", validate: rowData => validators.string(rowData.alias) }, 
+			{ title: "Hostname", field: "host", width: "35%", validate: rowData => validators.string(rowData.host) },
+			{ title: "TCP Port", field: "port", width: "10%" },
+			{ title: "HEC Token", field: "token", width: "20%", validate: rowData => validators.string(rowData.token) },
+			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles } ,
+			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+		],
+		ep_aws_s3: [
+			{ title: "Stanza", field: "stanza", hidden: true },
+			{ title: "Name/Alias", field: "alias", width: "15%", validate: rowData => validators.string(rowData.alias) }, 
+			{ title: "Default Bucket ID", field: "default_s3_bucket", width: "20%" },
+			{ title: "Use ARN", field: "use_arn", type: "boolean", width: "7%", headerStyle: center_table_header_styles },
+			{ title: "Access Key ID", field: "access_key_id", width: "19%", 
+				validate: rowData => ((validators.bool(rowData.use_arn).isValid && rowData.use_arn) || validators.string(rowData.access_key_id).isValid)
+			},
+			{ title: "Secret Access Key", field: "secret_key", width: "19%", cellStyle: cell_format,
+				render: rowData => <p className="password_field">{ ((rowData.secret_key === undefined) ? '' : '*'.repeat(12))}</p>,
+				editComponent: props => (
+					<TextField
+						type="password"
+						value={props.value}
+						error={this.state.error_states['secret_key']}
+						inputProps={{ "placeholder": "Secret Access Key" }}
+						onChange={e => {props.onChange(e.target.value)}}
+						/*onRowDataChange={event => { console.log(JSON.stringify(props)); console.log(event.target.id); console.log(event.target.value); if (props.rowData.use_arn) { console.log("Disable the input here"); props.disabled = true; } }}*/
+					/>), 
+				validate: rowData => this.validate_secret_key(rowData)
+			},
+			{ title: "Endpoint URL (Blank for AWS S3)", field: "endpoint_url", width: "20%" },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+		],
+		ep_box: [
+			{ title: "Stanza", field: "stanza", hidden: true },
+			{ title: "Name/Alias", field: "alias", width: "14%", validate: rowData => validators.string(rowData.alias) }, 
+			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
+			{ title: "Enterprise ID", field: "enterprise_id", width: "10%", validate: rowData => validators.string(rowData.enterprise_id) },
+			{ title: "Client ID", field: "client_id", width: "9%", validate: rowData => validators.string(rowData.client_id) },
+			{ title: "Client Secret", field: "client_secret", width: "9%", validate: rowData => this.validate_password_field(rowData, 'client_secret'),
+				render: rowData => <p className="password_field">{((rowData.client_secret === undefined) ? '' : '*'.repeat(12))}</p>,
+				editComponent: props => (
+					<TextField
+						error={this.state.error_states.client_secret}
+						type="password"
+						value={props.value}
+						inputProps={{"placeholder": "Client Secret"}}
+						onChange={e => {props.onChange(e.target.value)}}
+					/>) },
+			{ title: "Public Key ID", field: "public_key_id", width: "9%", validate: rowData => this.validate_password_field(rowData, 'public_key_id') },
+			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, validate: rowData => this.validate_password_field(rowData, 'private_key'),
+				render: rowData => <p style={{width: '100%', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'}}>{((rowData.privateKey === undefined) ? '' : rowData.privateKey)}</p>,
+				editComponent: ({ value, onChange }) => (
+					<TextField
+						error={this.state.error_states.private_key}
+						onChange={e => {onChange(e.target.value)}}
+						value={value}
+						placeholder="Private Key"
+						multiline
+						rows={1}
+						rowsMax={4}
+						/>) },
+			{ title: "Passphrase", field: "passphrase", width: "8%", validate: rowData => this.validate_password_field(rowData, 'passphrase'),
+				render: rowData => <p className="password_field">{((rowData.passphrase === undefined) ? '' : '*'.repeat(12))}</p>,
+				editComponent: props => (
+					<TextField
+						error={this.state.error_states.passphrase}
+						type="password"
+						value={props.value}
+						inputProps={{"placeholder": "Passphrase"}}
+						onChange={e => {props.onChange(e.target.value)}}
+					/>) },
+			{ title: "Compress", field: "compression", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+		]
+	};
+
+	validate_secret_key = (rowData) => {
+		console.log("Validate called");
+		let error_result = !((validators.bool(rowData.use_arn).isValid && rowData.use_arn) || validators.string(rowData.secret_key).isValid );
+		if (error_result !== this.state.error_states.secret_key) {
+			this.setState(prev_state => ({
+				error_states: {
+					...prev_state.error_states,
+					secret_key: error_result
+				}
+			}));
 		}
-		switch(value){
-			case true:
-			case "true":
-			case 1:
-			case "1":
-			case "on":
-			case "yes":
-				return true;
-			default: 
-				return false;
+		console.log("secret_key result = " + error_result);
+		return !error_result;
+	}
+
+	validate_password_field = (rowData, field) => {
+		console.log("Validate called for " + field);
+		let error_result = !(validators.string(rowData[field]).isValid );
+		if (error_result !== this.state.error_states[field]) {
+			this.setState(prev_state => ({
+				error_states: {
+					...prev_state.error_states,
+					[field]: error_result
+				}
+			}));
 		}
+		console.log(field + " result = " + error_result);
+		return !error_result;
 	}
 
 	refresh_tables = () => {
-		let tables = Object.keys(columns);
+		let tables = Object.keys(this.columns);
 		for (let table of tables) {
 			this.get_config(table).then((d) => {
 				d = this.rest_to_rows(table, d);
@@ -258,7 +309,7 @@ class App extends React.Component {
 	rest_to_rows = (config_file, d) => {
 		let rows = [];
 		// Get the names of fields from the columns definition
-		let valid_fields = this.list_table_fields(columns[config_file])
+		let valid_fields = this.list_table_fields(this.columns[config_file])
 		//console.log(`Valid fields for ${config_file}: ${JSON.stringify(valid_fields)}`);
 		for ( var rest_entry of d ) {
 			let row = rest_entry.content;
@@ -269,9 +320,9 @@ class App extends React.Component {
 					delete row[key];
 				} else {
 					// Find boolean fields and convert the values from strings
-					for ( var field of columns[config_file] ){
+					for ( var field of this.columns[config_file] ){
 						if ( field.field == key && field.type == "boolean" ) {
-							row[key] = this.booleanize(row[key]);
+							row[key] = booleanize(row[key]);
 						}
 					}
 				}
@@ -512,7 +563,7 @@ class App extends React.Component {
 					<TabPanel className="tab-pane">
 						<div className="form form-horizontal form-complex">
 							<h1>General Settings</h1>
-							<FormControl>
+							<FormControl id="general_form">
 								<InputLabel id="logging_label">Logging Level</InputLabel>
 								<Select labelId="logging_label" 
 									id="log_level" 
@@ -548,7 +599,7 @@ class App extends React.Component {
 										</div>
 									}
 									icons={tableIcons}
-									columns={columns.ep_hec}
+									columns={this.columns.ep_hec}
 									data={self.state.ep_hec}
 									editable={{
 										onRowAdd: newData => this.add_row_data("ep_hec", newData),
@@ -574,7 +625,7 @@ class App extends React.Component {
 										</div>
 									}
 									icons={tableIcons}
-									columns={columns.ep_aws_s3}
+									columns={this.columns.ep_aws_s3}
 									data={self.state.ep_aws_s3}
 									editable={{
 										onRowAdd: newData => this.add_row_data("ep_aws_s3", newData),
@@ -602,7 +653,7 @@ class App extends React.Component {
 										</div>
 									}
 									icons={tableIcons}
-									columns={columns.ep_box}
+									columns={this.columns.ep_box}
 									data={self.state.ep_box}
 									editable={{
 										onRowAdd: newData => this.add_row_data("ep_box", newData),

@@ -179,7 +179,7 @@ background-color: var(--white-color);
 label.MuiFormLabel-root {
   padding-top: 10px;
 }
-.MuiInputBase-root {
+#general_form > div.MuiInput-root {
   font-family: "Splunk Platform Sans","Proxima Nova",Roboto,Droid,Helvetica Neue,Helvetica,Arial,sans-serif;
   margin-left: 200px;
   margin-top: 0px !important;
@@ -188,13 +188,11 @@ label.MuiFormLabel-root {
 .MuiMenuItem-root, .MuiInputBase-root, label.MuiFormLabel-root {
   font-size: 14px !important;
 }
+.MuiInputBase-fullWidth {
+  margin-left: inherit !important;
+}
 
 /* Table formatting for Material-Table (React) */
-.MuiIconButton-root {
-  color: var(--level2-color) !important;
-  padding: 0 3px;
-
-}
 .MuiTableCell-head {
   background-color: var(--level1-color);
   padding: 0 3px;
@@ -230,8 +228,29 @@ td.MuiTableCell-root.MuiTableCell-body.MuiTableCell-alignLeft {
 }
 /* Action column */
 td:first-child.MuiTableCell-root.MuiTableCell-body > div {
-  width: 50%;
-  margin-left: 25%;
+  width: 53px;
+  margin-left: auto;
+  margin-right: auto;
+}
+/* Action icons */
+.MuiIconButton-root {
+  color: var(--level2-color) !important;
+  padding: 0 3px;
+}
+/* Action icons - disabled */
+.MuiIconButton-root.Mui-disabled {
+  color: var(--level3-color) !important;
+  padding: 0 3px;
+}
+/* Underlines in tables - invalid fields */
+.MuiInput-underline.Mui-error:after {
+  border-bottom-color: var(--level3-color) !important;
+}
+.boolean_field_table_header > span {
+  width: 100%;
+  display: block;
+  text-align: center;
+  padding-bottom: 5px;
 }
 /* Table Checkbox */
 label.MuiFormControlLabel-root {
