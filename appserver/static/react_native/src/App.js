@@ -76,9 +76,19 @@ const validators = {
 			return {helperText: `${field} is not a date`, isValid: false};
 		}
 		return true
+	},
+	uuid: (field, value) => {
+		if (validator.isEmpty(value)) {
+			return {helperText: `${field} is empty`, isValid: false};
+		}
+		if (!validator.isUUID(value, 4)) {
+			return {helperText: `${field} is not a UUID`, isValid: false};
+		}
+		return true
 	}
 }
 
+// Options for notistack - Event notification/alerting library - Success/fail on table operations
 const notistack_options = (variant) => {
 	return {
 		variant: variant,
@@ -350,6 +360,7 @@ class App extends React.Component {
 			setTimeout(async () => {
 				new_data.stanza = uuid.v4();
 				const dataNew = [...this.state[config_file]];
+				// If "default" is set for this new record, unset it for any other records that might have it
 				if ( (new_data.default === undefined) ? false : new_data.default ) {
 					this.unset_default_entry(config_file, new_data.stanza);
 				}
@@ -391,6 +402,7 @@ class App extends React.Component {
 				const dataUpdate = [...this.state[config_file]];
 				const index = old_data.tableData.id;
 				dataUpdate[index] = new_data;
+				// If "default" is set for this updated record, unset it for any other records that might have it
 				if ( (new_data.default === undefined) ? false : new_data.default ) {
 					this.unset_default_entry(config_file, new_data.stanza);
 				}
