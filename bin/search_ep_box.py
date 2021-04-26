@@ -332,17 +332,18 @@ class boxep(ReportingCommand):
 						# There is a problem
 						exit_error(logger, "Target folder not found: %s" % target_folder, 12)
 
-				event_counter = 0
-				# Write the output file to disk in the dispatch folder
-				logger.debug("Writing events to file %s in %s format. Compress=%s\n\tfields=%s", local_output_file, self.outputformat, self.compress, self.fields)
-				for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress):
-					yield event
-					event_counter += 1
+				try:
+					event_counter = 0
+					# Write the output file to disk in the dispatch folder
+					logger.debug("Writing events to file %s in %s format. Compress=%s\n\tfields=%s", local_output_file, self.outputformat, self.compress, self.fields)
+					for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress):
+						yield event
+						event_counter += 1
 
-				new_file = folder.upload(local_output_file, file_name=self.outputfile)
-				message = "Box Event Push Status: Success. File name: %s, File ID: %s" % (new_file.name, new_file.id)
-				eprint(message)
-				logger.info(message)
+				except BoxAPIException as be:
+					exit_error(logger, be.message, 833928)
+				except BaseException as e:
+					exit_error(logger, "Error writing file to upload")
 
 				#yield({"Result": "Success", "File": new_file.name, "FileID": new_file.id})
 			except BoxAPIException as be:
@@ -350,6 +351,13 @@ class boxep(ReportingCommand):
 			except BaseException as e:
 				exit_error(logger, "Could not connect to Box: " + repr(e), 6)
 		
+			try:
+				new_file = folder.upload(local_output_file, file_name=self.outputfile)
+				message = "Box Event Push Status: Success. File name: %s, File ID: %s" % (new_file.name, new_file.id)
+				eprint(message)
+				logger.info(message)
+			except BaseException as e:
+				exit_error(logger, "Error uploading file to Box: " + repr(e), 109693)
 		else:
 			exit_error(logger, "Box credential not configured.", 8)
 		
