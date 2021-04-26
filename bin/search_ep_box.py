@@ -308,7 +308,8 @@ class boxep(ReportingCommand):
 				root_folder_id = '0'
 				target_folder = self.folder
 				subfolders = target_folder.strip('/').split('/')
-				subfolders.remove('')
+				if '' in subfolders:
+					subfolders.remove('')
 				logger.debug("Folders: %s" % str(subfolders))
 				# Prepend the list with the root element
 				folder = client.root_folder().get()
