@@ -1,3 +1,21 @@
+/* Copyright 2021 Deductiv Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Author: J.R. Murray <jr.murray@deductiv.net>
+# Version: 2.0.0 (2021-04-26)
+*/
+
 import React, {forwardRef} from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import 'react-tabs/style/react-tabs.css';
@@ -19,7 +37,6 @@ import Add from "@material-ui/icons/Add";
 import Remove from '@material-ui/icons/Remove';
 import SaveAlt from '@material-ui/icons/SaveAlt';
 import { withSnackbar } from 'notistack';
-import { useMutex } from 'react-context-mutex';
 import validator from 'validator';
 
 const tableIcons = {
@@ -106,6 +123,21 @@ const cell_format = {
 	padding: '0 3px'
 }
 
+const left_table_header_styles = {
+	width: '100%',
+	textAlign: 'left',
+	verticalAlign: 'bottom',
+	paddingBottom: '5px',
+	whiteSpace: 'pre-wrap'
+}
+
+const center_table_header_styles = {
+	width: '100%',
+	textAlign: 'center',
+	verticalAlign: 'bottom',
+	paddingBottom: '5px'
+}
+
 const table_options = {
 	grouping: false,
 	search: false,
@@ -118,15 +150,12 @@ const table_options = {
 		padding: '0',
 		fontSize: '12px', 
 		wordBreak: 'break-all' },
+	headerStyle: left_table_header_styles,
 	actionsCellStyle: {
 		padding: '0'}
 };
 
-const center_table_header_styles = {
-	width: '100%',
-	textAlign: 'center',
-	paddingBottom: '5px'
-}
+
 
 
 
@@ -179,7 +208,7 @@ class App extends React.Component {
 			{ title: "Name/Alias", field: "alias", width: "20%", validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Hostname", field: "host", width: "35%", validate: rowData => validators.string(rowData.host) },
 			{ title: "TCP Port", field: "port", width: "10%" },
-			{ title: "HEC Token", field: "token", width: "20%", validate: rowData => validators.string(rowData.token) },
+			{ title: "HEC Token", field: "token", width: "20%", validate: rowData => validators.uuid(rowData.token) },
 			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles } ,
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
@@ -187,12 +216,12 @@ class App extends React.Component {
 			{ title: "Stanza", field: "stanza", hidden: true },
 			{ title: "Name/Alias", field: "alias", width: "15%", validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Default Bucket ID", field: "default_s3_bucket", width: "20%" },
-			{ title: "Use ARN", field: "use_arn", type: "boolean", width: "7%", headerStyle: center_table_header_styles },
-			{ title: "Access Key ID", field: "access_key_id", width: "19%", 
+			{ title: "Use ARN", field: "use_arn", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Access Key ID", field: "access_key_id", width: "15%", 
 				validate: rowData => ((validators.bool(rowData.use_arn).isValid && rowData.use_arn) || validators.string(rowData.access_key_id).isValid)
 			},
-			{ title: "Secret Access Key", field: "secret_key", width: "19%", cellStyle: cell_format,
-				render: rowData => <p className="password_field">{ ((rowData.secret_key === undefined) ? '' : '*'.repeat(12))}</p>,
+			{ title: "Secret Access Key", field: "secret_key", width: "15%", cellStyle: cell_format,
+				render: rowData => <span className="password_field">{ ((rowData.secret_key === undefined || rowData.secret_key == '') ? '' : '*'.repeat(12))}</span>,
 				editComponent: props => (
 					<TextField
 						type="password"
@@ -204,7 +233,9 @@ class App extends React.Component {
 					/>), 
 				validate: rowData => this.validate_secret_key(rowData)
 			},
-			{ title: "Endpoint URL (Blank for AWS S3)", field: "endpoint_url", width: "20%" },
+			{ title: "Region", field: "region", width: "10%", validate: rowData => validators.string(rowData.region) }, 
+			{ title: "Endpoint URL\n(Blank for AWS S3)", field: "endpoint_url", width: "15%" },
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
 		ep_box: [
@@ -214,7 +245,7 @@ class App extends React.Component {
 			{ title: "Enterprise ID", field: "enterprise_id", width: "10%", validate: rowData => validators.string(rowData.enterprise_id) },
 			{ title: "Client ID", field: "client_id", width: "9%", validate: rowData => validators.string(rowData.client_id) },
 			{ title: "Client Secret", field: "client_secret", width: "9%", validate: rowData => this.validate_password_field(rowData, 'client_secret'),
-				render: rowData => <p className="password_field">{((rowData.client_secret === undefined) ? '' : '*'.repeat(12))}</p>,
+				render: rowData => <span className="password_field">{((rowData.client_secret === undefined || rowData.client_secret == '') ? '' : '*'.repeat(12))}</span>,
 				editComponent: props => (
 					<TextField
 						error={this.state.error_states.client_secret}
@@ -223,9 +254,9 @@ class App extends React.Component {
 						inputProps={{"placeholder": "Client Secret"}}
 						onChange={e => {props.onChange(e.target.value)}}
 					/>) },
-			{ title: "Public Key ID", field: "public_key_id", width: "9%", validate: rowData => this.validate_password_field(rowData, 'public_key_id') },
+			{ title: "Public Key ID", field: "public_key_id", width: "9%", validate: rowData => validators.string(rowData.public_key_id) },
 			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, validate: rowData => this.validate_password_field(rowData, 'private_key'),
-				render: rowData => <p style={{width: '100%', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'}}>{((rowData.privateKey === undefined) ? '' : rowData.privateKey)}</p>,
+				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[encrypted]')}</span>,
 				editComponent: ({ value, onChange }) => (
 					<TextField
 						error={this.state.error_states.private_key}
@@ -237,7 +268,7 @@ class App extends React.Component {
 						rowsMax={4}
 						/>) },
 			{ title: "Passphrase", field: "passphrase", width: "8%", validate: rowData => this.validate_password_field(rowData, 'passphrase'),
-				render: rowData => <p className="password_field">{((rowData.passphrase === undefined) ? '' : '*'.repeat(12))}</p>,
+				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(12))}</span>,
 				editComponent: props => (
 					<TextField
 						error={this.state.error_states.passphrase}
@@ -246,13 +277,13 @@ class App extends React.Component {
 						inputProps={{"placeholder": "Passphrase"}}
 						onChange={e => {props.onChange(e.target.value)}}
 					/>) },
-			{ title: "Compress", field: "compression", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Compress Output", field: "compression", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		]
 	};
 
 	validate_secret_key = (rowData) => {
-		console.log("Validate called");
+		console.log("Validate secret key called");
 		let error_result = !((validators.bool(rowData.use_arn).isValid && rowData.use_arn) || validators.string(rowData.secret_key).isValid );
 		if (error_result !== this.state.error_states.secret_key) {
 			this.setState(prev_state => ({
@@ -267,7 +298,7 @@ class App extends React.Component {
 	}
 
 	validate_password_field = (rowData, field) => {
-		console.log("Validate called for " + field);
+		console.log("Validate password field called for " + field);
 		let error_result = !(validators.string(rowData[field]).isValid );
 		if (error_result !== this.state.error_states[field]) {
 			this.setState(prev_state => ({

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2020 Deductiv Inc.
+# Copyright 2021 Deductiv Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 # REST endpoint for configuration via setup.xml
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0 (2021-04-05)
+# Version: 2.0.0 (2021-04-26)
 
 from builtins import str
 from builtins import range
@@ -39,7 +39,12 @@ from splunksecrets import encrypt, encrypt_new
 
 options = ['stanza', 'default', 'alias', 'default_folder', 	'enterprise_id', 
 	'client_id', 'client_secret', 'public_key_id', 	'private_key', 'passphrase', 
-	'compression']
+	'compress']
+password_options = ['client_secret', 'private_key', 'passphrase']
+
+app_config = cli.getConfStanza('ep_general','settings')
+setup_log = 'event_push_setup.log'
+config_file = 'ep_box'
 
 # Read the splunk.secret file
 with open(os.path.join(os.getenv('SPLUNK_HOME'), 'etc', 'auth', 'splunk.secret'), 'r') as ssfh:
@@ -49,12 +54,11 @@ class SetupApp(admin.MConfigHandler):
 
 	# Set up supported arguments
 	def setup(self):
-		facility = 'ep_box_setup'
-		logger = setup_logger('DEBUG', 'event_push_setup.log', facility) # pylint: disable=undefined-variable
-		logger.debug("Box setup script started")
+		facility = config_file + '_setup'
+		logger = setup_logger(app_config["log_level"], setup_log, facility)
+		logger.debug(config_file + " setup script started")
 
 		try:
-			
 			if self.requestedAction == admin.ACTION_EDIT: # ACTION_EDIT == 4
 				for arg in options:
 					self.supportedArgs.addOptArg(arg)
@@ -67,10 +71,9 @@ class SetupApp(admin.MConfigHandler):
 
 	# Read default settings
 	def handleList(self, confInfo):
-		facility = 'ep_box_list'
-		logger = setup_logger('INFO', 'event_push_setup.log', facility) # pylint: disable=undefined-variable
-		logger.info("Box list handler started")
-		config_file="ep_box"
+		facility = config_file + '_list'
+		logger = setup_logger(app_config["log_level"], setup_log, facility)
+		logger.info(config_file + " list handler started")
 
 		confDict = self.readConf(config_file)
 
@@ -80,19 +83,18 @@ class SetupApp(admin.MConfigHandler):
 					if stanza != 'default':
 						logger.debug("%s stanza: %s, key: %s, value: %s", facility, stanza, k, v)
 						# Set blank value for each setting if one does not exist
-						if k in options and v in [None, '']:
+						if v is None:
 							v = ''
 						else:
-							if ('secret' in k.lower() or 'passphrase' in k.lower()) and not '$7$' in v:
+							if k.lower() in password_options and not '$7$' in v:
 								v = encrypt_new(splunk_secret, v)
 						confInfo[stanza].append(k, v)
 
 	# Update settings once they are saved by the user
 	def handleEdit(self, confInfo):
-		facility = 'ep_box_edit'
-		logger = setup_logger('DEBUG', 'event_push_setup.log', facility) # pylint: disable=undefined-variable
-		logger.debug("Box edit handler started")
-		config_file = 'ep_box'
+		facility = config_file + '_edit'
+		logger = setup_logger(app_config["log_level"], setup_log, facility)
+		logger.debug(config_file + " edit handler started")
 		config_id = self.callerArgs.id
 		config = self.callerArgs.data
 		logger.debug("Config: %s/%s" % (config_id, config))
@@ -113,7 +115,7 @@ class SetupApp(admin.MConfigHandler):
 						new_config[k] = ''
 					else:
 						#logger.debug('%s Setting %s to %s', facility, k, v)
-						if ('secret' in k.lower() or 'passphrase' in k.lower()) and not '$7$' in v:
+						if k.lower() in password_options and not '$7$' in v:
 							logger.debug('%s Value has an unencrypted password. Encrypting.', facility)
 							try:
 								v = encrypt_new(splunk_secret, v)
@@ -129,19 +131,18 @@ class SetupApp(admin.MConfigHandler):
 			# Write the config stanza
 			self.writeConf(config_file, config_id, new_config)
 		except BaseException as e:
-			logger.critical("%s Error writing config: %s", facility, repr(e))
-			exit(1)
+			logger.exception("%s Error writing config: %s", facility, e)
 	
 	# Update settings once they are saved by the user
 	def handleRemove(self, confInfo):
-		facility = 'ep_box_delete'
-		logger = setup_logger('DEBUG', 'event_push_setup.log', facility) # pylint: disable=undefined-variable
-		logger.debug("Box delete handler started")
+		facility = config_file + '_delete'
+		logger = setup_logger(app_config["log_level"], setup_log, facility)
+		logger.debug(config_file + " delete handler started")
 
 		config_id = self.callerArgs.id
 		logger.debug("Config: %s" % config_id)
 		try:
-			en.deleteEntity('/configs/conf-ep_box', 
+			en.deleteEntity('/configs/conf-' + config_file, 
 						self.callerArgs.id, 
 						namespace=self.appName,
 						owner=self.userName,

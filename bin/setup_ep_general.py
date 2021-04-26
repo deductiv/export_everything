@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2020 Deductiv Inc.
+# Copyright 2021 Deductiv Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 # REST endpoint for configuration via setup.xml
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0 (2021-04-05)
+# Version: 2.0.0 (2021-04-26)
 
 from builtins import str
 from builtins import range
@@ -34,21 +34,18 @@ import splunk.entity as en
 from splunk.clilib import cli_common as cli
 from deductiv_helpers import setup_logger, eprint
 
-# https://github.com/HurricaneLabs/splunksecrets/blob/master/splunksecrets.py
-from splunksecrets import encrypt, encrypt_new
-
 options = ['stanza', 'log_level']
 
-# Read the splunk.secret file
-with open(os.path.join(os.getenv('SPLUNK_HOME'), 'etc', 'auth', 'splunk.secret'), 'r') as ssfh:
-	splunk_secret = ssfh.readline()
+app_config = cli.getConfStanza('ep_general', 'settings')
+setup_log = 'event_push_setup.log'
+config_file = 'ep_general'
 
 class SetupApp(admin.MConfigHandler):
 
 	# Set up supported arguments
 	def setup(self):
-		facility = 'ep_general_setup'
-		logger = setup_logger('DEBUG', 'event_push_setup.log', facility) # pylint: disable=undefined-variable
+		facility = config_file + '_setup'
+		logger = setup_logger(app_config["log_level"], setup_log, facility)
 		logger.debug("Setup script started")
 		
 		try:
@@ -64,10 +61,9 @@ class SetupApp(admin.MConfigHandler):
 
 	# Read default settings
 	def handleList(self, confInfo):
-		facility = 'ep_general_list'
-		logger = setup_logger('INFO', 'event_push_setup.log', facility) # pylint: disable=undefined-variable
+		facility = config_file + '_list'
+		logger = setup_logger(app_config["log_level"], setup_log, facility)
 		logger.info("Setup list handler started")
-		config_file = 'ep_general'
 
 		confDict = self.readConf(config_file)
 
@@ -76,16 +72,14 @@ class SetupApp(admin.MConfigHandler):
 				for k, v in list(settings.items()):
 					logger.debug("%s stanza: %s, key: %s, value: %s", facility, stanza, k, v)
 					# Set blank value for each setting if one does not exist
-					if k in options and v in [None, '']:
+					if v is None:
 						v = ''
-					if (k[:10] == 'credential' or 'secret' in k.lower() or 'passphrase' in k.lower()) and not '$7$' in v:
-						v = encrypt_new(splunk_secret, v)
 					confInfo[stanza].append(k, v)
 
 	# Update settings once they are saved by the user
 	def handleEdit(self, confInfo):
-		facility = 'ep_general_edit'
-		logger = setup_logger('DEBUG', 'event_push_setup.log', facility) # pylint: disable=undefined-variable
+		facility = config_file + '_edit'
+		logger = setup_logger(app_config["log_level"], setup_log, facility)
 		logger.debug("Setup edit handler started")
 
 		config_id = self.callerArgs.id
@@ -112,7 +106,7 @@ class SetupApp(admin.MConfigHandler):
 		logger.debug("%s Writing new config for %s: %s", facility, config_id, str(new_config))
 		try:
 			# Write the config stanza
-			self.writeConf('ep_general', config_id, new_config)
+			self.writeConf(config_file, config_id, new_config)
 		except BaseException as e:
 			logger.critical("%s Error writing config: %s", facility, repr(e))
 			exit(1)

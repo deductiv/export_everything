@@ -27,6 +27,8 @@ import re
 import logging
 from logging import handlers
 import configparser
+import time
+import datetime
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -124,7 +126,10 @@ def hex_convert(s):
 	return ":".join("{:02x}".format(ord(c)) for c in s)
 
 def str2bool(v):
-	return v.lower() in ("yes", "true", "t", "1")
+	if isinstance(v, bool):
+		return v
+	else:
+		return str(v).lower() in ("yes", "y", "true", "t", "1")
 
 # STDERR printing for python 3
 def eprint(*args, **kwargs):
@@ -135,3 +140,57 @@ def escape_quotes(string):
 	string = re.sub(r'(?<!\\)"', r'\"', string)
 	return string
 
+def get_config_from_alias(config_data, stanza_guid_alias = None):
+	# Parse and merge the configuration
+	try:
+		# Delete blank configuration values (in case setup process wrote them)
+		for guid in list(config_data.keys()):
+			for setting in list(config_data[guid].keys()):
+				if config_data[guid][setting] is not None and len(config_data[guid][setting]) == 0:
+					del config_data[guid][setting]
+
+		# Set the default configuration
+		if 'default' in list(config_data.keys()):
+			default_target_config = config_data['default']
+		else:
+			default_target_config = {}
+
+		# Loop through all GUID stanzas for the specified alias
+		for guid in list(config_data.keys()):
+			if guid != 'default':
+				# Merge the configuration with the default config to fill in null values
+				config_stanza = merge_two_dicts(default_target_config, config_data[guid])
+				guid_is_default = str2bool(config_stanza['default'])
+				# Check to see if this is the configuration we want to use
+				if 'alias' in list(config_stanza.keys()):
+					if config_stanza['alias'] == stanza_guid_alias or (stanza_guid_alias is None and guid_is_default):
+						# Return the specified target configuration, or default if target not specified
+						return config_stanza
+		return None
+	except BaseException as e:
+		raise Exception("Unable to find target configuration: " + repr(e))
+
+def replace_keywords(s):
+
+	now = str(int(time.time()))
+	nowft = datetime.datetime.now().strftime("%F_%H%M%S")
+	today = datetime.datetime.now().strftime("%F")
+
+	strings_to_replace = {
+		'__now__': now,
+		'__nowft': nowft,
+		'__today__': today
+	}
+	
+	for x in list(strings_to_replace.keys()):
+		s = s.replace(x, strings_to_replace[x])
+	
+	return s
+
+def exit_error(logger, message, error_code=1):
+	logger.critical(message)
+	print(message)
+	exit(error_code)
+
+if __name__ == "__main__":
+	pass
