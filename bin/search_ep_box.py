@@ -272,7 +272,7 @@ class boxep(ReportingCommand):
 		# Replace keywords from output filename
 		self.outputfile = replace_keywords(self.outputfile)
 
-		if self.compress:
+		if self.compress is not None:
 			logger.debug('Compression: %s', self.compress)
 		else:
 			try:
@@ -280,13 +280,15 @@ class boxep(ReportingCommand):
 			except:
 				self.compress = False
 		
-		staging_filename = 'eventpush_staging.txt'
+		# Use the random number to support running multiple outputs in a single search
+		random_number = str(random.randint(10000, 100000))
+		staging_filename = 'eventpush_staging_' + random_number + '.txt'
 		local_output_file = os.path.join(dispatch, staging_filename)
 
 		# Append .gz to the output file if compress=true
 		if not self.compress and len(self.outputfile) > 3:
-			# We have a .gz extension when compression was not specified. Enable compression.
 			if self.outputfile[-3:] == '.gz':
+				# We have a .gz extension when compression was not specified. Enable compression.
 				self.compress = True
 		elif self.compress and len(self.outputfile) > 3:
 			if self.outputfile[-3:] != '.gz':
@@ -296,8 +298,6 @@ class boxep(ReportingCommand):
 			local_output_file = local_output_file + '.gz'
 		
 		logger.debug("Staging file: %s" % local_output_file)
-
-		#random_number = str(random.randint(10000, 100000))
 
 		if auth is not None:
 			
