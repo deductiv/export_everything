@@ -277,7 +277,7 @@ class App extends React.Component {
 						inputProps={{"placeholder": "Passphrase"}}
 						onChange={e => {props.onChange(e.target.value)}}
 					/>) },
-			{ title: "Compress Output", field: "compression", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		]
 	};
