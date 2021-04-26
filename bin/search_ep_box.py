@@ -220,7 +220,7 @@ class boxep(ReportingCommand):
 					client_id = target_config['client_id']
 					client_secret = decrypt_with_secret(target_config['client_secret'])
 					public_key_id = target_config['public_key_id']
-					private_key = target_config['private_key'].replace('\\n', '\n')
+					private_key = decrypt_with_secret(target_config['private_key']).replace('\\n', '\n')
 					passphrase = decrypt_with_secret(target_config['passphrase'])
 
 					box_authentication = {
