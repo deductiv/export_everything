@@ -319,7 +319,6 @@ class App extends React.Component {
 				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(12))}</span>,
 				editComponent: props => (
 					<TextField
-						error={this.state.error_states.passphrase}
 						type="password"
 						value={props.value}
 						inputProps={{"placeholder": "Passphrase"}}
