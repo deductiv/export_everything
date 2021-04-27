@@ -2,7 +2,7 @@
   <label>Event Push Setup</label>
   <row>
     <panel>
-      <html>
+      <html id="tab_container">
         <div class="eventpush_setup"/>
       </html>
     </panel>

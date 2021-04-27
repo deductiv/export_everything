@@ -290,9 +290,9 @@ class App extends React.Component {
 			{ title: "Hostname", field: "host", width: "35%", validate: rowData => validators.string(rowData.host) },
 			{ title: "TCP Port", field: "port", width: "10%" },
 			{ title: "Username", field: "username", width: "15%", 
-				validate: rowData => this.validate_field(rowData, 'username', 'string', this.fields_are_populated(rowData, ['private_key', 'passphrase'])) }, 
+				validate: rowData => this.validate_field(rowData, 'username', 'string', this.fields_are_populated(rowData, ['private_key'])) }, 
 			{ title: "Password", field: "password", width: "15%", 
-				validate: rowData => this.validate_field(rowData, 'password', 'password', this.fields_are_populated(rowData, ['private_key', 'passphrase'])) ,
+				validate: rowData => this.validate_field(rowData, 'password', 'password', this.fields_are_populated(rowData, ['private_key'])) ,
 				render: rowData => <span className="password_field">{((rowData.password === undefined || rowData.password == '') ? '' : '*'.repeat(12))}</span>,
 				editComponent: props => (
 					<TextField
@@ -303,7 +303,7 @@ class App extends React.Component {
 						onChange={e => {props.onChange(e.target.value)}}
 					/>) },
 			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, 
-				validate: rowData => this.validate_field(rowData, 'private_key', 'password', this.fields_are_populated(rowData, ['username','password'])),
+				validate: rowData => this.validate_field(rowData, 'private_key', 'password', this.fields_are_populated(rowData, ['password'])),
 				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[encrypted]')}</span>,
 				editComponent: ({ value, onChange }) => (
 					<TextField
@@ -316,7 +316,6 @@ class App extends React.Component {
 						rowsMax={4}
 						/>) },
 			{ title: "Passphrase", field: "passphrase", width: "8%", 
-				validate: rowData => this.validate_field(rowData, 'passphrase', 'password', this.fields_are_populated(rowData, ['username','password'])),
 				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(12))}</span>,
 				editComponent: props => (
 					<TextField

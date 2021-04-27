@@ -190,7 +190,7 @@ class epsftp(ReportingCommand):
 					with open(key_file, "w") as f:
 						f.write(decrypt_with_secret(target_config['private_key']).replace('\\n', '\n'))
 						f.close()
-					sftp = pysftp.Connection(host=target_config['host'], private_key=key_file, private_key_pass=decrypt_with_secret(target_config['passphrase']))
+					sftp = pysftp.Connection(host=target_config['host'], private_key=key_file, private_key_pass=decrypt_with_secret(target_config['passphrase']).strip())
 
 				if sftp is None:
 					exit_error(logger, "Unable to setup SFTP connection", 921982)
