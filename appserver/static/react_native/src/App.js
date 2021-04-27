@@ -369,44 +369,7 @@ class App extends React.Component {
 		console.log(field + " result = " + is_valid);
 		return is_valid;
 	}
-	/*
-	validate_secret_key = (rowData) => {
-		console.log("Validate secret key called");
-		let error_result = !((validators.bool(rowData.use_arn).isValid && rowData.use_arn) || validators.string(rowData.secret_key).isValid );
-		if (error_result !== this.state.error_states.secret_key) {
-			this.setState(prev_state => ({
-				error_states: {
-					...prev_state.error_states,
-					secret_key: error_result
-				}
-			}));
-		}
-		console.log("secret_key result = " + error_result);
-		return !error_result;
-	}
 	
-	validate_password_field = (rowData, field, override) => {
-		console.log("Validate password field called for " + field);
-		// Only use override if it's true
-		// Inverse - true validation = no error
-		let error_result;
-		if ( override !== undefined && override) { 
-			error_result = !override
-		} else {
-			error_result = !(validators.string(rowData[field]).isValid );
-		}
-		if (error_result !== this.state.error_states[field]) {
-			this.setState(prev_state => ({
-				error_states: {
-					...prev_state.error_states,
-					[field]: error_result
-				}
-			}));
-		}
-		console.log(field + " result = " + error_result);
-		return !error_result;
-	}
-	*/
 	refresh_tables = () => {
 		let tables = Object.keys(this.columns);
 		for (let table of tables) {

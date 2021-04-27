@@ -170,30 +170,45 @@ class epsftp(ReportingCommand):
 			target_config = get_config_from_alias(cmd_config, self.target)
 			if target_config is None:
 				exit_error(logger, "Unable to find target configuration.", 100937)
-			logger.debug("Target configuration: " + str(target_config))
+			#logger.debug("Target configuration: " + str(target_config))
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
 
 		# Check to see if we have credentials
 		valid_settings = []
 		for l in list(target_config.keys()):
+			if target_config[l][0] == '$':
+				target_config[l] = decrypt_with_secret(target_config[l]).strip()
 			if len(target_config[l]) > 0:
+				#logger.debug("l.strip() = [" + target_config[l].strip() + "]")
 				valid_settings.append(l) 
 		if 'host' in valid_settings and 'port' in valid_settings:
 			# A target has been configured. Check for credentials.
+			# Disable SSH host checking (fix later - set as an option? !!!)
+			cnopts = pysftp.CnOpts()
+			cnopts.hostkeys = None
 			try:
-				if ('username' in valid_settings and 'password' in valid_settings):
-					sftp = pysftp.Connection(host=target_config['host'], username=target_config['username'], password=decrypt_with_secret(target_config['client_secret']))
-				elif ('private_key' in valid_settings and 'passphrase' in valid_settings):
+				if 'username' in valid_settings and 'password' in valid_settings:
+					try:
+						sftp = pysftp.Connection(host=target_config['host'], username=target_config['username'], password=target_config['password'], cnopts=cnopts)
+					except BaseException as e:
+						exit_error(logger, "Unable to setup SFTP connection with password: " + repr(e), 921982)
+				elif 'username' in valid_settings and 'private_key' in valid_settings:
 					# Write the decrypted private key to a temporary file
 					key_file = os.path.join(dispatch, 'epsftp_private_key_' + random_number)
+					private_key = target_config['private_key'].replace('\\n', '\n')
 					with open(key_file, "w") as f:
-						f.write(decrypt_with_secret(target_config['private_key']).replace('\\n', '\n'))
+						f.write(private_key)
 						f.close()
-					sftp = pysftp.Connection(host=target_config['host'], private_key=key_file, private_key_pass=decrypt_with_secret(target_config['passphrase']).strip())
-
-				if sftp is None:
-					exit_error(logger, "Unable to setup SFTP connection", 921982)
+					try:
+						if 'passphrase' in valid_settings:
+							sftp = pysftp.Connection(host=target_config['host'], private_key=key_file, private_key_pass=target_config['passphrase'], cnopts=cnopts)
+						else:
+							sftp = pysftp.Connection(host=target_config['host'], username=target_config['username'], private_key=key_file, cnopts=cnopts)
+					except BaseException as e:
+						exit_error(logger, "Unable to setup SFTP connection with private key: " + repr(e), 921982)
+				else:
+					exit_error(logger, "Required settings not found", 101926)
 			except BaseException as e: 
 				exit_error(logger, "Could not find or decrypt the specified credential: " + repr(e), 230494)
 		else:
@@ -215,47 +230,6 @@ class epsftp(ReportingCommand):
 		default_filename = (app + '_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 
 		folder, filename = event_file.parse_outputfile(self.outputfile, default_filename, target_config)
-		'''
-		# Split the output into folder and filename
-		if self.outputfile is not None:
-			folder_list = self.outputfile.split('/')
-			if len(folder_list) == 1:
-				# No folder specified, use the default
-				use_default_folder = True
-				filename = folder_list[0]
-			elif folder_list[0] == '':
-				# Length > 1, outputfile points to the root folder (leading /)
-				use_default_folder = False
-			else:
-				# Length > 1 and outputfile points to a relative path (no leading /)
-				use_default_folder = True
-
-			if len(folder_list) > 1 and folder_list[-1] == '':
-				# No filename provided, trailing /
-				filename = default_filename
-				folder_list.pop()
-			elif len(folder_list) > 1 and len(folder_list[-1]) > 0:
-				filename = folder_list[-1]
-				folder_list.pop()
-		else:
-			use_default_folder = True
-			filename = default_filename
-			folder_list = []
-		
-		if use_default_folder:
-			if 'default_folder' in list(target_config.keys()):
-				# Use the configured default folder
-				folder_list = target_config['default_folder'].strip('/').split('/') + folder_list
-			else:
-				# Use the root folder
-				folder_list = ['']
-		
-		# Replace keywords from output filename and folder
-		folder = replace_keywords('/'.join(folder_list))
-		filename = replace_keywords(filename)
-		logger.debug("Folder = " + folder)
-		logger.debug("Filename = " + filename)
-		'''
 
 		if self.compress is not None:
 			logger.debug('Compression: %s', self.compress)
@@ -269,7 +243,6 @@ class epsftp(ReportingCommand):
 		local_output_file = os.path.join(dispatch, staging_filename)
 		if self.compress:
 			local_output_file = local_output_file + '.gz'
-		logger.debug("Staging file: %s" % local_output_file)
 
 		# Append .gz to the output file if compress=true
 		if not self.compress and len(filename) > 3:
@@ -281,59 +254,52 @@ class epsftp(ReportingCommand):
 				filename = filename + '.gz'
 		
 		if sftp is not None:
-			
 			# Use the credential to connect to the SFTP server
 			try:
-				# Create the folders required to store the file
-				subfolders = folder.strip('/').split('/')
-				if '' in subfolders:
-					subfolders.remove('')
-				logger.debug("Folders: %s" % str(subfolders))
-				with sftp.cd('/'):
-					x = sftp.listdir()
-					logger.debug(x)
-				'''
-				# Prepend the list with the root element
-				box_folder_object = client.root_folder().get()
-				# Walk the folder path until we find the target directory
-				for subfolder_name in subfolders:
-					logger.debug("Looking for folder: %s" % subfolder_name)
-					# Get the folder ID for the string specified from the list of child subfolders
-					# folder object is from the previous iteration
-					folder_contents = box_folder_object.get_items()
-					folder_found = False
-					for item in folder_contents:
-						if item.type == 'folder':
-							#logger.debug('{0} {1} is named "{2}"'.format(item.type.capitalize(), item.id, item.name))
-							if subfolder_name == item.name:
-								logger.debug("Found a target folder ID: %s" % str(item.id))
-								box_folder_object = client.folder(folder_id=item.id)
-								folder_found = True
-					if not folder_found:
-						# Create the required subfolder
-						box_folder_object = box_folder_object.create_subfolder(subfolder_name)
-				'''
-
-				try:
-					event_counter = 0
-					# Write the output file to disk in the dispatch folder
-					logger.debug("Writing events to file %s in %s format. Compress=%s\n\tfields=%s", local_output_file, self.outputformat, self.compress, self.fields)
-					for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress):
-						yield event
-						event_counter += 1
-				except BaseException as e:
-					exit_error(logger, "Error writing file to upload", 296733)
+				sftp.makedirs(folder)
+				sftp.chdir(folder)
 			except BaseException as e:
 				exit_error(logger, "Could not load remote SFTP directory: " + repr(e), 6)
+
+			contents = sftp.listdir()
+			if filename in contents:
+				file_exists = True
+			else:
+				file_exists = False
+			
+			try:
+				event_counter = 0
+				# Write the output file to disk in the dispatch folder
+				logger.debug("Writing events to file %s in %s format. Compress=%s\n\tfields=%s", local_output_file, self.outputformat, self.compress, self.fields)
+				for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress):
+					yield event
+					event_counter += 1
+			except BaseException as e:
+				exit_error(logger, "Error writing file to upload", 296733)
 		
 			try:
-				#new_file = box_folder_object.upload(local_output_file, file_name=filename)
-				#message = "Box Event Push Status: Success. File name: %s, File ID: %s" % (new_file.name, new_file.id)
-				#eprint(message)
-				#logger.info(message)
-				pass
+				# Upload the file
+				sftp.put(local_output_file)
 			except BaseException as e:
 				exit_error(logger, "Error uploading file to SFTP server: " + repr(e), 109693)
+
+			try:
+				# Rename the file
+				if file_exists:
+					sftp.remove(filename)
+				remote_staging_filename = folder + '/' + local_output_file.split('/')[-1]
+				remote_target_filename = folder + '/' + filename
+				sftp.rename(remote_staging_filename, remote_target_filename)
+
+				if filename in sftp.listdir():
+					#new_file = box_folder_object.upload(local_output_file, file_name=filename)
+					message = "SFTP Push Status: Success. File name: %s" % (folder + '/' + filename)
+					eprint(message)
+					logger.info(message)
+				else:
+					exit_error(logger, "Could not verify uploaded file exists", 771293)
+			except BaseException as e:
+				exit_error(logger, "Error renaming or replacing file on SFTP server. Does the file already exist?" + repr(e), 109693)
 		else:
 			exit_error(logger, "Credential not configured.", 8)
 		

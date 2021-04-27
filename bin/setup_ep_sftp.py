@@ -82,12 +82,8 @@ class SetupApp(admin.MConfigHandler):
 				for k, v in list(settings.items()):
 					if stanza != 'default':
 						logger.debug("%s stanza: %s, key: %s, value: %s", facility, stanza, k, v)
-						# Set blank value for each setting if one does not exist
-						if v is None:
-							v = ''
-						else:
-							if k.lower() in password_options and not '$7$' in v:
-								v = encrypt_new(splunk_secret, v)
+						if k.lower() in password_options and v is not None and len(v) > 0 and not '$7$' in v:
+							v = encrypt_new(splunk_secret, v)
 						confInfo[stanza].append(k, v)
 
 	# Update settings once they are saved by the user
