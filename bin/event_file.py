@@ -142,3 +142,44 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 
 	buf = None
 	logger.debug("Wrote temp output file " + local_output)
+
+def parse_outputfile(outputfile, default_filename, target_config):
+
+	# Split the output into folder and filename
+	if outputfile is not None:
+		folder_list = outputfile.split('/')
+		if len(folder_list) == 1:
+			# No folder specified, use the default
+			use_default_folder = True
+			filename = folder_list[0]
+		elif folder_list[0] == '':
+			# Length > 1, outputfile points to the root folder (leading /)
+			use_default_folder = False
+		else:
+			# Length > 1 and outputfile points to a relative path (no leading /)
+			use_default_folder = True
+
+		if len(folder_list) > 1 and folder_list[-1] == '':
+			# No filename provided, trailing /
+			filename = default_filename
+			folder_list.pop()
+		elif len(folder_list) > 1 and len(folder_list[-1]) > 0:
+			filename = folder_list[-1]
+			folder_list.pop()
+	else:
+		use_default_folder = True
+		filename = default_filename
+		folder_list = []
+	
+	if use_default_folder:
+		if 'default_folder' in list(target_config.keys()):
+			# Use the configured default folder
+			folder_list = target_config['default_folder'].strip('/').split('/') + folder_list
+		else:
+			# Use the root folder
+			folder_list = ['']
+	
+	# Replace keywords from output filename and folder
+	folder = dhelp.replace_keywords('/'.join(folder_list))
+	filename = dhelp.replace_keywords(filename)
+	return [folder, filename]

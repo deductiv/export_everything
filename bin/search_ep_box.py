@@ -31,7 +31,7 @@ import time, datetime
 import random
 import re
 import json
-from deductiv_helpers import setup_logger, eprint, get_config_from_alias, replace_keywords, exit_error
+from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, get_config_from_alias, replace_keywords, exit_error
 
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -43,9 +43,6 @@ import splunklib.client as client
 import splunklib.results as results
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 import event_file
-
-# https://github.com/HurricaneLabs/splunksecrets/blob/master/splunksecrets.py
-from splunksecrets import decrypt
 
 # Import the correct version of cryptography
 # https://pypi.org/project/cryptography/
@@ -73,37 +70,21 @@ sys.path.append(path_prepend)
 
 from boxsdk import JWTAuth, Client, BoxAPIException
 
-def str2bool(v):
-	return str(v).lower() in ("yes", "y", "true", "t", "1") or v == 1
-
-def decrypt_with_secret(encrypted_text):
-	# Check for encryption
-	if encrypted_text[:1] == '$':
-		# Decrypt the text
-		# Read the splunk.secret file
-		with open(os.path.join(os.getenv('SPLUNK_HOME'), 'etc', 'auth', 'splunk.secret'), 'r') as ssfh:
-			splunk_secret = ssfh.readline()
-		# Call the decrypt function from splunksecrets.py
-		return decrypt(splunk_secret, encrypted_text)
-	else:
-		# Not encrypted
-		return encrypted_text
-
 # Define class and type for Splunk command
 @Configuration()
-class boxep(ReportingCommand):
+class epbox(ReportingCommand):
 	doc='''
 	**Syntax:**
-	search | boxep folder="<folder>" outputfile=<output filename> outputformat=[json|raw|kv|csv|tsv|pipe]
+	search | epbox target=<target alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
 
 	**Description**
-	Push Splunk events to Box over JSON or raw text.
+	Push Splunk events to Box in any format.
 	'''
 
 	# Define Parameters
 	target = Option(
 		doc='''
-		**Syntax:** **target=***<target_alias>*
+		**Syntax:** **target=***<target alias>*
 		**Description:** Reference to a target Box app within the configuration
 		**Default:** The target configured as "Default" within the setup page (if any)''',
 		require=False)
@@ -133,7 +114,7 @@ class boxep(ReportingCommand):
 	compress = Option(
 		doc='''
 		**Syntax:** **compress=***[true|false]*
-		**Description:** Option to compress the output file into .gz format before writing to Box
+		**Description:** Option to compress the output file into .gz format before uploading
 		**Default:** The setting from the target configuration, or True if .gz is in the filename ''',
 		require=False, validate=validators.Boolean())
 
@@ -350,7 +331,7 @@ class boxep(ReportingCommand):
 				except BoxAPIException as be:
 					exit_error(logger, be.message, 833928)
 				except BaseException as e:
-					exit_error(logger, "Error writing file to upload")
+					exit_error(logger, "Error writing file to upload", 398372)
 
 				#yield({"Result": "Success", "File": new_file.name, "FileID": new_file.id})
 			except BoxAPIException as be:
@@ -369,6 +350,6 @@ class boxep(ReportingCommand):
 			exit_error(logger, "Box credential not configured.", 8)
 		
 
-dispatch(boxep, sys.argv, sys.stdin, sys.stdout, __name__)
+dispatch(epbox, sys.argv, sys.stdin, sys.stdout, __name__)
 
 

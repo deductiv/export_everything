@@ -29,10 +29,14 @@ from logging import handlers
 import configparser
 import time
 import datetime
+import socket
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+
+# https://github.com/HurricaneLabs/splunksecrets/blob/master/splunksecrets.py
+from splunksecrets import decrypt	# pylint: disable=import-error
 
 # pylint: disable=import-error
 import splunk.entity as en 
@@ -191,6 +195,29 @@ def exit_error(logger, message, error_code=1):
 	logger.critical(message)
 	print(message)
 	exit(error_code)
+
+def decrypt_with_secret(encrypted_text):
+	# Check for encryption
+	if encrypted_text[:1] == '$':
+		# Decrypt the text
+		# Read the splunk.secret file
+		with open(os.path.join(os.getenv('SPLUNK_HOME'), 'etc', 'auth', 'splunk.secret'), 'r') as ssfh:
+			splunk_secret = ssfh.readline()
+		# Call the decrypt function from splunksecrets.py
+		return decrypt(splunk_secret, encrypted_text)
+	else:
+		# Not encrypted
+		return encrypted_text
+
+def port_is_open(ip, port):
+	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	s.settimeout(3)
+	try:
+		s.connect((ip, int(port)))
+		s.shutdown(2)
+		return True
+	except:
+		return False
 
 if __name__ == "__main__":
 	pass

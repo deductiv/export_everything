@@ -38,21 +38,11 @@ import splunklib.client as client
 import splunklib.results as results
 from splunklib.searchcommands import StreamingCommand, dispatch, Configuration, Option, validators
 from CsvResultParser import *
-from deductiv_helpers import setup_logger, eprint, str2bool, get_config_from_alias, exit_error
+from deductiv_helpers import setup_logger, eprint, str2bool, get_config_from_alias, exit_error, port_is_open
 
 # Use the library from George Starcher for HTTP Event Collector
 # Updated to support Python3
 from splunk_http_event_collector.http_event_collector import http_event_collector   # https://github.com/georgestarcher/Splunk-Class-httpevent
-
-def port_is_open(ip, port):
-	s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	s.settimeout(3)
-	try:
-		s.connect((ip, int(port)))
-		s.shutdown(2)
-		return True
-	except:
-		return False
 	  
 # Define class and type for Splunk command
 @Configuration(local=True)

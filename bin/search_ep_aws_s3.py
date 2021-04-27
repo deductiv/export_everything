@@ -29,7 +29,7 @@ import logging
 import sys, os, platform
 import random
 import re
-from deductiv_helpers import setup_logger, eprint, get_config_from_alias, replace_keywords, exit_error
+from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, get_config_from_alias, replace_keywords, exit_error, str2bool
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -44,18 +44,12 @@ import event_file
 import boto3
 from botocore.config import Config
 
-# https://github.com/HurricaneLabs/splunksecrets/blob/master/splunksecrets.py
-from splunksecrets import decrypt
-
-def str2bool(v):
-	return str(v).lower() in ("yes", "y", "true", "t", "1") or v == 1
-
 # Define class and type for Splunk command
 @Configuration()
 class epawss3(ReportingCommand):
 	doc='''
 	**Syntax:**
-	search | epawss3 bucket=<bucket> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe]
+	search | epawss3 target=<target alias> bucket=<bucket> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe]
 
 	**Description**
 	Push Splunk events to AWS S3 (or compatible) over JSON or raw text.
@@ -101,7 +95,7 @@ class epawss3(ReportingCommand):
 	compress = Option(
 		doc='''
 		**Syntax:** **compress=***[true|false]*
-		**Description:** Option to compress the output file into .gz format before writing to S3
+		**Description:** Option to compress the output file into .gz format before uploading
 		**Default:** The setting from the target configuration, or True if .gz is in the filename ''',
 		require=False, validate=validators.Boolean())
 
@@ -178,12 +172,7 @@ class epawss3(ReportingCommand):
 
 		# Check for secret_key encryption
 		if not use_arn and aws_config['secret_key'][:1] == '$':
-			# Decrypt the password using the splunk.secret file
-			with open(os.path.join(os.getenv('SPLUNK_HOME'), 'etc', 'auth', 'splunk.secret'), 'r') as ssfh:
-				splunk_secret = ssfh.readline()
-
-			# Call the decrypt function from splunksecrets.py
-			aws_config['secret_key'] = decrypt(splunk_secret, aws_config['secret_key'])
+			aws_config['secret_key'] = decrypt_with_secret(aws_config['secret_key'])
 
 		if self.bucket is None:
 			if 'default_s3_bucket' in list(aws_config.keys()):

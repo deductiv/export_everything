@@ -1,0 +1,180 @@
+<form script="setup_old.js" stylesheet="application.css">
+  <label>Configurations</label>
+  <row id="tabs">
+    <panel>
+      <html id="tab_container">
+        <style>
+          .dashboard-view-controls {
+              display: none !important;
+          }
+        </style>
+        <div>
+          <ul id="tabs_list" class="nav nav-tabs">
+            <li class="active">
+              <a href="#" class="toggle-tab" data-toggle="tab" data-elements="internal_row_1">General</a>
+            </li>
+            <li>
+              <a href="#" class="toggle-tab" data-toggle="tab" data-elements="internal_row_2">HTTP Event Collector</a>
+            </li>
+            <li>
+              <a href="#" class="toggle-tab" data-toggle="tab" data-elements="internal_row_3">Amazon AWS S3</a>
+            </li>
+            <li>
+              <a href="#" class="toggle-tab" data-toggle="tab" data-elements="internal_row_4">Box</a>
+            </li>
+          </ul>
+        </div>
+      </html>
+    </panel>
+  </row>
+  <row id="internal_row_1">
+    <panel>
+      <html>
+      <body>
+        <!--<form action="/en-US/splunkd/__raw/servicesNS/nobody/deductiv_hep/deductiv/hep_setup">-->
+
+        <div class="form form-horizontal form-complex">
+          <h1>General Settings</h1>
+          <label class="control-label" for="log_level">Log Level</label>
+          <select class="controls controls-block controls_text" style="width: 150px" id="log_level">
+            <option value="DEBUG">Debug</option>
+            <option value="INFO">Info</option>
+            <option value="WARNING">Warning</option>
+            <option value="ERROR">Error</option>
+            <option value="CRITICAL">Critical</option>
+          </select>
+        </div>
+      </body>
+      </html>
+    </panel>
+  </row>
+  <row id="internal_row_2">
+    <panel>
+      <html>
+      <body>
+        <div class="form form-horizontal form-complex">
+          <h1>HTTP Event Collector Event Push (hep)</h1>
+          <label class="control-label" for="hec_host">Destination Host</label>
+          <input class="controls controls-block controls_text" type="text" id="hec_host"/>
+          
+          <label class="control-label" for="hec_port">Destination Port (Default 8088)</label>
+          <input class="controls controls-block controls_text" type="text" id="hec_port"/>
+          
+          <label class="control-label" for="hec_token">Destination Host Token Value</label>
+          <input class="controls controls-block controls_text" type="text" id="hec_token"/>
+          
+          <label class="control-label" for="hec_ssl">SSL</label>
+          <input class="controls controls-block" type="checkbox" id="hec_ssl"/>
+        </div>
+      </body>
+      </html>
+    </panel>
+  </row>
+
+  <row id="internal_row_3">
+    <panel>
+      <html>
+      <body>
+        <div class="form form-horizontal form-complex">
+          <h1>Amazon Web Services S3 Event Push (s3ep)</h1>
+          
+          <label class="control-label" for="use_arn">Authenticate Using Assumed Role</label>
+          <input class="controls controls-block" type="checkbox" id="use_arn"/>
+          
+          <label class="control-label" for="default_s3_bucket">Default S3 Bucket</label>
+          <input class="controls controls-block controls_text" type="text" id="default_s3_bucket"/>
+          
+          <h2>AWS Credentials - New/Edit</h2>
+          
+          <label class="control-label" for="cred_alias">Credential Name/Alias</label>
+          <input class="controls controls-block controls_text" type="text" id="cred_alias"/>
+          
+          <label class="control-label" for="cred_accesskey">Access Key ID</label>
+          <input class="controls controls-block controls_text" type="text" id="cred_accesskey"/>
+          
+          <label class="control-label" for="cred_secretkey">Secret Access Key</label>
+          <input class="controls controls-block controls_text" type="password" id="cred_secretkey"/>
+          
+          <label class="control-label" for="cred_default">Set as Default</label>
+          <input class="controls controls-block" type="checkbox" id="cred_default"/>
+        </div>
+        <div class="form form-horizontal form-complex">
+          <h2>AWS Credentials - Configured</h2>
+          <label class="control-label" for="cred_id">Configured Credentials</label>
+          <select id="cred_id" size="10" style="height: 100%;"></select>
+          <input type="hidden" name="cred_id_hidden" id="cred_id_hidden"/>
+        </div>
+        <div id="credential_buttons"> 
+          <button type="button" id="credential_modify" class="btn credential-btn pull-left">Modify</button> <br/>
+          <button type="button" id="credential_delete" class="btn credential-btn pull-left">Delete</button>
+        </div>
+        <div>
+          <p id="credentials_footnote">* Default</p>
+        </div>
+      </body>
+      </html>
+    </panel>
+  </row>
+  
+  <row id="internal_row_4">
+    <panel>
+      <html>
+      <body>
+        <div class="form form-horizontal form-complex">
+
+          <h1 style="padding-bottom: 5px;">Box (boxep)</h1>
+          <div style="width: 700px; padding-bottom: 15px;">
+            <p>In your <a href="https://app.box.com/developers/console/newapp">Box admin portal</a>, create a new Custom App with Server Authentication (with JWT) and create a new key pair to get this information. Then, submit the new app for authorization.</p>
+          </div>
+          <label class="control-label" for="default_folder">Default Folder</label>
+          <input class="controls controls-block controls_text" type="text" value="/" id="default_folder"/>
+          
+          <label class="control-label" for="enterpriseID">Enterprise ID</label>
+          <input class="controls controls-block controls_text" type="text" id="enterpriseID"/>
+          
+          <label class="control-label" for="clientID">Client ID</label>
+          <input class="controls controls-block controls_text" type="text" id="clientID"/>
+          
+          <label class="control-label" for="clientSecret">Client Secret</label>
+          <input class="controls controls-block controls_text" type="password" id="clientSecret"/>
+          
+          <label class="control-label" for="publicKeyID">Public Key ID</label>
+          <input class="controls controls-block controls_text" type="text" id="publicKeyID"/>
+          
+          <label class="control-label" for="privateKey">Private Key</label>
+          <textarea class="controls controls-block controls_text" id="privateKey"/>
+          
+          <label class="control-label" for="passphrase">Passphrase</label>
+          <input class="controls controls-block controls_text" type="password" id="passphrase"/>
+        </div>
+      </body>
+      </html>
+    </panel>
+  </row>
+  <row id="setup_footer">
+    <panel>
+      <html>
+      <body>
+        <div>
+          <p id="settings_message" class="result_message" style="display: none"></p>
+          <p id="aws_message" class="result_message" style="display: none"></p>
+          <p id="hec_message" class="result_message" style="display: none"></p>
+          <p id="box_message" class="result_message" style="display: none"></p>
+        </div>
+        <div class="modal-footer" style="padding-left: 0px; margin-top: -5px; float: left; width: 100%;">
+          <button type="button" id="setup_save" class="btn btn-primary custom-btn">Save</button>
+        </div>
+      </body>
+      </html>
+    </panel>
+  </row>
+<!--
+  
+
+</form>
+
+</body>
+</html>
+    </panel>
+  </row>-->
+</form>
