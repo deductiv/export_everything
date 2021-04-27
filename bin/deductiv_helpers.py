@@ -178,7 +178,7 @@ def replace_keywords(s):
 
 	strings_to_replace = {
 		'__now__': now,
-		'__nowft': nowft,
+		'__nowft__': nowft,
 		'__today__': today
 	}
 	

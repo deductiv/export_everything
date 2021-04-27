@@ -101,15 +101,6 @@ class boxep(ReportingCommand):
 	'''
 
 	# Define Parameters
-	""" 
-	# Only one credential supported for this app to simplify Box app administration
-	credential = Option(
-		doc='''
-		**Syntax:** **credential=***<Box credential>*
-		**Description:** The name of the Box credential given by the admin
-		**Default:** The credential defined in hep.conf, aws stanza''',
-		require=False)
-	"""
 	target = Option(
 		doc='''
 		**Syntax:** **target=***<target_alias>*
@@ -117,16 +108,9 @@ class boxep(ReportingCommand):
 		**Default:** The target configured as "Default" within the setup page (if any)''',
 		require=False)
 
-	folder = Option(
-		doc='''
-		**Syntax:** **folder=***<folder name>*
-		**Description:** The path of the destination folder, e.g. "/upload"
-		**Default:** The folder name defined in hep.conf, box stanza''',
-		require=False)
-
 	outputfile = Option(
 		doc='''
-		**Syntax:** **outputfile=***<file name>*
+		**Syntax:** **outputfile=***<file path/file name>*
 		**Description:** The name of the file to be written to Box
 		**Default:** The name of the user plus the timestamp and the output format, e.g. admin_1588000000.log
 			json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log''',
@@ -242,16 +226,6 @@ class boxep(ReportingCommand):
 				exit_error(logger, "Could not find required certificate settings", 2823872)
 		else:
 			exit_error(logger, "Could not find required configuration settings", 2823874)
-
-		if self.folder is None:
-			if 'default_folder' in list(target_config.keys()):
-				t = target_config['default_folder']
-				if t is not None and len(t) > 0:
-					self.folder = t
-				else:
-					exit_error(logger, "No folder specified", 4)
-			else:
-				self.folder = '/'
 		
 		file_extensions = {
 			'raw':  '.log',
@@ -265,13 +239,50 @@ class boxep(ReportingCommand):
 		if self.outputformat is None:
 			self.outputformat = 'csv'
 
-		if self.outputfile is None:
-			now = str(int(time.time()))
-			self.outputfile = (app + '_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
+		# Create the default filename
+		now = str(int(time.time()))
+		default_filename = (app + '_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 
-		# Replace keywords from output filename
-		self.outputfile = replace_keywords(self.outputfile)
+		# Split the output into folder and filename
+		if self.outputfile is not None:
+			folder_list = self.outputfile.split('/')
+			if len(folder_list) == 1:
+				# No folder specified, use the default
+				use_default_folder = True
+				filename = folder_list[0]
+			elif folder_list[0] == '':
+				# Length > 1, outputfile points to the root folder (leading /)
+				use_default_folder = False
+			else:
+				# Length > 1 and outputfile points to a relative path (no leading /)
+				use_default_folder = True
 
+			if len(folder_list) > 1 and folder_list[-1] == '':
+				# No filename provided, trailing /
+				filename = default_filename
+				folder_list.pop()
+			elif len(folder_list) > 1 and len(folder_list[-1]) > 0:
+				filename = folder_list[-1]
+				folder_list.pop()
+		else:
+			use_default_folder = True
+			filename = default_filename
+			folder_list = []
+		
+		if use_default_folder:
+			if 'default_folder' in list(target_config.keys()):
+				# Use the configured default folder
+				folder_list = target_config['default_folder'].strip('/').split('/') + folder_list
+			else:
+				# Use the root folder
+				folder_list = ['']
+		
+		# Replace keywords from output filename and folder
+		folder = replace_keywords('/'.join(folder_list))
+		filename = replace_keywords(filename)
+		logger.debug("Folder = " + folder)
+		logger.debug("Filename = " + filename)
+		
 		if self.compress is not None:
 			logger.debug('Compression: %s', self.compress)
 		else:
@@ -284,21 +295,19 @@ class boxep(ReportingCommand):
 		random_number = str(random.randint(10000, 100000))
 		staging_filename = 'eventpush_staging_' + random_number + '.txt'
 		local_output_file = os.path.join(dispatch, staging_filename)
-
-		# Append .gz to the output file if compress=true
-		if not self.compress and len(self.outputfile) > 3:
-			if self.outputfile[-3:] == '.gz':
-				# We have a .gz extension when compression was not specified. Enable compression.
-				self.compress = True
-		elif self.compress and len(self.outputfile) > 3:
-			if self.outputfile[-3:] != '.gz':
-				self.outputfile = self.outputfile + '.gz'
-
 		if self.compress:
 			local_output_file = local_output_file + '.gz'
-		
 		logger.debug("Staging file: %s" % local_output_file)
 
+		# Append .gz to the output file if compress=true
+		if not self.compress and len(filename) > 3:
+			if filename[-3:] == '.gz':
+				# We have a .gz extension when compression was not specified. Enable compression.
+				self.compress = True
+		elif self.compress and len(filename) > 3:
+			if filename[-3:] != '.gz':
+				filename = filename + '.gz'
+		
 		if auth is not None:
 			
 			# Use the credential to connect to Box
@@ -306,31 +315,29 @@ class boxep(ReportingCommand):
 				client = Client(auth)
 
 				root_folder_id = '0'
-				target_folder = self.folder
-				subfolders = target_folder.strip('/').split('/')
+				subfolders = folder.strip('/').split('/')
 				if '' in subfolders:
 					subfolders.remove('')
 				logger.debug("Folders: %s" % str(subfolders))
 				# Prepend the list with the root element
-				folder = client.root_folder().get()
+				box_folder_object = client.root_folder().get()
 				# Walk the folder path until we find the target directory
 				for subfolder_name in subfolders:
 					logger.debug("Looking for folder: %s" % subfolder_name)
 					# Get the folder ID for the string specified from the list of child subfolders
 					# folder object is from the previous iteration
-					folder_contents = folder.get_items()
+					folder_contents = box_folder_object.get_items()
+					folder_found = False
 					for item in folder_contents:
 						if item.type == 'folder':
 							#logger.debug('{0} {1} is named "{2}"'.format(item.type.capitalize(), item.id, item.name))
 							if subfolder_name == item.name:
 								logger.debug("Found a target folder ID: %s" % str(item.id))
-								folder = client.folder(folder_id=item.id)
+								box_folder_object = client.folder(folder_id=item.id)
 								folder_found = True
-					if folder_found:
-						folder_found = False
-					else:
-						# There is a problem
-						exit_error(logger, "Target folder not found: %s" % target_folder, 12)
+					if not folder_found:
+						# Create the required subfolder
+						box_folder_object = box_folder_object.create_subfolder(subfolder_name)
 
 				try:
 					event_counter = 0
@@ -352,7 +359,7 @@ class boxep(ReportingCommand):
 				exit_error(logger, "Could not connect to Box: " + repr(e), 6)
 		
 			try:
-				new_file = folder.upload(local_output_file, file_name=self.outputfile)
+				new_file = box_folder_object.upload(local_output_file, file_name=filename)
 				message = "Box Event Push Status: Success. File name: %s, File ID: %s" % (new_file.name, new_file.id)
 				eprint(message)
 				logger.info(message)
