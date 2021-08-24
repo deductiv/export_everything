@@ -107,7 +107,7 @@ module.exports = {
     mode: mode,
     optimization: {
         moduleIds: "named",
-        minimize: true,
+        minimize: false,
         chunkIds: 'named' /*,
         runtimeChunk: 'single',
         splitChunks: {

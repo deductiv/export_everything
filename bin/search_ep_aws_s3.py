@@ -37,7 +37,6 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 # pylint: disable=import-error
 from splunk.clilib import cli_common as cli
 import splunk.entity as entity
-import splunklib.client as client
 import splunklib.results as results
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 import event_file

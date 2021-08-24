@@ -152,6 +152,37 @@ def escape_quotes_csv(string):
 	return string.replace('"', '""')
 
 def get_config_from_alias(config_data, stanza_guid_alias = None):
+	# Get all credentials for this app 
+	try:
+		service = client.connect(token=input['session']['authtoken'])
+		# Get all credentials in the secret store for this app
+		credentials = {}
+		storage_passwords = service.storage_passwords
+		for credential in storage_passwords:
+			if credential.access.app == app:
+				credentials[credential._state.title] = {
+					'username': credential.content.get('username'),
+					'password': credential.content.get('clear_password'),
+					'realm':    credential.content.get('realm')
+				}
+		
+		config = {
+			"general": cli.getConfStanza('ep_general','settings')
+		}
+		configurations = ["ep_aws_s3", "ep_box", "ep_sftp", "ep_smb"]
+		for c in configurations:
+			config[c] = cli.getConfStanzas(c)
+			for stanza in list(config[c].keys()):
+				for k, v in list(config[c][stanza].items()):
+					if 'credential' in k:
+						if v in list(credentials.keys()):
+							config[c][stanza][k + '_username'] = credentials[v]['username']
+							config[c][stanza][k + '_realm'] = credentials[v]['realm']
+							config[c][stanza][k + '_password'] = credentials[v]['password']
+	
+	except BaseException as e:
+		raise Exception("Could not read configuration: " + repr(e))
+	
 	# Parse and merge the configuration
 	try:
 		# Delete blank configuration values (in case setup process wrote them)

@@ -256,6 +256,7 @@ class App extends React.Component {
 		this.rest_to_rows = this.rest_to_rows.bind(this);
 		this.list_table_fields = this.list_table_fields.bind(this);
 		this.unset_default_entry = this.unset_default_entry.bind(this);
+		this.get_missing_form_data = this.get_missing_form_data.bind(this);
 		this.get_config_stanza = this.get_config_stanza.bind(this);
 		this.get_config = this.get_config.bind(this);
 		this.get_endpoint = this.get_endpoint.bind(this);
@@ -296,7 +297,23 @@ class App extends React.Component {
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Name/Alias", field: "alias", width: "12%", 
 				validate: rowData => validators.string(rowData.alias) }, 
-			{ title: "Use ARN", field: "use_arn", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Access Key", field: "credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="credential" 
+					name="credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value ?? '[EC2 ARN]'}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					<MenuItem value='[EC2 ARN]'>Use EC2 ARN</MenuItem>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+				/*title: "Use ARN", field: "use_arn", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Access Key ID", field: "access_key_id", width: "12%", 
 				validate: rowData => ((validators.bool(rowData.use_arn).isValid && rowData.use_arn) || validators.string(rowData.access_key_id).isValid)
 			},
@@ -311,7 +328,7 @@ class App extends React.Component {
 						onChange={e => {props.onChange(e.target.value)}}
 					/>), 
 					validate: rowData => (validators.string(rowData.secret_key).isValid ||  (validators.bool(rowData.use_arn).isValid && rowData.use_arn))
-			},
+				*/},
 			{ title: "Region", field: "region", width: "10%", 
 				validate: rowData => validators.string(rowData.region).isValid }, 
 			{ title: "Endpoint URL\n(Blank for AWS S3)", field: "endpoint_url", width: "12%" },
@@ -326,7 +343,23 @@ class App extends React.Component {
 				validate: rowData => validators.string(rowData.alias).isValid }, 
 			{ title: "Enterprise ID", field: "enterprise_id", width: "10%", 
 				validate: rowData => validators.string(rowData.enterprise_id).isValid },
-			{ title: "Client ID", field: "client_id", width: "9%", 
+			{ title: "Client Credential", field: "client_credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="client_credential" 
+					name="client_credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+			},
+			/*{ title: "Client ID", field: "client_id", width: "9%", 
 				validate: rowData => validators.string(rowData.client_id).isValid },
 			{ title: "Client Secret", field: "client_secret", width: "9%", 
 				validate: rowData => validators.string(rowData.client_secret).isValid,
@@ -338,12 +371,12 @@ class App extends React.Component {
 						value={props.value}
 						inputProps={{"placeholder": "Client Secret"}}
 						onChange={e => {props.onChange(e.target.value)}}
-					/>) },
+					/>) },*/
 			{ title: "Public Key ID", field: "public_key_id", width: "9%", 
 				validate: rowData => validators.string(rowData.public_key_id) },
 			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, 
 				validate: rowData => validators.string(rowData.private_key).isValid,
-				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[encrypted]')}</span>,
+				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[configured]')}</span>,
 				editComponent: ({ value, onChange }) => (
 					<TextField
 						error={ (value == null || !validators.string(value).isValid) }
@@ -354,6 +387,22 @@ class App extends React.Component {
 						rows={1}
 						rowsMax={4}
 						/>) },
+			{ title: "Passphrase Credential", field: "passphrase_credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="passphrase_credential" 
+					name="passphrase_credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+			},/*
 			{ title: "Passphrase", field: "passphrase", width: "8%", 
 				validate: rowData => validators.string(rowData.passphrase).isValid,
 				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(8))}</span>,
@@ -364,7 +413,7 @@ class App extends React.Component {
 						value={props.value}
 						inputProps={{"placeholder": "Passphrase"}}
 						onChange={e => {props.onChange(e.target.value)}}
-					/>) },
+					/>) },*/
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
@@ -378,6 +427,22 @@ class App extends React.Component {
 				validate: rowData => validators.string(rowData.host).isValid },
 			{ title: "TCP Port", field: "port", width: "10%",
 				validate: rowData => (validators.number(rowData.port).isValid || rowData.port == null || rowData.port == "") },
+			{ title: "User Credential", field: "credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="credential" 
+					name="credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+			},/*
 			{ title: "Username", field: "username", width: "15%", 
 				validate: rowData => validators.string(rowData.username).isValid },
 			{ title: "Password", field: "password", width: "15%", 
@@ -390,9 +455,9 @@ class App extends React.Component {
 						value={props.value}
 						inputProps={{"placeholder": "Password"}}
 						onChange={e => {props.onChange(e.target.value)}}
-					/>) },
+					/>) },*/
 			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, 
-				validate: rowData => (validators.string(rowData.private_key).isValid || validators.string(rowData.password).isValid),
+				//validate: rowData => (validators.string(rowData.private_key).isValid || validators.string(rowData.password).isValid),
 				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[configured]')}</span>,
 				editComponent: props => (
 					<TextField
@@ -404,6 +469,22 @@ class App extends React.Component {
 						rows={1}
 						rowsMax={4}
 						/>) },
+			{ title: "Passphrase Credential", field: "passphrase_credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="passphrase_credential" 
+					name="passphrase_credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+			},/*
 			{ title: "Passphrase", field: "passphrase", width: "8%", 
 				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
@@ -412,7 +493,7 @@ class App extends React.Component {
 						value={props.value}
 						inputProps={{"placeholder": "Passphrase"}}
 						onChange={e => {props.onChange(e.target.value)}}
-					/>) },
+					/>) },*/
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
@@ -424,6 +505,22 @@ class App extends React.Component {
 				validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Hostname", field: "host", width: "35%", 
 				validate: rowData => validators.string(rowData.host) },
+			{ title: "Credential", field: "credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="credential" 
+					name="credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+			},/*
 			{ title: "Domain", field: "domain", width: "15%", 
 				validate: rowData => validators.string(rowData.domain) },
 			{ title: "Username", field: "username", width: "15%", 
@@ -438,7 +535,7 @@ class App extends React.Component {
 						value={props.value}
 						inputProps={{"placeholder": "Password"}}
 						onChange={e => {props.onChange(e.target.value)}}
-					/>) },
+					/>) },*/
 			{ title: "Share Name", field: "share_name", width: "15%", 
 				validate: rowData => validators.string(rowData.share_name).isValid },
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
@@ -447,6 +544,7 @@ class App extends React.Component {
 		passwords: [
 			// actions = 10%
 			{ title: "Username", field: "username", width: "15%", 
+				validate: rowData => validators.string(rowData.username).isValid,
 				editComponent: props => ( 
 					props.rowData.id && <span>{props.rowData.username}</span> || <TextField
 					value={props.value}
@@ -476,46 +574,59 @@ class App extends React.Component {
 			},
 			{ title: "Owner", field: "owner", width: "10%",
 				editComponent: props => 
+					<FormControl>
 					<Select 
 						id="owner" 
+						name="owner"
 						style={{ width: "150px" }}
-						defaultValue={props.value || 'nobody'}
+						defaultValue={props.value ?? 'nobody'}
+						//value={!props.value ? 'nobody' : props.value}
+						onChange={e => props.onChange(e.target.value)}
 						>
 						<MenuItem key='nobody' value='nobody'>nobody</MenuItem>
-						{ this.state.users.map(user =>
+						{this.state.users.map(user => (
 							<MenuItem key={user.name} value={user.name}>{user.name}</MenuItem>
-						  )}
+						))}
 					</Select>
+					</FormControl>
 			},
 			{ title: "Read", field: "read", width: "10%",
 				render: rowData => <span>{rowData['read'].join(', ')}</span>,
 				editComponent: props => 
+					<FormControl>
 					<Select 
 						id="read" 
+						name="read"
 						style={{ width: "150px" }}
 						defaultValue={(Array.isArray(props.value) && props.value) || props.value && [props.value] || ['*']}
 						multiple
+						onChange={e => {props.onChange(e.target.value)}}
 						>
 						<MenuItem key='*' value='*'>All</MenuItem>
 						{ this.state.roles.map(role =>
 							<MenuItem key={role.name} value={role.name}>{role.name}</MenuItem>
 						  )}
-					</Select> 
+					</Select>
+					</FormControl>
 			},
 			{ title: "Write", field: "write", width: "10%", 
 				render: rowData => <span>{rowData['write'].join(', ')}</span>,
 				editComponent: props => 
+					<FormControl>
 					<Select 
 						id="write" 
+						name="write"
 						style={{ width: "150px" }}
 						defaultValue={(Array.isArray(props.value) && props.value) || props.value && [props.value] || ['*']}
 						multiple
+						onChange={e => {props.onChange(e.target.value)}}
 						>
 						<MenuItem key='*' value='*'>All</MenuItem>
 						{ this.state.roles.map(role =>
 							<MenuItem key={role.name} value={role.name}>{role.name}</MenuItem>
 						  )}
-					</Select> 
+					</Select>
+					</FormControl>
 			}
 		]
 	};
@@ -598,6 +709,36 @@ class App extends React.Component {
 		}
 	}
 
+	get_missing_form_data = (config_file, new_data) => {
+		// Check for missing items
+		let expected_fields = [];
+		this.columns[config_file].map(c => {
+			expected_fields.push(c.field);
+		});
+		console.log(`Fields enumerated for ${config_file}: ${expected_fields.join(', ')}`)
+		let missing_fields = [];
+		expected_fields.map(f => {
+			if (!(f in new_data)) {
+				missing_fields.push(f);
+			}
+		})
+		console.log(`Missing fields for ${config_file}: ${missing_fields.join(', ')}`)
+		// Get the missing field values from the table in case they were set
+		missing_fields.map(mf => {
+			try {
+				// dropdown value DOM path
+				let v = $(`#${mf} + input`).val();
+				if (v != null) {
+					new_data[mf] = v;
+					console.log(`Found missing field ${mf} = ${v}`);
+				}
+			} catch (error) {
+				console.error(error);
+			}
+		});
+		return new_data;
+	}
+
 	get_config_stanza = (config_file, stanza) => {
 		return new Promise((resolve, reject) => {
 			this.props.splunk.get(`${app}/${config_file}/${stanza}`).then((d) => {
@@ -665,7 +806,7 @@ class App extends React.Component {
 				null
 			)
 			.error(data => {
-				alert(`Could not retrieve configuration for ${config_file}`);
+				alert(`Could not retrieve configuration for ${endpoint}`);
 				reject(data)
 			})
 			.done(data => {
@@ -678,11 +819,9 @@ class App extends React.Component {
 
 	put_config_item = (config_file, items) => {
 		console.log("Config file = " + config_file);
-
 		return new Promise((resolve, reject) => {
-			let items_copy;
+			let items_copy = { ...items };
 			if (config_file == 'passwords') {
-				items_copy = { ...items };
 				console.log('items = ' + JSON.stringify(items_copy));
 				var rest_endpoint = `/servicesNS/-/${app}/storage/passwords`
 				/*if (items.password.startsWith('$7$')) {
@@ -695,6 +834,8 @@ class App extends React.Component {
 				delete items_copy.username;
 				delete items_copy.owner;
 				delete items_copy.stanza;
+				delete items_copy.read;
+				delete items_copy.write;
 				console.log(items_copy);
 			} else if ( 'stanza' in items_copy ) {
 				var rest_endpoint = `${app}/${config_file}/${items_copy.stanza}`;
@@ -734,10 +875,10 @@ class App extends React.Component {
 			if ( (new_data.default === undefined) ? false : new_data.default ) {
 				this.unset_default_entry(config_file, new_data.stanza);
 			}
+			new_data = this.get_missing_form_data(config_file, new_data);
 			this.put_config_item(config_file, new_data).then(d => {
 				return new Promise((resolve, reject) => {
-					//console.log('d = ' + JSON.stringify(d));
-					console.log('new_data = ' + JSON.stringify(new_data));
+					console.log('[create] new_data = ' + JSON.stringify(new_data));
 					if (config_file == 'passwords') {
 						let remote_credential_entry = d.entry[0];
 						let c = {}
@@ -752,22 +893,23 @@ class App extends React.Component {
 						c.links = remote_credential_entry.links;
 						c.api_entry = remote_credential_entry;
 						// Material-UI refuses to pass these values into newData
-						c['owner'] = $('#owner + input').val();
-						c['read'] = $('#read + input').val().split(',');
-						c['write'] = $('#write + input').val().split(',');
+						c.owner = new_data.owner;
+						c.read = Array.isArray(new_data.read) ? new_data.read : new_data.read.split(',');
+						c.write = Array.isArray(new_data.write) ? new_data.write : new_data.write.split(',');
 
 						// Update the ACL to what was supplied
-						if (c['owner'] != remote_credential_entry.acl.owner || 
-							c['read'] != remote_credential_entry.acl.perms.read || 
-							c['write'] != remote_credential_entry.acl.perms.write) {
+						// Check to see if it is different from default
+						if (c.owner != remote_credential_entry.acl.owner || 
+							c.read != remote_credential_entry.acl.perms.read || 
+							c.write != remote_credential_entry.acl.perms.write) {
 							//(username, stanza, owner, read, write, sharing)
-							console.log("Calling update credential ACL for: " + JSON.stringify(new_data));
+							console.log("Calling update credential ACL for: " + JSON.stringify(c));
 							this.update_credential_acl(
 							   c.stanza,
 							   c.realm,
-							   c['owner'],
-							   c['read'],
-							   c['write'],
+							   c.owner,
+							   c.read,
+							   c.write,
 							   'global'
 							  ).then(r => {
 								resolve(c);
@@ -832,6 +974,9 @@ class App extends React.Component {
 	update_row_data = (config_file, new_data, old_data) => {
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
+				console.log("New data = " + JSON.stringify(new_data));
+				new_data = this.get_missing_form_data(config_file, new_data);
+
 				const dataUpdate = [...this.state[config_file]];
 				const index = old_data.tableData.id;
 				dataUpdate[index] = new_data;
@@ -897,7 +1042,7 @@ class App extends React.Component {
 				'sharing': sharing,
 				'owner': owner
 			}
-			console.log("New ACL = " + JSON.stringify(acl));
+			//console.log("New ACL = " + JSON.stringify(acl));
 			let rest_endpoint = `configs/conf-passwords/credential%3A${username}/acl`
 			this.props.splunk.request(rest_endpoint,
 				"POST",
@@ -1037,7 +1182,7 @@ class App extends React.Component {
 							}
 							resolve(file_list);
 						}, reason => {
-							alert(`Error retrieving the file listing: ${reason.statusText} (${reason.status})`);
+							alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`);
 							this.setState({loading: false});
 							reject(reason);
 						}) ;
@@ -1164,10 +1309,14 @@ class App extends React.Component {
 						<div className="form form-horizontal form-complex">
 							<h1>Manage Credentials</h1>
 							<div style={{width: '700px', paddingBottom: '15px'}}>
-								<p>Configure accounts, passwords, and secrets/passphrases to associate with your configured connections.  
-									Restrict access using native Splunk roles.
-									All entries are exported to all apps so they are available to search commands and alert actions. 
-									Users must have the list_storage_passwords capability to read the credentials added to their roles. </p>
+								<p>Use this panel to configure accounts, passwords, and secrets/passphrases to associate with your configured connections and private keys.  </p>
+								<ul>
+									<li>All credentials are stored securely in the Splunk secret store.</li>
+									<li>Users must have the list_storage_passwords capability to read the credentials added to their roles. This will not give them access to read all passwords, only those you explicitly share.</li>
+									<li>Access is secured using native Splunk roles as configured on this dashboard.</li>
+									<li>Credential objects are exported to all apps so they are available to this app's search commands and alert actions. </li>
+									<li>Only the password field is used for storing passphrases (e.g. for private keys), but the username must still be populated with an arbitrary value.</li>
+								</ul>
 							</div>
 							<div className="panel-element-row">
 								<MaterialTable
@@ -1221,7 +1370,9 @@ class App extends React.Component {
 							heading="SFTP Connections" 
 							action_columns="3"
 							browsable="true"
-							config={`${app_abbr}_sftp`} />
+							config={`${app_abbr}_sftp`} >
+								If a password is present in your credential and a private key is also specified, the private key will be used for authentication (whether or not a credential to decrypt the private key is supplied).
+							</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
@@ -1232,7 +1383,7 @@ class App extends React.Component {
 							config={`${app_abbr}_smb`} />
 					</TabPanel>
 				</Tabs>
-				<Suspense fallback={<div>Loading...</div>}>
+				<Suspense fallback={<div style={{width: "100%", margin: "25px auto", textAlign: "center"}}>Loading Script...</div>}>
 					{this.state.show_file_browser && (
 						<FileBrowserModal 
 							id="file_browser" 
