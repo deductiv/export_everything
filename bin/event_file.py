@@ -31,7 +31,7 @@ def flush_buffer_gzip(string_list, output_file):
 		f.writelines(string_list)
 
 def write_events_to_file(events, fields, local_output, outputformat, compression):
-	logger = dhelp.setup_logging('event_push')
+	logger = dhelp.setup_logging('export_everything')
 
 	# Buffer variables
 	output_file_buf = []

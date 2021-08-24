@@ -16,7 +16,7 @@
 
 # Python 3 compatible only (Does not work on Mac version of Splunk's Python)
 # search_ep_sftp.py
-# Push Splunk search results to a remote SFTP server - Search Command
+# Export Splunk search results to a remote SFTP server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.0.0 (2021-04-27)
@@ -28,7 +28,7 @@ standard_library.install_aliases()
 import sys, os, platform
 import time
 import random
-from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, get_config_from_alias, exit_error, replace_object_tokens, recover_parameters
+from deductiv_helpers import setup_logger, eprint, exit_error, replace_object_tokens, recover_parameters
 from ep_helpers import get_sftp_connection
 
 # Add lib subfolders to import path
@@ -38,6 +38,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 from splunk.clilib import cli_common as cli
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 import event_file
+from ep_helpers import get_config_from_alias
 
 # Import the correct version of cryptography
 # https://pypi.org/project/cryptography/
@@ -66,14 +67,14 @@ sys.path.append(path_prepend)
 import pysftp
 
 # Define class and type for Splunk command
-@Configuration()
+@Configuration(local=True)
 class epsftp(ReportingCommand):
 	doc='''
 	**Syntax:**
 	search | epsftp target=<target host alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
 
 	**Description**
-	Push (export) Splunk events to an SFTP server in any format.
+	Export Splunk events to an SFTP server in any format.
 	'''
 
 	# Define Parameters
@@ -135,11 +136,11 @@ class epsftp(ReportingCommand):
 		facility = os.path.basename(__file__)
 		facility = os.path.splitext(facility)[0]
 		try:
-			logger = setup_logger(app_config["log_level"], 'event_push.log', facility)
+			logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
 		except BaseException as e:
 			raise Exception("Could not create logger: " + repr(e))
 
-		logger.info('SFTP Event Push search command initiated')
+		logger.info('SFTP Export search command initiated')
 		logger.debug('search_ep_sftp command: %s', self)  # logs command line
 
 		# Enumerate proxy settings
@@ -235,7 +236,7 @@ class epsftp(ReportingCommand):
 		if self.outputformat is None:
 			self.outputformat = 'csv'
 		# Create the default filename
-		now = str(int(time.time()))
+		#now = str(int(time.time()))
 		default_filename = (app + '_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 
 		folder, filename = event_file.parse_outputfile(self.outputfile, default_filename, target_config)
@@ -248,7 +249,7 @@ class epsftp(ReportingCommand):
 			except:
 				self.compress = False
 		
-		staging_filename = 'eventpush_staging_' + random_number + '.txt'
+		staging_filename = 'export_everything_staging_' + random_number + '.txt'
 		local_output_file = os.path.join(dispatch, staging_filename)
 		if self.compress:
 			local_output_file = local_output_file + '.gz'
@@ -301,7 +302,7 @@ class epsftp(ReportingCommand):
 				sftp.rename(remote_staging_filename, remote_target_filename)
 
 				if filename in sftp.listdir():
-					message = "SFTP Push Status: Success. File name: %s" % (folder + '/' + filename)
+					message = "SFTP Export Status: Success. File name: %s" % (folder + '/' + filename)
 					eprint(message)
 					logger.info(message)
 				else:

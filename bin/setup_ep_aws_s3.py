@@ -42,7 +42,7 @@ options = ['stanza', 'default', 'alias', 'default_s3_bucket', 'region',
 	'credential', 'use_arn', 'access_key_id', 'secret_key', 'endpoint_url', 'compress']
 password_options = ['secret_key']
 
-app = 'event_push'
+app = 'export_everything'
 app_config = cli.getConfStanza('ep_general','settings')
 setup_log = app + '_setup.log'
 config_file = 'ep_aws_s3'

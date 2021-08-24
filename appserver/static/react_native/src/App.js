@@ -16,8 +16,7 @@
 # Version: 2.0.0 (2021-04-26)
 */
  
-const app = 'event_push';
-const app_name = 'Event Push'
+const app = 'export_everything';
 const app_abbr = 'ep'
 
 import React, { forwardRef, Suspense } from 'react';
@@ -1341,14 +1340,14 @@ class App extends React.Component {
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title={`${app_name} to Splunk HTTP Event Collector (${app_abbr}hec)`}
+							title={`Export to Splunk HTTP Event Collector (${app_abbr}hec)`}
 							heading="Splunk HTTP Event Collector Connections" 
 							action_columns="2" 
 							config={`${app_abbr}_hec`} />
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title={`${app_name} to AWS S3 (${app_abbr}awss3)`} 
+							title={`Export to AWS S3 (${app_abbr}awss3)`} 
 							heading="AWS S3-Compatible Connections" 
 							action_columns="3"
 							browsable="true"
@@ -1356,7 +1355,7 @@ class App extends React.Component {
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title={`${app_name} to Box (${app_abbr}box)`} 
+							title={`Export to Box (${app_abbr}box)`} 
 							heading="Box Connections" 
 							action_columns="3"
 							browsable="true"
@@ -1366,7 +1365,7 @@ class App extends React.Component {
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title={`${app_name} to SFTP (${app_abbr}sftp)`} 
+							title={`Export to SFTP (${app_abbr}sftp)`} 
 							heading="SFTP Connections" 
 							action_columns="3"
 							browsable="true"
@@ -1376,7 +1375,7 @@ class App extends React.Component {
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title={`${app_name} to SMB (${app_abbr}smb)`} 
+							title={`Export to SMB (${app_abbr}smb)`} 
 							heading="SMB Connections" 
 							action_columns="3"
 							browsable="true"

@@ -3,7 +3,7 @@
   <row>
     <panel>
       <html id="tab_container">
-        <div class="eventpush_setup"/>
+        <div class="export_everything_setup"/>
       </html>
     </panel>
   </row>

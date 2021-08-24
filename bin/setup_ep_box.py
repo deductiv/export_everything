@@ -44,9 +44,9 @@ options = ['stanza', 'default', 'alias', 'default_folder', 'enterprise_id',
 	'compress']
 password_options = ['client_secret', 'passphrase']
 
-app = 'event_push'
+app = 'export_everything'
 app_config = cli.getConfStanza('ep_general','settings')
-setup_log = 'event_push_setup.log'
+setup_log = app + '_setup.log'
 config_file = 'ep_box'
 
 # Read the splunk.secret file

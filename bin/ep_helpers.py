@@ -5,7 +5,7 @@ import re
 import socket
 import stat
 from datetime import datetime
-from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret
+from deductiv_helpers import setup_logging, setup_logger, str2bool, decrypt_with_secret, exit_error, merge_two_dicts
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
@@ -29,12 +29,15 @@ sys.path.append(path_prepend)
 
 # pylint: disable=import-error
 # Splunk
-#from splunk.clilib import cli_common as cli
+from splunk.clilib import cli_common as cli
+import splunklib.client as client
 # Box.com
 # AWS libraries
 # PySMB
 #PySFTP
 #
+
+app = 'export_everything'
 
 # Enumerate proxy settings
 http_proxy = os.environ.get('HTTP_PROXY')
@@ -43,11 +46,83 @@ proxy_exceptions = os.environ.get('NO_PROXY')
 
 random_number = str(random.randint(10000, 100000))
 
-#app_config = cli.getConfStanza('ep_general','settings')
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
-#logger = setup_logger(app_config["log_level"], 'event_push.log', facility)
-logger = setup_logger('DEBUG', 'event_push.log', facility)
+logger = setup_logger('INFO', 'export_everything.log', facility)
+
+def get_config_from_alias(config_data, stanza_guid_alias = None):
+	'''
+	# Get all credentials for this app 
+	try:
+		service = client.connect(token=input['session']['authtoken'])
+		# Get all credentials in the secret store for this app
+		credentials = {}
+		storage_passwords = service.storage_passwords
+		for credential in storage_passwords:
+			if credential.access.app == app:
+				credentials[credential._state.title] = {
+					'username': credential.content.get('username'),
+					'password': credential.content.get('clear_password'),
+					'realm':    credential.content.get('realm')
+				}
+		
+		config = {
+			"general": cli.getConfStanza('ep_general','settings')
+		}
+		configurations = ["ep_aws_s3", "ep_box", "ep_sftp", "ep_smb"]
+		for c in configurations:
+			config[c] = cli.getConfStanzas(c)
+			for stanza in list(config[c].keys()):
+				for k, v in list(config[c][stanza].items()):
+					if 'credential' in k:
+						if v in list(credentials.keys()):
+							config[c][stanza][k + '_username'] = credentials[v]['username']
+							config[c][stanza][k + '_realm'] = credentials[v]['realm']
+							config[c][stanza][k + '_password'] = credentials[v]['password']
+	
+	except BaseException as e:
+		raise Exception("Could not read configuration: " + repr(e))
+	'''
+	# Parse and merge the configuration
+	try:
+		# Delete blank configuration values (in case setup process wrote them)
+		for guid in list(config_data.keys()):
+			for setting in list(config_data[guid].keys()):
+				if config_data[guid][setting] is not None and len(config_data[guid][setting]) == 0:
+					del config_data[guid][setting]
+
+		# Set the default configuration
+		if 'default' in list(config_data.keys()):
+			default_target_config = config_data['default']
+		else:
+			default_target_config = {}
+
+		# See if a GUID was provided explicitly (used by alert actions)
+		# 8-4-4-4-12 format 
+		logger = setup_logging('event_push')
+		try:
+			if stanza_guid_alias is not None:
+				logger.debug(type(stanza_guid_alias))
+				if re.match(r'[({]?[a-f0-9]{8}[-]?([a-f0-9]{4}[-]?){3}[a-f0-9]{12}[})]?', stanza_guid_alias, flags=re.IGNORECASE):
+					logger.debug("Using guid " + stanza_guid_alias)
+					return merge_two_dicts(default_target_config, config_data[stanza_guid_alias])
+		except BaseException as e:
+			logger.exception("Exception caught: " + repr(e))
+
+		# Loop through all GUID stanzas for the specified alias
+		for guid in list(config_data.keys()):
+			if guid != 'default':
+				# Merge the configuration with the default config to fill in null values
+				config_stanza = merge_two_dicts(default_target_config, config_data[guid])
+				guid_is_default = str2bool(config_stanza['default'])
+				# Check to see if this is the configuration we want to use
+				if 'alias' in list(config_stanza.keys()):
+					if config_stanza['alias'] == stanza_guid_alias or (stanza_guid_alias is None and guid_is_default):
+						# Return the specified target configuration, or default if target not specified
+						return config_stanza
+		return None
+	except BaseException as e:
+		raise Exception("Unable to find target configuration: " + repr(e))
 
 def get_aws_connection(aws_config):
 	global boto3, Config
@@ -394,17 +469,14 @@ def get_box_connection(target_config):
 				except BoxAPIException as be:
 					raise Exception("Could not connect to Box: " + be.message)
 				except BaseException as e:
-					raise Exception("Could not connect to Box: " + e.message)
+					raise Exception("Could not connect to Box: " + repr(e))
 			else:
 				raise Exception("Box credential not configured.")
 		except BaseException as e: 
-			logger.debug(e.message)
+			logger.debug("Could not find or decrypt the specified credential: " + repr(e))
 			raise Exception("Could not find or decrypt the specified credential: " + repr(e))
 	else:
 		raise Exception("Could not find required configuration settings")
-	#else:
-	#	raise Exception("Could not find required configuration settings")
-
 
 def get_box_directory(target_config, folder_path):
 	from boxsdk import BoxAPIException

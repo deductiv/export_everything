@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # 
 # hep_alert.py
-# Push Splunk events to an HTTP listener (such as Splunk HEC) over JSON - Alert Action
+# Export Splunk events to an HTTP listener (such as Splunk HEC) over JSON - Alert Action
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 1.1.3 (2020-11-11)
@@ -175,5 +175,5 @@ if len(sys.argv) > 1 and sys.argv[1] == "--execute":
 		hec.batchEvent(payload)
 
 	hec.flushBatch()
-	logger.info("Successfully pushed events. count=%s target=%s app=%s savedsearch=\"%s\" user=%s" % (len(results), hec_host, app, savedsearch_name, owner))
+	logger.info("Successfully exported events. count=%s target=%s app=%s savedsearch=\"%s\" user=%s" % (len(results), hec_host, app, savedsearch_name, owner))
 

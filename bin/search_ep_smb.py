@@ -16,7 +16,7 @@
 
 # Python 3 compatible only (Does not work on Mac version of Splunk's Python)
 # search_ep_sftp.py
-# Push Splunk search results to a remote SFTP server - Search Command
+# Export Splunk search results to a remote SFTP server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.0.0 (2021-04-27)
@@ -28,7 +28,7 @@ standard_library.install_aliases()
 import sys, os
 import random
 import socket
-from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, get_config_from_alias, exit_error, replace_object_tokens, recover_parameters
+from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, exit_error, replace_object_tokens, recover_parameters
 
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -37,17 +37,18 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 from splunk.clilib import cli_common as cli
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 import event_file
+from ep_helpers import get_config_from_alias
 from smb.SMBConnection import SMBConnection
 
 # Define class and type for Splunk command
-@Configuration()
+@Configuration(local=True)
 class epsmb(ReportingCommand):
 	doc='''
 	**Syntax:**
 	search | epsmb target=<target host alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
 
 	**Description**
-	Push (export) Splunk events to an SMB server share in any format.
+	Export Splunk events to an SMB server share in any format.
 	'''
 
 	# Define Parameters
@@ -109,11 +110,11 @@ class epsmb(ReportingCommand):
 		facility = os.path.basename(__file__)
 		facility = os.path.splitext(facility)[0]
 		try:
-			logger = setup_logger(app_config["log_level"], 'event_push.log', facility)
+			logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
 		except BaseException as e:
 			raise Exception("Could not create logger: " + repr(e))
 
-		logger.info('SMB Event Push search command initiated')
+		logger.info('SMB Export search command initiated')
 		logger.debug('search_ep_smb command: %s', self)  # logs command line
 
 		# Enumerate proxy settings
@@ -213,7 +214,7 @@ class epsmb(ReportingCommand):
 			except:
 				self.compress = False
 		
-		staging_filename = 'eventpush_staging_' + random_number + '.txt'
+		staging_filename = 'export_everything_staging_' + random_number + '.txt'
 		local_output_file = os.path.join(dispatch, staging_filename)
 		if self.compress:
 			local_output_file = local_output_file + '.gz'
@@ -276,7 +277,7 @@ class epsmb(ReportingCommand):
 						exit_error(logger, "Error uploading file to SMB server: " + repr(e), 109693)
 			
 					if bytes_uploaded > 0:
-						message = "SMB Push Status: Success. File name: %s" % (folder + '/' + filename)
+						message = "SMB Export Status: Success. File name: %s" % (folder + '/' + filename)
 						eprint(message)
 						logger.info(message)
 					else:

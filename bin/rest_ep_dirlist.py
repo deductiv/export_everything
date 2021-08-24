@@ -18,19 +18,19 @@ import splunk.entity as entity
 import splunklib.client as client
 from splunk.persistconn.application import PersistentServerConnectionApplication
 from splunk.appserver.mrsparkle.lib.util import make_splunkhome_path
-from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret, get_config_from_alias
-from ep_helpers import get_aws_s3_directory, get_box_directory, get_sftp_directory, get_smb_directory
+from deductiv_helpers import setup_logger
+from ep_helpers import get_config_from_alias, get_aws_s3_directory, get_box_directory, get_sftp_directory, get_smb_directory
 
 config = cli.getConfStanza('ep_general','settings')
 # Facility info - prepended to log lines
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
-logger = setup_logger(config["log_level"], 'event_push.log', facility)
+logger = setup_logger(config["log_level"], 'export_everything.log', facility)
 temp_dir = os.path.join(os.environ.get('SPLUNK_HOME'), 'etc','users','splunk-system-user','.eptemp')
 os.makedirs(temp_dir, exist_ok=True)
 os.chdir(temp_dir)
 
-app = 'event_push'
+app = 'export_everything'
 
 def return_error(error_text):
 	error_text = re.sub(r'Exception\(|\\|\'|"', '', error_text)
@@ -61,7 +61,7 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 		#super(PersistentServerConnectionApplication, self).__init__()	# pylint: disable=bad-super-call
 		PersistentServerConnectionApplication.__init__(self)
 	
-	# Handle a syncronous from splunkd.
+	# Handle a synchronous from splunkd.
 	def handle(self, in_string):
 		"""
 		Called for a simple synchronous request.
@@ -71,7 +71,7 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 				it will automatically be JSON encoded before being returned.
 		"""
 
-		logger.debug('started')
+		logger.debug('Started persistent REST directory listing process')
 		input = json.loads(in_string)
 
 		try:
@@ -125,7 +125,7 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 			try:
 				datasource_config = get_config_from_alias(config[config_file], entry_alias)
 			except BaseException as e:
-				return return_error("Could not get config: " + e.message)
+				return return_error("Could not get config: " + repr(e))
 
 			if datasource_config is not None:
 				# Set the defaults
@@ -143,7 +143,7 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 					try:
 						payload = json.dumps(payload)
 					except BaseException as e:
-						return return_error("Could not convert payload to JSON: %s" % e.message)
+						return return_error("Could not convert payload to JSON: %s" % repr(e))
 					return {
 						"payload": payload,
 						"status": 200

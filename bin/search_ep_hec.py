@@ -16,7 +16,7 @@
 
 # Python 2 and 3 compatible
 # search_ep_hec.py
-# Push Splunk events to Splunk HEC over JSON - Search Command
+# Export Splunk events to Splunk HEC over JSON - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.0.0 (2021-04-26)
@@ -39,7 +39,8 @@ import splunklib.client as client
 import splunklib.results as results
 from splunklib.searchcommands import StreamingCommand, dispatch, Configuration, Option, validators
 from CsvResultParser import *
-from deductiv_helpers import setup_logger, eprint, str2bool, get_config_from_alias, exit_error, port_is_open, replace_object_tokens, recover_parameters
+from deductiv_helpers import setup_logger, eprint, str2bool, exit_error, port_is_open, replace_object_tokens, recover_parameters
+from ep_helpers import get_config_from_alias
 
 # Use the library from George Starcher for HTTP Event Collector
 # Updated to support Python3
@@ -57,7 +58,7 @@ class ephec(StreamingCommand):
 			index=[index_value|$index_field$] 
 
 	**Description**
-	Push Splunk events to an HTTP listener (such as Splunk HEC) over JSON.
+	Export Splunk events to an HTTP listener (such as Splunk HEC) over JSON.
 	'''
 
 	#Define Parameters
@@ -71,28 +72,28 @@ class ephec(StreamingCommand):
 	host = Option(
 		doc='''
 		**Syntax:** **host=***[host_value|$host_field$]*
-		**Description:** Field or string to be assigned to the host field on the pushed event
+		**Description:** Field or string to be assigned to the host field on the exported event
 		**Default:** $host$, or if not defined, the hostname of the sending host (from inputs.conf)''',
 		require=False)
 
 	source = Option(
 		doc='''
 		**Syntax:** **source=***[source_value|$source_field$]*
-		**Description:** Field or string to be assigned to the source field on the pushed event
+		**Description:** Field or string to be assigned to the source field on the exported event
 		**Default:** $source$, or if not defined, it is omitted''',
 		require=False)
 
 	sourcetype = Option(
 		doc='''
 		**Syntax:** **sourcetype=***[sourcetype_value|$sourcetype_field$]*
-		**Description:** Field or string to be assigned to the sourcetype field on the pushed event
+		**Description:** Field or string to be assigned to the sourcetype field on the exported event
 		**Default:** $sourcetype$, or if not defined, json''',
 		require=False)
 
 	index = Option(
 		doc='''
 		**Syntax:** **index=***[index_value|$index_field$]*
-		**Description:** The remote index in which to store the pushed event
+		**Description:** The remote index in which to store the exported event
 		**Default:** $index$, or if not defined, the remote endpoint's default.''',
 		require=False) 
 
@@ -113,11 +114,11 @@ class ephec(StreamingCommand):
 		facility = os.path.basename(__file__)
 		facility = os.path.splitext(facility)[0]
 		try:
-			logger = setup_logger(app_config["log_level"], 'event_push.log', facility)
+			logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
 		except BaseException as e:
 			raise Exception("Could not create logger: " + repr(e))
 
-		logger.info('HEC Event Push search command initiated')
+		logger.info('HEC Export search command initiated')
 		logger.debug('search_ep_hec command: %s', self)  # logs command line
 
 		# Set defaults
@@ -227,7 +228,7 @@ class ephec(StreamingCommand):
 					yield(event)
 
 				hec.flushBatch()
-				logger.info("Successfully pushed events. count=%s target=%s app=%s user=%s" % (event_count, hec_host, app, user))
+				logger.info("Successfully exported events. count=%s target=%s app=%s user=%s" % (event_count, hec_host, app, user))
 			else: # Connectivity check failed
 				exit_error(logger, "HEC endpoint port open but connection test failed.", 104893)
 		else:
