@@ -158,6 +158,7 @@ class epbox(ReportingCommand):
 		app = self._metadata.searchinfo.app
 		user = self._metadata.searchinfo.username
 		dispatch = self._metadata.searchinfo.dispatch_dir
+		session_key = self._metadata.searchinfo.session_key
 
 		if self.target is None and 'target=' in str(self):
 			recover_parameters(self)
@@ -165,7 +166,7 @@ class epbox(ReportingCommand):
 		replace_object_tokens(self)
 
 		try:
-			target_config = get_config_from_alias(cmd_config, self.target)
+			target_config = get_config_from_alias(session_key, cmd_config, self.target)
 			if target_config is None:
 				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
 			logger.debug("Target configuration: " + str(target_config))

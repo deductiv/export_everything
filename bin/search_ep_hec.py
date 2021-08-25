@@ -152,6 +152,7 @@ class ephec(StreamingCommand):
 		searchinfo = self._metadata.searchinfo
 		app = searchinfo.app
 		user = searchinfo.username
+		session_key = self._metadata.searchinfo.session_key
 		
 		if self.target is None and 'target=' in str(self):
 			recover_parameters(self)
@@ -159,7 +160,7 @@ class ephec(StreamingCommand):
 		replace_object_tokens(self)
 		
 		try:
-			target_config = get_config_from_alias(cmd_config, self.target)
+			target_config = get_config_from_alias(session_key, cmd_config, self.target)
 			if target_config is None:
 				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
 

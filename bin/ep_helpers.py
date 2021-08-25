@@ -5,7 +5,7 @@ import re
 import socket
 import stat
 from datetime import datetime
-from deductiv_helpers import setup_logging, setup_logger, str2bool, decrypt_with_secret, exit_error, merge_two_dicts
+from deductiv_helpers import setup_logging, setup_logger, str2bool, decrypt_with_secret, exit_error, merge_two_dicts, eprint
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
@@ -48,15 +48,15 @@ random_number = str(random.randint(10000, 100000))
 
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
-logger = setup_logger('INFO', 'export_everything.log', facility)
+logger = setup_logger('DEBUG', 'export_everything.log', facility)
 
-def get_config_from_alias(config_data, stanza_guid_alias = None):
-	'''
+def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
+	
+	credentials = {}
 	# Get all credentials for this app 
 	try:
-		service = client.connect(token=input['session']['authtoken'])
+		service = client.connect(token=session_key)
 		# Get all credentials in the secret store for this app
-		credentials = {}
 		storage_passwords = service.storage_passwords
 		for credential in storage_passwords:
 			if credential.access.app == app:
@@ -66,6 +66,7 @@ def get_config_from_alias(config_data, stanza_guid_alias = None):
 					'realm':    credential.content.get('realm')
 				}
 		
+		'''
 		config = {
 			"general": cli.getConfStanza('ep_general','settings')
 		}
@@ -79,18 +80,24 @@ def get_config_from_alias(config_data, stanza_guid_alias = None):
 							config[c][stanza][k + '_username'] = credentials[v]['username']
 							config[c][stanza][k + '_realm'] = credentials[v]['realm']
 							config[c][stanza][k + '_password'] = credentials[v]['password']
-	
+		'''
 	except BaseException as e:
 		raise Exception("Could not read configuration: " + repr(e))
-	'''
+	
 	# Parse and merge the configuration
 	try:
-		# Delete blank configuration values (in case setup process wrote them)
 		for guid in list(config_data.keys()):
-			for setting in list(config_data[guid].keys()):
-				if config_data[guid][setting] is not None and len(config_data[guid][setting]) == 0:
+			for setting, setting_value in list(config_data[guid].items()):
+				# Delete blank configuration values (in case setup process wrote them)
+				if setting_value is not None and len(setting_value) == 0:
 					del config_data[guid][setting]
-
+				# Add the username/password/realm values to the credential
+				if 'credential' in setting:
+					#logger.debug("Found credential setting in stanza: %s/%s" % (guid, setting))
+					if setting_value in list(credentials.keys()):
+						for s in ['username', 'password', 'realm']:
+							if s in list(credentials[setting_value].keys()) and credentials[setting_value][s] is not None:
+								config_data[guid][setting + '_' + s] = credentials[setting_value][s]
 		# Set the default configuration
 		if 'default' in list(config_data.keys()):
 			default_target_config = config_data['default']
@@ -99,10 +106,8 @@ def get_config_from_alias(config_data, stanza_guid_alias = None):
 
 		# See if a GUID was provided explicitly (used by alert actions)
 		# 8-4-4-4-12 format 
-		logger = setup_logging('event_push')
 		try:
 			if stanza_guid_alias is not None:
-				logger.debug(type(stanza_guid_alias))
 				if re.match(r'[({]?[a-f0-9]{8}[-]?([a-f0-9]{4}[-]?){3}[a-f0-9]{12}[})]?', stanza_guid_alias, flags=re.IGNORECASE):
 					logger.debug("Using guid " + stanza_guid_alias)
 					return merge_two_dicts(default_target_config, config_data[stanza_guid_alias])
@@ -113,13 +118,14 @@ def get_config_from_alias(config_data, stanza_guid_alias = None):
 		for guid in list(config_data.keys()):
 			if guid != 'default':
 				# Merge the configuration with the default config to fill in null values
-				config_stanza = merge_two_dicts(default_target_config, config_data[guid])
-				guid_is_default = str2bool(config_stanza['default'])
+				config_stanza_settings = merge_two_dicts(default_target_config, config_data[guid])
+				guid_is_default = str2bool(config_stanza_settings['default'])
 				# Check to see if this is the configuration we want to use
-				if 'alias' in list(config_stanza.keys()):
-					if config_stanza['alias'] == stanza_guid_alias or (stanza_guid_alias is None and guid_is_default):
+				if 'alias' in list(config_stanza_settings.keys()):
+					if config_stanza_settings['alias'] == stanza_guid_alias or (stanza_guid_alias is None and guid_is_default):
 						# Return the specified target configuration, or default if target not specified
-						return config_stanza
+						logger.debug("Active configuration: %s", config_stanza_settings)
+						return config_stanza_settings
 		return None
 	except BaseException as e:
 		raise Exception("Unable to find target configuration: " + repr(e))
@@ -150,11 +156,6 @@ def get_aws_connection(aws_config):
 
 	use_arn = True if aws_config['credential'] == '[Use ARN]' else False
 
-	# Check for secret_key encryption
-	if not use_arn and aws_config['credential_password'][:1] == '$':
-		aws_config['credential_password'] = decrypt_with_secret(aws_config['credential_password'])
-
-	#random_number = str(random.randint(10000, 100000))
 	if use_arn:
 		# Use the current/caller identity ARN from the EC2 instance to connect to S3
 		logger.debug("Using ARN to connect")
@@ -179,7 +180,8 @@ def get_aws_connection(aws_config):
 				aws_secret_access_key=credentials['SecretAccessKey'],
 				aws_session_token=credentials['SessionToken'],
 			)
-			#logger.debug("Connected using assumed role %s", role_arn)
+		except AttributeError:
+			raise Exception("Could not connect to S3. Failed to assume role: Unable to get caller identity STS token")
 		except BaseException as e:
 			raise Exception("Could not connect to S3. Failed to assume role: " + repr(e))
 
@@ -309,10 +311,10 @@ def get_sftp_connection(target_config):
 		try:
 			if 'credential_username' in valid_settings and 'credential_password' in valid_settings and not 'private_key' in valid_settings:
 				try:
-					sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], password=target_config['password'], cnopts=cnopts)
+					sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], password=target_config['credential_password'], cnopts=cnopts)
 				except BaseException as e:
 					exit_error(logger, "Unable to setup SFTP connection with password: " + repr(e), 921982)
-			elif 'username' in valid_settings and 'private_key' in valid_settings:
+			elif 'credential_username' in valid_settings and 'private_key' in valid_settings:
 				# Write the decrypted private key to a temporary file
 				temp_dir = os.getcwd()
 				key_file = os.path.join(temp_dir, 'epsftp_private_key_' + random_number)
@@ -432,9 +434,11 @@ def get_box_connection(target_config):
 	from boxsdk import JWTAuth, Client, BoxAPIException
 	# Check to see if we have credentials
 	valid_settings = []
+	
 	for l in list(target_config.keys()):
-		if len(target_config[l]) > 0:
-			valid_settings.append(l) 
+		if target_config[l] is not None:
+			if len(target_config[l]) > 0:
+				valid_settings.append(l) 
 	
 	if all(x in valid_settings for x in 
 		['client_credential_username', 'client_credential_password', 'enterprise_id', 'public_key_id', 'private_key', 'passphrase_credential_password']):
@@ -472,8 +476,11 @@ def get_box_connection(target_config):
 					raise Exception("Could not connect to Box: " + repr(e))
 			else:
 				raise Exception("Box credential not configured.")
+		except AttributeError:
+			logger.critical("Error ")
+			raise Exception("Could not connect to Box (AttributeError) ")
 		except BaseException as e: 
-			logger.debug("Could not find or decrypt the specified credential: " + repr(e))
+			logger.exception("Could not find or decrypt the specified credential: " + repr(e))
 			raise Exception("Could not find or decrypt the specified credential: " + repr(e))
 	else:
 		raise Exception("Could not find required configuration settings")

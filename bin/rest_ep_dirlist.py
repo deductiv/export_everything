@@ -73,10 +73,11 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 
 		logger.debug('Started persistent REST directory listing process')
 		input = json.loads(in_string)
-
+		session_key = input['session']['authtoken']
+		
 		try:
 
-			service = client.connect(token=input['session']['authtoken'])
+			service = client.connect(token=session_key)
 			# Get all credentials in the secret store for this app
 			credentials = {}
 			storage_passwords = service.storage_passwords
@@ -123,7 +124,7 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 				return_error("Invalid query")
 
 			try:
-				datasource_config = get_config_from_alias(config[config_file], entry_alias)
+				datasource_config = get_config_from_alias(session_key, config[config_file], entry_alias)
 			except BaseException as e:
 				return return_error("Could not get config: " + repr(e))
 

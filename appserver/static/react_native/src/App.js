@@ -1080,16 +1080,24 @@ class App extends React.Component {
 				let old_files = [...this.state.file_list];
 				console.log("Old chain = " + JSON.stringify(old_chain));
 				console.log("Old files = " + JSON.stringify(old_files));
-				this.setState({loading: true, show_file_browser: true}, 
-					() => { // then
+				
+				if (container_name === undefined || container_name === null || container_name.length == 0) {
+					container_name = '/' 
+				}
+				
+				this.setState({
+					loading: true, 
+					show_file_browser: true,
+					current_config: config_file,
+					current_config_alias: alias,
+					current_config_container: container_name
+				}, () => { // then
 						let url=`${app}_dirlist`;
 						let params = {
 							"config": config_file,
 							"alias": alias
 						};
-						if (container_name === undefined || container_name === null || container_name.length == 0) {
-							container_name = '/' 
-						}
+						
 						// Start with the root - /
 						let chain = [{
 							id: '/',
@@ -1172,19 +1180,17 @@ class App extends React.Component {
 								}
 								this.setState({"file_list": file_list}, () => {
 									//console.log("Setting state from show_folder_contents (last)");
-									this.setState({loading: false,
-										folder_chain: chain,
-										current_config: config_file,
-										current_config_alias: alias,
-										current_config_container: container_name});
+									this.setState({
+										loading: false,
+										folder_chain: chain});
 								});
 							}
 							resolve(file_list);
 						}, reason => {
-							alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`);
-							this.setState({loading: false});
+							alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`)
+							this.setState({loading: false, show_file_browser: false});
 							reject(reason);
-						}) ;
+						});
 					}
 				);
 				resolve();

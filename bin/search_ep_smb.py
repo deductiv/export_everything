@@ -133,6 +133,7 @@ class epsmb(ReportingCommand):
 		app = self._metadata.searchinfo.app
 		user = self._metadata.searchinfo.username
 		dispatch = self._metadata.searchinfo.dispatch_dir
+		session_key = self._metadata.searchinfo.session_key
 		
 		if self.target is None and 'target=' in str(self):
 			recover_parameters(self)
@@ -143,7 +144,7 @@ class epsmb(ReportingCommand):
 		random_number = str(random.randint(10000, 100000))
 
 		try:
-			target_config = get_config_from_alias(cmd_config, self.target)
+			target_config = get_config_from_alias(session_key, cmd_config, self.target)
 			if target_config is None:
 				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
 		except BaseException as e:
@@ -158,17 +159,16 @@ class epsmb(ReportingCommand):
 		# Check to see if we have credentials
 		valid_settings = []
 		for l in list(target_config.keys()):
-			if target_config[l][0] == '$':
-				target_config[l] = decrypt_with_secret(target_config[l]).strip()
 			if len(target_config[l]) > 0:
 				valid_settings.append(l) 
 		if 'host' in valid_settings:
 			# A target has been configured. Check for credentials.
 			try:
-				if 'username' in valid_settings and 'password' in valid_settings and 'domain' in valid_settings and 'share_name' in valid_settings:
+				if 'credential_username' in valid_settings and 'credential_password' in valid_settings and 'share_name' in valid_settings:
 					try:
-						conn = SMBConnection(target_config['username'], target_config['password'], client_name, 
-							target_config['host'], domain=target_config['domain'], use_ntlm_v2=True,
+						domain = target_config['credential_realm'] if 'credential_realm' in list(target_config.keys()) else target_config['host']
+						conn = SMBConnection(target_config['credential_username'], target_config['credential_password'], client_name, 
+							target_config['host'], domain=domain, use_ntlm_v2=True,
 							sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
 						connected = conn.connect(target_config['host'], 139)
 						'''
