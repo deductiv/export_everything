@@ -31,11 +31,6 @@ sys.path.append(path_prepend)
 # Splunk
 from splunk.clilib import cli_common as cli
 import splunklib.client as client
-# Box.com
-# AWS libraries
-# PySMB
-#PySFTP
-#
 
 app = 'export_everything'
 
@@ -46,9 +41,11 @@ proxy_exceptions = os.environ.get('NO_PROXY')
 
 random_number = str(random.randint(10000, 100000))
 
+config = cli.getConfStanza('ep_general','settings')
+# Facility info - prepended to log lines
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
-logger = setup_logger('DEBUG', 'export_everything.log', facility)
+logger = setup_logger(config["log_level"], 'export_everything.log', facility)
 
 def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
 	
@@ -66,21 +63,6 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
 					'realm':    credential.content.get('realm')
 				}
 		
-		'''
-		config = {
-			"general": cli.getConfStanza('ep_general','settings')
-		}
-		configurations = ["ep_aws_s3", "ep_box", "ep_sftp", "ep_smb"]
-		for c in configurations:
-			config[c] = cli.getConfStanzas(c)
-			for stanza in list(config[c].keys()):
-				for k, v in list(config[c][stanza].items()):
-					if 'credential' in k:
-						if v in list(credentials.keys()):
-							config[c][stanza][k + '_username'] = credentials[v]['username']
-							config[c][stanza][k + '_realm'] = credentials[v]['realm']
-							config[c][stanza][k + '_password'] = credentials[v]['password']
-		'''
 	except BaseException as e:
 		raise Exception("Could not read configuration: " + repr(e))
 	

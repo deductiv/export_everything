@@ -24,11 +24,11 @@
 from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()
-import logging
+#import logging
 import sys, os
 import time
-import socket
-import json
+#import socket
+#import json
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -39,7 +39,7 @@ import splunklib.client as client
 import splunklib.results as results
 from splunklib.searchcommands import StreamingCommand, dispatch, Configuration, Option, validators
 from CsvResultParser import *
-from deductiv_helpers import setup_logger, eprint, str2bool, exit_error, port_is_open, replace_object_tokens, recover_parameters
+from deductiv_helpers import setup_logger, str2bool, exit_error, port_is_open, replace_object_tokens, recover_parameters
 from ep_helpers import get_config_from_alias
 
 # Use the library from George Starcher for HTTP Event Collector
@@ -47,7 +47,7 @@ from ep_helpers import get_config_from_alias
 from splunk_http_event_collector.http_event_collector import http_event_collector   # https://github.com/georgestarcher/Splunk-Class-httpevent
 	  
 # Define class and type for Splunk command
-@Configuration(local=True)
+@Configuration()
 class ephec(StreamingCommand):
 	doc='''
 	**Syntax:**

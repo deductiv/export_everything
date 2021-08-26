@@ -172,7 +172,7 @@ const table_options = {
 
 const config_descriptions = {
 	[`${app_abbr}_hec`]: 	'HTTP Event Collector',
-	[`${app_abbr}_aws_s3`]: 'AWS S3-Compatible Object Store',
+	[`${app_abbr}_aws_s3`]: 'S3-Compatible',
 	[`${app_abbr}_box`]: 	'Box.com',
 	[`${app_abbr}_sftp`]: 	'SFTP',
 	[`${app_abbr}_smb`]: 	'SMB',
@@ -1354,7 +1354,7 @@ class App extends React.Component {
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
 							title={`Export to AWS S3 (${app_abbr}awss3)`} 
-							heading="AWS S3-Compatible Connections" 
+							heading="S3-Compatible Connections" 
 							action_columns="3"
 							browsable="true"
 							config={`${app_abbr}_aws_s3`} />

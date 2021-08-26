@@ -28,7 +28,7 @@ standard_library.install_aliases()
 import sys, os
 import random
 import socket
-from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, exit_error, replace_object_tokens, recover_parameters
+from deductiv_helpers import setup_logger, eprint, exit_error, replace_object_tokens, recover_parameters
 
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -41,7 +41,7 @@ from ep_helpers import get_config_from_alias
 from smb.SMBConnection import SMBConnection
 
 # Define class and type for Splunk command
-@Configuration(local=True)
+@Configuration()
 class epsmb(ReportingCommand):
 	doc='''
 	**Syntax:**
@@ -202,7 +202,7 @@ class epsmb(ReportingCommand):
 		if self.outputformat is None:
 			self.outputformat = 'csv'
 		# Create the default filename
-		default_filename = (app + '_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
+		default_filename = ('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 
 		folder, filename = event_file.parse_outputfile(self.outputfile, default_filename, target_config)
 

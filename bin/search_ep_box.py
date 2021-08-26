@@ -66,7 +66,7 @@ sys.path.append(path_prepend)
 from boxsdk import BoxAPIException
 
 # Define class and type for Splunk command
-@Configuration(local=True)
+@Configuration()
 class epbox(ReportingCommand):
 	doc='''
 	**Syntax:**
@@ -187,7 +187,7 @@ class epbox(ReportingCommand):
 
 		# Create the default filename
 		now = str(int(time.time()))
-		default_filename = (app + '_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
+		default_filename = ('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 
 		# Split the output into folder and filename
 		if self.outputfile is not None:

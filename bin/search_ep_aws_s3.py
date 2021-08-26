@@ -25,10 +25,10 @@ from __future__ import print_function
 from builtins import str
 from future import standard_library
 standard_library.install_aliases()
-import logging
-import sys, os, platform
+#import logging
+import sys, os #, platform
 import random
-import re
+#import re
 from deductiv_helpers import setup_logger, replace_keywords, exit_error, replace_object_tokens, recover_parameters, str2bool
  
 # Add lib folders to import path
@@ -36,8 +36,8 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 # pylint: disable=import-error
 from splunk.clilib import cli_common as cli
-import splunk.entity as entity
-import splunklib.results as results
+#import splunk.entity as entity
+#import splunklib.results as results
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 import event_file
 from ep_helpers import get_config_from_alias, get_aws_connection
@@ -45,7 +45,7 @@ from ep_helpers import get_config_from_alias, get_aws_connection
 #from botocore.config import Config
 
 # Define class and type for Splunk command
-@Configuration(local=True)
+@Configuration()
 class epawss3(ReportingCommand):
 	doc='''
 	**Syntax:**
@@ -172,7 +172,7 @@ class epawss3(ReportingCommand):
 
 		if self.outputfile is None:
 			# Boto is special. We need repr to give it the encoding it expects to match the hashing.
-			self.outputfile = repr(app + '_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
+			self.outputfile = repr('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 		
 		# Replace keywords from output filename
 		self.outputfile = replace_keywords(self.outputfile)

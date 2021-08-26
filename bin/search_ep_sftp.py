@@ -26,7 +26,7 @@ from builtins import str
 from future import standard_library
 standard_library.install_aliases()
 import sys, os, platform
-import time
+#import time
 import random
 from deductiv_helpers import setup_logger, eprint, exit_error, replace_object_tokens, recover_parameters
 from ep_helpers import get_sftp_connection
@@ -64,10 +64,10 @@ elif os_platform == 'Windows':
 
 sys.path.append(path_prepend)
 
-import pysftp
+#import pysftp
 
 # Define class and type for Splunk command
-@Configuration(local=True)
+@Configuration()
 class epsftp(ReportingCommand):
 	doc='''
 	**Syntax:**
@@ -238,7 +238,7 @@ class epsftp(ReportingCommand):
 			self.outputformat = 'csv'
 		# Create the default filename
 		#now = str(int(time.time()))
-		default_filename = (app + '_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
+		default_filename = ('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 
 		folder, filename = event_file.parse_outputfile(self.outputfile, default_filename, target_config)
 
