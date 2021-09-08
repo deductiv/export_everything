@@ -1172,6 +1172,10 @@ class App extends React.Component {
 						.then((d) => {
 							let file_list = JSON.parse(d);
 							if (file_list !== null) {
+								if ('entry' in file_list) {
+									// Different format of response from Splunk. Get the data from within the object.
+									file_list = JSON.parse(file_list.entry[0].content[0].payload);
+								}
 								//console.log("File list = " + JSON.stringify(file_list));
 								for (var f=0; f<file_list.length; f++) {
 									if ( file_list[f].modDate !== undefined ) {
@@ -1185,6 +1189,7 @@ class App extends React.Component {
 										folder_chain: chain});
 								});
 							}
+							console.log(file_list);
 							resolve(file_list);
 						}, reason => {
 							alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`)

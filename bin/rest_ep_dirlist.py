@@ -18,6 +18,8 @@ import splunk.entity as entity
 import splunklib.client as client
 from splunk.persistconn.application import PersistentServerConnectionApplication
 from splunk.appserver.mrsparkle.lib.util import make_splunkhome_path
+import splunk.rest
+
 from deductiv_helpers import setup_logger
 from ep_helpers import get_config_from_alias, get_aws_s3_directory, get_box_directory, get_sftp_directory, get_smb_directory
 
@@ -56,13 +58,19 @@ def get_directory_contents(config_file, config, query):
 		logger.exception("Could not get directory listing: " + repr(e))
 		raise Exception(repr(e))
 
-class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
-	def __init__(self, command_line, command_arg):
-		#super(PersistentServerConnectionApplication, self).__init__()	# pylint: disable=bad-super-call
-		PersistentServerConnectionApplication.__init__(self)
-	
+#class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
+class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):	
+	#def __init__(self, command_line, command_arg):
+	#	#super(PersistentServerConnectionApplication, self).__init__()	# pylint: disable=bad-super-call
+	#	#PersistentServerConnectionApplication.__init__(self)
+	#	pass
+
+	def __init__(self, method, requestInfo, responseInfo, sessionKey):
+		splunk.rest.BaseRestHandler.__init__(self, method, requestInfo, responseInfo, sessionKey)
+
 	# Handle a synchronous from splunkd.
-	def handle(self, in_string):
+	#def handle(self, in_string):
+	def handle_GET(self):
 		"""
 		Called for a simple synchronous request.
 		@param in_string: request data passed in
@@ -71,9 +79,10 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 				it will automatically be JSON encoded before being returned.
 		"""
 
-		logger.debug('Started persistent REST directory listing process')
-		input = json.loads(in_string)
-		session_key = input['session']['authtoken']
+		logger.debug('Started REST directory listing process')
+		#input = json.loads(in_string)
+		#input = self.args
+		session_key = self.sessionKey
 		
 		try:
 
@@ -106,15 +115,17 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 		except BaseException as e:
 			raise Exception("Could not read configuration: " + repr(e))
 		
-		logger.debug("Received connection from src_ip=%s user=%s" % (input['connection']['src_ip'], input['session']['user']))
+		logger.debug("Received connection from src_ip=%s user=%s" % (self.request['remoteAddr'], self.request['userId']))
 		# Check for permissions
 
-		if "query" in list(input.keys()):
+		if "query" in list(self.request.keys()):
 			query = {}
 			#logger.debug('input query = ' + str(input['query']))
-			if isinstance(input['query'], list):
-				for i in input['query']:
+			if isinstance(self.request['query'], list):
+				for i in self.request.query:
 					query[i[0]] = i[1]
+			elif isinstance(self.request['query'], dict):
+				query = self.request['query']
 			logger.debug('query = ' + str(query))
 
 			if "config" in list(query.keys()) and "alias" in list(query.keys()):
@@ -126,7 +137,7 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 			try:
 				datasource_config = get_config_from_alias(session_key, config[config_file], entry_alias)
 			except BaseException as e:
-				return return_error("Could not get config: " + repr(e))
+				return return_error("Could not get config: %s" % repr(e))
 
 			if datasource_config is not None:
 				# Set the defaults
@@ -145,28 +156,14 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 						payload = json.dumps(payload)
 					except BaseException as e:
 						return return_error("Could not convert payload to JSON: %s" % repr(e))
-					return {
+					return [{
 						"payload": payload,
 						"status": 200
-					}
+					}]
 				except BaseException as e:
 					return return_error(repr(e))
 			else:
 				return return_error("Cannot find the specified configuration")
 		else:
 			return return_error("No query supplied")
-		
-	def handleStream(self, handle, in_string):
-		"""
-		For future use
-		"""
-		raise NotImplementedError(
-			"PersistentServerConnectionApplication.handleStream")
-
-	def done(self):
-		"""
-		Virtual method which can be optionally overridden to receive a
-		callback after the request completes.
-		"""
-		pass
 

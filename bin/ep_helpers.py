@@ -64,7 +64,7 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
 				}
 		
 	except BaseException as e:
-		raise Exception("Could not read configuration: " + repr(e))
+		raise Exception("Could not access secret store: " + repr(e))
 	
 	# Parse and merge the configuration
 	try:
@@ -106,7 +106,7 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
 				if 'alias' in list(config_stanza_settings.keys()):
 					if config_stanza_settings['alias'] == stanza_guid_alias or (stanza_guid_alias is None and guid_is_default):
 						# Return the specified target configuration, or default if target not specified
-						logger.debug("Active configuration: %s", config_stanza_settings)
+						logger.debug("Active configuration: %s", guid)
 						return config_stanza_settings
 		return None
 	except BaseException as e:
@@ -364,8 +364,10 @@ def get_smb_directory(smb_config, folder_path = '/'):
 				if value[0] == '$':
 					smb_config[setting] = decrypt_with_secret(value).strip()
 				valid_settings.append(setting) 
-	logger.debug("Valid settings: " + str(valid_settings))
-	logger.debug("smb_config: " + str(smb_config))
+	
+	#logger.debug("Valid settings: " + str(valid_settings))
+	#logger.debug("smb_config: " + str(smb_config))
+	
 	try:
 		if all (k in valid_settings for k in ('host', 'credential_username', 'credential_password', 'share_name')):
 			try:
