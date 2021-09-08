@@ -1170,7 +1170,26 @@ class App extends React.Component {
 
 						this.props.splunk.get(url, params)
 						.then((d) => {
-							let file_list = JSON.parse(d);
+							let response = JSON.parse(d);
+							let file_list;
+							if ('entry' in response) {
+								// Different format of response from Splunk. Get the data from within the object.
+								if ('content' in response.entry[0] && Array.isArray(response.entry[0].content)) {
+									file_list = JSON.parse(response.entry[0].content[0].payload);
+								} else {
+									// Error
+									let response_data = {};
+									// Convert the response to a dict
+									for (let e of response.entry) {
+										response_data[e.title] = e.content;
+									}
+									alert(`${response_data.status} Error retrieving the file listing: \n${response_data.error}`)
+									this.setState({loading: false, show_file_browser: false});
+									reject(response_data);
+								}
+							} else {
+								file_list = response;
+							}
 							if (file_list !== null) {
 								if ('entry' in file_list) {
 									// Different format of response from Splunk. Get the data from within the object.
@@ -1188,9 +1207,9 @@ class App extends React.Component {
 										loading: false,
 										folder_chain: chain});
 								});
+								console.log(file_list);
+								resolve(file_list);
 							}
-							console.log(file_list);
-							resolve(file_list);
 						}, reason => {
 							alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`)
 							this.setState({loading: false, show_file_browser: false});
