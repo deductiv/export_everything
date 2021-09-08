@@ -106,13 +106,19 @@ class SMBConnection(SMB):
         :return: A boolean value indicating the result of the authentication atttempt: True if authentication is successful; False, if otherwise.
         """
 
-        # IP address provided
-        if socket.inet_pton(socket.AF_INET, ip):
-            n = NetBIOS()
-            names = n.queryIPForName(ip)
-            if names:
-                self.remote_name = names[0]
-    
+        # Was an IP address provided?
+
+        try:
+            if socket.inet_pton(socket.AF_INET, ip):
+                # IP address provided
+                n = NetBIOS()
+                names = n.queryIPForName(ip)
+                if names:
+                    self.remote_name = names[0]
+        except:
+            # Hostname provided
+            self.remote_name = ip
+        
         if self.sock:
             self.sock.close()
         self.auth_result = None
