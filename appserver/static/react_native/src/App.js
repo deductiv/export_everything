@@ -1190,7 +1190,7 @@ class App extends React.Component {
 							} else {
 								file_list = response;
 							}
-							if (file_list !== null) {
+							if (file_list != null) {
 								if ('entry' in file_list) {
 									// Different format of response from Splunk. Get the data from within the object.
 									file_list = JSON.parse(file_list.entry[0].content[0].payload);
@@ -1209,6 +1209,10 @@ class App extends React.Component {
 								});
 								console.log(file_list);
 								resolve(file_list);
+							} else {
+								alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`)
+								this.setState({loading: false, show_file_browser: false});
+								reject(reason);
 							}
 						}, reason => {
 							alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`)

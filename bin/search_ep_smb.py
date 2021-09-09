@@ -165,13 +165,31 @@ class epsmb(ReportingCommand):
 			# A target has been configured. Check for credentials.
 			try:
 				if 'credential_username' in valid_settings and 'credential_password' in valid_settings and 'share_name' in valid_settings:
+					domain = target_config['credential_realm'] if 'credential_realm' in list(target_config.keys()) else target_config['host']
+
 					try:
-						domain = target_config['credential_realm'] if 'credential_realm' in list(target_config.keys()) else target_config['host']
+						# Try port 445 first
+						conn = SMBConnection(target_config['credential_username'], target_config['credential_password'], client_name, 
+							target_config['host'], domain=domain, use_ntlm_v2=True, 
+							sign_options = SMBConnection.SIGN_WHEN_SUPPORTED, is_direct_tcp=True) 
+						connected = conn.connect(target_config['host'], 445, timeout=5)
+					except BaseException as e445:
+						p445_error = repr(e445)
+						try:
+							# Try port 139 if that didn't work
+							conn = SMBConnection(target_config['credential_username'], target_config['credential_password'], client_name, 
+							target_config['host'], domain=domain, use_ntlm_v2=True,
+							sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
+							connected = conn.connect(target_config['host'], 139, timeout=5)
+						except BaseException as e139:
+							p139_error = repr(e139)
+							raise Exception("Errors connecting to host: \\nPort 139: %s\\nPort 445: %s" % (p139_error, p445_error))
+
+						'''
 						conn = SMBConnection(target_config['credential_username'], target_config['credential_password'], client_name, 
 							target_config['host'], domain=domain, use_ntlm_v2=True,
 							sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
 						connected = conn.connect(target_config['host'], 139)
-						'''
 						shares = 
 						share_exists = False
 						for i in range(len(shares)):

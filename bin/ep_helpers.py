@@ -280,11 +280,14 @@ def get_sftp_connection(target_config):
 	# Check to see if we have credentials
 	valid_settings = []
 	for l in list(target_config.keys()):
-		if target_config[l][0] == '$':
-			target_config[l] = decrypt_with_secret(target_config[l]).strip()
-		if len(target_config[l]) > 0:
-			#logger.debug("l.strip() = [" + target_config[l].strip() + "]")
-			valid_settings.append(l) 
+		if target_config[l] is not None:
+			if target_config[l][0] == '$':
+				target_config[l] = decrypt_with_secret(target_config[l]).strip()
+			if len(target_config[l]) > 0:
+				#logger.debug("l.strip() = [" + target_config[l].strip() + "]")
+				valid_settings.append(l) 
+	logger.debug("Valid settings: " + str(valid_settings))
+	logger.debug("Target config: " + str(target_config))
 	if 'host' in valid_settings and 'port' in valid_settings:
 		# A target has been configured. Check for credentials.
 		# Disable SSH host checking (fix later - set as an option? !!!)
@@ -321,6 +324,9 @@ def get_sftp_connection(target_config):
 		
 def get_sftp_directory(sftp_config, folder_path):
 	sftp = get_sftp_connection(sftp_config)
+	if len(folder_path) == 0:
+		folder_path = '/'
+	logger.debug("SFTP folder path: " + folder_path)
 	dirlist = sftp.listdir_attr(folder_path)
 	file_list = []
 	for f in dirlist:
@@ -464,8 +470,8 @@ def get_box_connection(target_config):
 			logger.critical("Error ")
 			raise Exception("Could not connect to Box (AttributeError) ")
 		except BaseException as e: 
-			logger.exception("Could not find or decrypt the specified credential: " + repr(e))
-			raise Exception("Could not find or decrypt the specified credential: " + repr(e))
+			logger.exception("Could not connect to Box: " + repr(e))
+			raise Exception("Could not connect to Box: " + repr(e))
 	else:
 		raise Exception("Could not find required configuration settings")
 
