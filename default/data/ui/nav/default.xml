@@ -1,9 +1,9 @@
 <nav search_view="search" color="#426E86">
   <view name="documentation" default='true' />
   <view name="setup" />
-  <saved name="Event Push Logs" />
-  <a href="mailto:contact@deductiv.net?subject=Event Push Support" target="_blank">Support</a>
-  <a href="https://github.com/deductiv/event_push" target="_blank">Project Home</a>
+  <saved name="Export Everything Logs" />
+  <a href="mailto:contact@deductiv.net?subject=Export Everything Support" target="_blank">Support</a>
+  <a href="https://github.com/deductiv/export_everything" target="_blank">Project Home</a>
   <a href="https://www.deductiv.net/" target="_blank">Deductiv Website</a>
   <view name="search" />
 </nav>

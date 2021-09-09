@@ -151,7 +151,7 @@ module.exports = {
             filename: 'main_bootstrap.js',
             pathUrl: `/static/app/${app_name}/react/`,
             processOutput: (assets) => {
-                return po(assets, "main", "main", "eventpush_setup")
+                return po(assets, "main", "main", "export_everything_setup")
             }
         })
     ]

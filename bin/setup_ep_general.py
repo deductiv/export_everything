@@ -36,8 +36,9 @@ from deductiv_helpers import setup_logger, eprint
 
 options = ['stanza', 'log_level']
 
+app = 'export_everything'
 app_config = cli.getConfStanza('ep_general', 'settings')
-setup_log = 'event_push_setup.log'
+setup_log = app + '_setup.log'
 config_file = 'ep_general'
 
 class SetupApp(admin.MConfigHandler):

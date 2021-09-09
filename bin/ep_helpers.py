@@ -5,7 +5,7 @@ import re
 import socket
 import stat
 from datetime import datetime
-from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret
+from deductiv_helpers import setup_logging, setup_logger, str2bool, decrypt_with_secret, exit_error, merge_two_dicts, eprint
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
@@ -29,12 +29,10 @@ sys.path.append(path_prepend)
 
 # pylint: disable=import-error
 # Splunk
-#from splunk.clilib import cli_common as cli
-# Box.com
-# AWS libraries
-# PySMB
-#PySFTP
-#
+from splunk.clilib import cli_common as cli
+import splunklib.client as client
+
+app = 'export_everything'
 
 # Enumerate proxy settings
 http_proxy = os.environ.get('HTTP_PROXY')
@@ -43,11 +41,76 @@ proxy_exceptions = os.environ.get('NO_PROXY')
 
 random_number = str(random.randint(10000, 100000))
 
-#app_config = cli.getConfStanza('ep_general','settings')
+config = cli.getConfStanza('ep_general','settings')
+# Facility info - prepended to log lines
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
-#logger = setup_logger(app_config["log_level"], 'event_push.log', facility)
-logger = setup_logger('DEBUG', 'event_push.log', facility)
+logger = setup_logger(config["log_level"], 'export_everything.log', facility)
+
+def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
+	
+	credentials = {}
+	# Get all credentials for this app 
+	try:
+		service = client.connect(token=session_key)
+		# Get all credentials in the secret store for this app
+		storage_passwords = service.storage_passwords
+		for credential in storage_passwords:
+			if credential.access.app == app:
+				credentials[credential._state.title] = {
+					'username': credential.content.get('username'),
+					'password': credential.content.get('clear_password'),
+					'realm':    credential.content.get('realm')
+				}
+		
+	except BaseException as e:
+		raise Exception("Could not access secret store: " + repr(e))
+	
+	# Parse and merge the configuration
+	try:
+		for guid in list(config_data.keys()):
+			for setting, setting_value in list(config_data[guid].items()):
+				# Delete blank configuration values (in case setup process wrote them)
+				if setting_value is not None and len(setting_value) == 0:
+					del config_data[guid][setting]
+				# Add the username/password/realm values to the credential
+				if 'credential' in setting:
+					#logger.debug("Found credential setting in stanza: %s/%s" % (guid, setting))
+					if setting_value in list(credentials.keys()):
+						for s in ['username', 'password', 'realm']:
+							if s in list(credentials[setting_value].keys()) and credentials[setting_value][s] is not None:
+								config_data[guid][setting + '_' + s] = credentials[setting_value][s]
+		# Set the default configuration
+		if 'default' in list(config_data.keys()):
+			default_target_config = config_data['default']
+		else:
+			default_target_config = {}
+
+		# See if a GUID was provided explicitly (used by alert actions)
+		# 8-4-4-4-12 format 
+		try:
+			if stanza_guid_alias is not None:
+				if re.match(r'[({]?[a-f0-9]{8}[-]?([a-f0-9]{4}[-]?){3}[a-f0-9]{12}[})]?', stanza_guid_alias, flags=re.IGNORECASE):
+					logger.debug("Using guid " + stanza_guid_alias)
+					return merge_two_dicts(default_target_config, config_data[stanza_guid_alias])
+		except BaseException as e:
+			logger.exception("Exception caught: " + repr(e))
+
+		# Loop through all GUID stanzas for the specified alias
+		for guid in list(config_data.keys()):
+			if guid != 'default':
+				# Merge the configuration with the default config to fill in null values
+				config_stanza_settings = merge_two_dicts(default_target_config, config_data[guid])
+				guid_is_default = str2bool(config_stanza_settings['default'])
+				# Check to see if this is the configuration we want to use
+				if 'alias' in list(config_stanza_settings.keys()):
+					if config_stanza_settings['alias'] == stanza_guid_alias or (stanza_guid_alias is None and guid_is_default):
+						# Return the specified target configuration, or default if target not specified
+						logger.debug("Active configuration: %s", guid)
+						return config_stanza_settings
+		return None
+	except BaseException as e:
+		raise Exception("Unable to find target configuration: " + repr(e))
 
 def get_aws_connection(aws_config):
 	global boto3, Config
@@ -58,16 +121,14 @@ def get_aws_connection(aws_config):
 	proxy_definitions = {
 		'http': http_proxy,
 		'https': https_proxy
-	}
+	} if https_proxy is not None or http_proxy is not None else None
+
+	region = aws_config['region'] if 'region' in list(aws_config.keys()) else None
 	boto_config = Config(
 		signature_version='s3v4',
-		proxies=proxy_definitions
+		proxies=proxy_definitions,
+		region_name=region
 	)
-
-	# Apply non-null setting to boto config
-	if 'region' in list(aws_config.keys()):
-		region_config = Config(region_name=aws_config['region'])
-		boto_config.merge(region_config)
 	
 	# Set endpoint URL
 	if 'endpoint_url' in list(aws_config.keys()):
@@ -75,16 +136,11 @@ def get_aws_connection(aws_config):
 	else:
 		endpoint_url = None
 
-	use_arn = str2bool(aws_config['use_arn'])
+	use_arn = True if aws_config['credential'] == '[Use ARN]' else False
 
-	# Check for secret_key encryption
-	if not use_arn and aws_config['secret_key'][:1] == '$':
-		aws_config['secret_key'] = decrypt_with_secret(aws_config['secret_key'])
-
-	#random_number = str(random.randint(10000, 100000))
 	if use_arn:
 		# Use the current/caller identity ARN from the EC2 instance to connect to S3
-		#logger.debug("Using ARN to connect")
+		logger.debug("Using ARN to connect")
 		try:
 			account_arn_current = boto3.client('sts').get_caller_identity().get('Arn')
 			# arn:aws:sts::800000000000:assumed-role/SplunkInstance_ReadOnly/...
@@ -106,20 +162,22 @@ def get_aws_connection(aws_config):
 				aws_secret_access_key=credentials['SecretAccessKey'],
 				aws_session_token=credentials['SessionToken'],
 			)
-			#logger.debug("Connected using assumed role %s", role_arn)
+		except AttributeError:
+			raise Exception("Could not connect to S3. Failed to assume role: Unable to get caller identity STS token")
 		except BaseException as e:
 			raise Exception("Could not connect to S3. Failed to assume role: " + repr(e))
 
-	elif aws_config['access_key_id'] is not None and aws_config['secret_key'] is not None:
+	elif aws_config['credential_username'] is not None and aws_config['credential_password'] is not None:
 		# Use the credential to connect to S3
 		try:
+			logger.debug("Connecting using OAuth credential")
 			return boto3.client(
 				's3',
-				aws_access_key_id=aws_config['access_key_id'],
-				aws_secret_access_key=aws_config['secret_key'],
+				aws_access_key_id=aws_config['credential_username'],
+				aws_secret_access_key=aws_config['credential_password'],
 				config=boto_config,
 				endpoint_url=endpoint_url)
-			#logger.debug("Connected using OAuth credential")
+			
 		except BaseException as e:
 			raise Exception("Could not connect to S3 using OAuth keys: " + repr(e))
 	else:
@@ -132,7 +190,6 @@ def s3_folder_contents(client, bucket, prefix):
 	paginator = client.get_paginator('list_objects')
 	if len(prefix) > 0:
 		prefix = (prefix + '/').replace('//', '/')
-	#logger.debug('prefix = ' + prefix)
 	for result in paginator.paginate(Bucket=bucket, Prefix=prefix, Delimiter='/'):
 		# Submit a separate request for each folder to get its attributes. 
 		# head_object doesn't work here, not specific enough.
@@ -223,23 +280,26 @@ def get_sftp_connection(target_config):
 	# Check to see if we have credentials
 	valid_settings = []
 	for l in list(target_config.keys()):
-		if target_config[l][0] == '$':
-			target_config[l] = decrypt_with_secret(target_config[l]).strip()
-		if len(target_config[l]) > 0:
-			#logger.debug("l.strip() = [" + target_config[l].strip() + "]")
-			valid_settings.append(l) 
+		if target_config[l] is not None:
+			if target_config[l][0] == '$':
+				target_config[l] = decrypt_with_secret(target_config[l]).strip()
+			if len(target_config[l]) > 0:
+				#logger.debug("l.strip() = [" + target_config[l].strip() + "]")
+				valid_settings.append(l) 
+	logger.debug("Valid settings: " + str(valid_settings))
+	logger.debug("Target config: " + str(target_config))
 	if 'host' in valid_settings and 'port' in valid_settings:
 		# A target has been configured. Check for credentials.
 		# Disable SSH host checking (fix later - set as an option? !!!)
 		cnopts = pysftp.CnOpts()
 		cnopts.hostkeys = None
 		try:
-			if 'username' in valid_settings and 'password' in valid_settings:
+			if 'credential_username' in valid_settings and 'credential_password' in valid_settings and not 'private_key' in valid_settings:
 				try:
-					sftp = pysftp.Connection(host=target_config['host'], username=target_config['username'], password=target_config['password'], cnopts=cnopts)
+					sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], password=target_config['credential_password'], cnopts=cnopts)
 				except BaseException as e:
 					exit_error(logger, "Unable to setup SFTP connection with password: " + repr(e), 921982)
-			elif 'username' in valid_settings and 'private_key' in valid_settings:
+			elif 'credential_username' in valid_settings and 'private_key' in valid_settings:
 				# Write the decrypted private key to a temporary file
 				temp_dir = os.getcwd()
 				key_file = os.path.join(temp_dir, 'epsftp_private_key_' + random_number)
@@ -248,10 +308,10 @@ def get_sftp_connection(target_config):
 					f.write(private_key)
 					f.close()
 				try:
-					if 'passphrase' in valid_settings:
-						sftp = pysftp.Connection(host=target_config['host'], private_key=key_file, private_key_pass=target_config['passphrase'], cnopts=cnopts)
+					if 'passphrase_credential' in valid_settings:
+						sftp = pysftp.Connection(host=target_config['host'], private_key=key_file, private_key_pass=target_config['passphrase_credential_password'], cnopts=cnopts)
 					else:
-						sftp = pysftp.Connection(host=target_config['host'], username=target_config['username'], private_key=key_file, cnopts=cnopts)
+						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], private_key=key_file, cnopts=cnopts)
 					return sftp
 				except BaseException as e:
 					raise Exception("Unable to setup SFTP connection with private key: " + repr(e))
@@ -264,6 +324,9 @@ def get_sftp_connection(target_config):
 		
 def get_sftp_directory(sftp_config, folder_path):
 	sftp = get_sftp_connection(sftp_config)
+	if len(folder_path) == 0:
+		folder_path = '/'
+	logger.debug("SFTP folder path: " + folder_path)
 	dirlist = sftp.listdir_attr(folder_path)
 	file_list = []
 	for f in dirlist:
@@ -301,16 +364,25 @@ def get_smb_directory(smb_config, folder_path = '/'):
 		client_name = client_name[0:client_name.index('.')]
 
 	valid_settings = []
-	for l in list(smb_config.keys()):
-		if smb_config[l][0] == '$':
-			smb_config[l] = decrypt_with_secret(smb_config[l]).strip()
-		if len(smb_config[l]) > 0:
-			valid_settings.append(l) 
+	for setting, value in list(smb_config.items()):
+		if value is not None:
+			if len(value) > 0:
+				if value[0] == '$':
+					smb_config[setting] = decrypt_with_secret(value).strip()
+				valid_settings.append(setting) 
+	
+	#logger.debug("Valid settings: " + str(valid_settings))
+	#logger.debug("smb_config: " + str(smb_config))
+	
 	try:
-		if all (k in valid_settings for k in ('host', 'username', 'password', 'domain', 'share_name')):
+		if all (k in valid_settings for k in ('host', 'credential_username', 'credential_password', 'share_name')):
 			try:
-				conn = SMBConnection(smb_config['username'], smb_config['password'], client_name, 
-					smb_config['host'], domain=smb_config['domain'], use_ntlm_v2=True,
+				if 'credential_realm' in valid_settings:
+					domain = smb_config['credential_realm']
+				else:
+					domain = smb_config['host']
+				conn = SMBConnection(smb_config['credential_username'], smb_config['credential_password'], client_name, 
+					smb_config['host'], domain=domain, use_ntlm_v2=True,
 					sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
 				conn.connect(smb_config['host'], 139)
 
@@ -318,7 +390,6 @@ def get_smb_directory(smb_config, folder_path = '/'):
 					raise Exception("Unable to find the specified share name on the server")
 				
 				# List the directory contents
-				#logger.debug(folder_path)
 				contents = conn.listPath(smb_config['share_name'], folder_path)
 				file_list = []
 				for content in contents:
@@ -327,13 +398,12 @@ def get_smb_directory(smb_config, folder_path = '/'):
 						file_list.append(entry)
 				
 				return file_list
-
 			except BaseException as e:
-				raise Exception("Unable to setup SMB connection: " + repr(e))
+				raise Exception(repr(e))
 		else:
 			raise Exception("Required settings not found")
 	except BaseException as e: 
-		raise Exception("Error reading the configuration: " + repr(e))
+		raise Exception(repr(e))
 
 def yield_smb_object(content, folder_path):
 	folder_path = folder_path.rstrip('/').rstrip('\\')
@@ -351,62 +421,62 @@ def yield_smb_object(content, folder_path):
 		return None
 
 def get_box_connection(target_config):
+	from boxsdk import JWTAuth, Client, BoxAPIException
 	# Check to see if we have credentials
 	valid_settings = []
-	for l in list(target_config.keys()):
-		if len(target_config[l]) > 0:
-			valid_settings.append(l) 
 	
-	if 'client_id' in valid_settings and 'client_secret' in valid_settings and 'enterprise_id' in valid_settings:
-		# A credential has been configured. Check for a cert.
-		if 'public_key_id' in valid_settings and 'private_key' in valid_settings and 'passphrase' in valid_settings:
-			# Certificate has been configured.
+	for l in list(target_config.keys()):
+		if target_config[l] is not None:
+			if len(target_config[l]) > 0:
+				valid_settings.append(l) 
+	
+	if all(x in valid_settings for x in 
+		['client_credential_username', 'client_credential_password', 'enterprise_id', 'public_key_id', 'private_key', 'passphrase_credential_password']):
 
-			try:
-				enterprise_id = target_config['enterprise_id']
-				client_id = target_config['client_id']
-				client_secret = decrypt_with_secret(target_config['client_secret'])
-				public_key_id = target_config['public_key_id']
-				private_key = decrypt_with_secret(target_config['private_key']).replace('\\n', '\n')
-				passphrase = decrypt_with_secret(target_config['passphrase'])
+		try:
+			enterprise_id = target_config['enterprise_id']
+			client_id = target_config['client_credential_username']
+			client_secret = target_config['client_credential_password']
+			public_key_id = target_config['public_key_id']
+			private_key = target_config['private_key'].replace('\\n', '\n')
+			passphrase = target_config['passphrase_credential_password']
 
-				box_authentication = {
-					"enterpriseID": enterprise_id,
-					"boxAppSettings": {
-						"clientID": client_id,
-						"clientSecret": client_secret,
-						"appAuth": {
-							"publicKeyID": public_key_id,
-							"privateKey": private_key,
-							"passphrase": passphrase
-						}
+			box_authentication = {
+				"enterpriseID": enterprise_id,
+				"boxAppSettings": {
+					"clientID": client_id,
+					"clientSecret": client_secret,
+					"appAuth": {
+						"publicKeyID": public_key_id,
+						"privateKey": private_key,
+						"passphrase": passphrase
 					}
 				}
-				
-				auth = JWTAuth.from_settings_dictionary(box_authentication)
+			}
+			
+			auth = JWTAuth.from_settings_dictionary(box_authentication)
 
-				if auth is not None:
-					# Use the credential to connect to Box
-					try:
-						return Client(auth)
-					except BoxAPIException as be:
-						raise Exception("Could not connect to Box: " + be.message)
-					except BaseException as e:
-						raise Exception("Could not connect to Box: " + repr(e))
-				else:
-					raise Exception("Box credential not configured.")
-			except BaseException as e: 
-				logger.debug(repr(e))
-				raise Exception("Could not find or decrypt the specified credential: " + repr(e))
-		else:
-			raise Exception("Could not find required certificate settings")
+			if auth is not None:
+				# Use the credential to connect to Box
+				try:
+					return Client(auth)
+				except BoxAPIException as be:
+					raise Exception("Could not connect to Box: " + be.message)
+				except BaseException as e:
+					raise Exception("Could not connect to Box: " + repr(e))
+			else:
+				raise Exception("Box credential not configured.")
+		except AttributeError:
+			logger.critical("Error ")
+			raise Exception("Could not connect to Box (AttributeError) ")
+		except BaseException as e: 
+			logger.exception("Could not connect to Box: " + repr(e))
+			raise Exception("Could not connect to Box: " + repr(e))
 	else:
 		raise Exception("Could not find required configuration settings")
 
-
 def get_box_directory(target_config, folder_path):
-	global JWTAuth, Client, BoxAPIException
-	from boxsdk import JWTAuth, Client, BoxAPIException
+	from boxsdk import BoxAPIException
 	
 	# Let the exception pass through
 	client = get_box_connection(target_config)

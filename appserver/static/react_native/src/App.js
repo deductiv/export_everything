@@ -16,6 +16,9 @@
 # Version: 2.0.0 (2021-04-26)
 */
  
+const app = 'export_everything';
+const app_abbr = 'ep'
+
 import React, { forwardRef, Suspense } from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import { FormControl, TextField, Select, InputLabel, MenuItem } from '@material-ui/core';
@@ -168,11 +171,11 @@ const table_options = {
 };
 
 const config_descriptions = {
-	'ep_hec': 'HTTP Event Collector',
-	'ep_aws_s3': 'AWS S3-Compatible Object Store',
-	'ep_box': 'Box.com',
-	'ep_sftp': 'SFTP',
-	'ep_smb': 'SMB',
+	[`${app_abbr}_hec`]: 	'HTTP Event Collector',
+	[`${app_abbr}_aws_s3`]: 'S3-Compatible',
+	[`${app_abbr}_box`]: 	'Box.com',
+	[`${app_abbr}_sftp`]: 	'SFTP',
+	[`${app_abbr}_smb`]: 	'SMB',
 }
 
 const LoadingOverlay = (props) => { 
@@ -199,6 +202,22 @@ const LoadingOverlay = (props) => {
 	)
 }
 
+async function getAllUrls(urls) {
+	try {
+		var data = await Promise.all(
+			urls.map(
+				url =>
+					fetch(url).then(
+						(response) => response.json()
+					)));
+		return (data)
+
+	} catch (error) {
+		console.log(error)
+		throw (error)
+	}
+}
+
 class App extends React.Component {
 	constructor(props) {
 		super(props);
@@ -212,18 +231,21 @@ class App extends React.Component {
 			current_config: '', 			// 
 			current_config_alias: '',		// end chonky,
 			loading: false,					// FadeIn control for chonky modal
-			ep_general: {},
+			[`${app_abbr}_general`]: {},
 			// table lists
-			ep_hec: [], 
-			ep_aws: [],
-			ep_box: [],
-			ep_sftp: [],
-			ep_smb: []
+			[`${app_abbr}_hec`]: [], 
+			[`${app_abbr}_aws`]: [],
+			[`${app_abbr}_box`]: [],
+			[`${app_abbr}_sftp`]: [],
+			[`${app_abbr}_smb`]: [],
+			passwords: [],
+			roles: [],
+			users: []
 		}
 
-		this.get_config_stanza("ep_general", "settings").then((d) => {
+		this.get_config_stanza(`${app_abbr}_general`, "settings").then((d) => {
 			console.log("Setting state from get_config_stanza");
-			this.setState({"ep_general": d});
+			this.setState({[`${app_abbr}_general`]: d});
 		})
 		this.refresh_tables();
 		
@@ -233,14 +255,17 @@ class App extends React.Component {
 		this.rest_to_rows = this.rest_to_rows.bind(this);
 		this.list_table_fields = this.list_table_fields.bind(this);
 		this.unset_default_entry = this.unset_default_entry.bind(this);
+		this.get_missing_form_data = this.get_missing_form_data.bind(this);
 		this.get_config_stanza = this.get_config_stanza.bind(this);
 		this.get_config = this.get_config.bind(this);
+		this.get_endpoint = this.get_endpoint.bind(this);
 		this.put_config_item = this.put_config_item.bind(this);
 		this.add_row_data = this.add_row_data.bind(this);
 		this.update_config_item = this.update_config_item.bind(this);
 		this.update_row_data = this.update_row_data.bind(this);
 		this.delete_config_item = this.delete_config_item.bind(this);
 		this.delete_row_data = this.delete_row_data.bind(this);
+		this.update_credential_acl = this.update_credential_acl.bind(this);
 		this.handleFileAction = this.handleFileAction.bind(this);
 		this.show_folder_contents = this.show_folder_contents.bind(this);
 		this.updateParentState = this.updateParentState.bind(this);
@@ -251,7 +276,7 @@ class App extends React.Component {
 	}
 
 	columns = {
-		ep_hec: [ 
+		[`${app_abbr}_hec`]: [ 
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
@@ -265,13 +290,29 @@ class App extends React.Component {
 				validate: rowData => validators.uuid(rowData.token).isValid },
 			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles }
 		],
-		ep_aws_s3: [
+		[`${app_abbr}_aws_s3`]: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Name/Alias", field: "alias", width: "12%", 
 				validate: rowData => validators.string(rowData.alias) }, 
-			{ title: "Use ARN", field: "use_arn", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Access Key", field: "credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="credential" 
+					name="credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value ?? '[EC2 ARN]'}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					<MenuItem value='[EC2 ARN]'>Use EC2 ARN</MenuItem>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+				/*title: "Use ARN", field: "use_arn", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
 			{ title: "Access Key ID", field: "access_key_id", width: "12%", 
 				validate: rowData => ((validators.bool(rowData.use_arn).isValid && rowData.use_arn) || validators.string(rowData.access_key_id).isValid)
 			},
@@ -286,14 +327,14 @@ class App extends React.Component {
 						onChange={e => {props.onChange(e.target.value)}}
 					/>), 
 					validate: rowData => (validators.string(rowData.secret_key).isValid ||  (validators.bool(rowData.use_arn).isValid && rowData.use_arn))
-			},
+				*/},
 			{ title: "Region", field: "region", width: "10%", 
 				validate: rowData => validators.string(rowData.region).isValid }, 
 			{ title: "Endpoint URL\n(Blank for AWS S3)", field: "endpoint_url", width: "12%" },
 			{ title: "Default Bucket ID", field: "default_s3_bucket", width: "12%" },
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
-		ep_box: [
+		[`${app_abbr}_box`]: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
@@ -301,7 +342,23 @@ class App extends React.Component {
 				validate: rowData => validators.string(rowData.alias).isValid }, 
 			{ title: "Enterprise ID", field: "enterprise_id", width: "10%", 
 				validate: rowData => validators.string(rowData.enterprise_id).isValid },
-			{ title: "Client ID", field: "client_id", width: "9%", 
+			{ title: "Client Credential", field: "client_credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="client_credential" 
+					name="client_credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+			},
+			/*{ title: "Client ID", field: "client_id", width: "9%", 
 				validate: rowData => validators.string(rowData.client_id).isValid },
 			{ title: "Client Secret", field: "client_secret", width: "9%", 
 				validate: rowData => validators.string(rowData.client_secret).isValid,
@@ -313,12 +370,12 @@ class App extends React.Component {
 						value={props.value}
 						inputProps={{"placeholder": "Client Secret"}}
 						onChange={e => {props.onChange(e.target.value)}}
-					/>) },
+					/>) },*/
 			{ title: "Public Key ID", field: "public_key_id", width: "9%", 
 				validate: rowData => validators.string(rowData.public_key_id) },
 			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, 
 				validate: rowData => validators.string(rowData.private_key).isValid,
-				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[encrypted]')}</span>,
+				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[configured]')}</span>,
 				editComponent: ({ value, onChange }) => (
 					<TextField
 						error={ (value == null || !validators.string(value).isValid) }
@@ -329,6 +386,22 @@ class App extends React.Component {
 						rows={1}
 						rowsMax={4}
 						/>) },
+			{ title: "Passphrase Credential", field: "passphrase_credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="passphrase_credential" 
+					name="passphrase_credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+			},/*
 			{ title: "Passphrase", field: "passphrase", width: "8%", 
 				validate: rowData => validators.string(rowData.passphrase).isValid,
 				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(8))}</span>,
@@ -339,11 +412,11 @@ class App extends React.Component {
 						value={props.value}
 						inputProps={{"placeholder": "Passphrase"}}
 						onChange={e => {props.onChange(e.target.value)}}
-					/>) },
+					/>) },*/
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
-		ep_sftp: [
+		[`${app_abbr}_sftp`]: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
@@ -353,6 +426,22 @@ class App extends React.Component {
 				validate: rowData => validators.string(rowData.host).isValid },
 			{ title: "TCP Port", field: "port", width: "10%",
 				validate: rowData => (validators.number(rowData.port).isValid || rowData.port == null || rowData.port == "") },
+			{ title: "User Credential", field: "credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="credential" 
+					name="credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+			},/*
 			{ title: "Username", field: "username", width: "15%", 
 				validate: rowData => validators.string(rowData.username).isValid },
 			{ title: "Password", field: "password", width: "15%", 
@@ -365,10 +454,10 @@ class App extends React.Component {
 						value={props.value}
 						inputProps={{"placeholder": "Password"}}
 						onChange={e => {props.onChange(e.target.value)}}
-					/>) },
+					/>) },*/
 			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, 
-				validate: rowData => (validators.string(rowData.private_key).isValid || validators.string(rowData.password).isValid),
-				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[encrypted]')}</span>,
+				//validate: rowData => (validators.string(rowData.private_key).isValid || validators.string(rowData.password).isValid),
+				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[configured]')}</span>,
 				editComponent: props => (
 					<TextField
 						error={ (props.value == null || !validators.string(props.value).isValid) && !(validators.string(props.rowData.password).isValid) }
@@ -379,6 +468,22 @@ class App extends React.Component {
 						rows={1}
 						rowsMax={4}
 						/>) },
+			{ title: "Passphrase Credential", field: "passphrase_credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="passphrase_credential" 
+					name="passphrase_credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+			},/*
 			{ title: "Passphrase", field: "passphrase", width: "8%", 
 				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(8))}</span>,
 				editComponent: props => (
@@ -387,11 +492,11 @@ class App extends React.Component {
 						value={props.value}
 						inputProps={{"placeholder": "Passphrase"}}
 						onChange={e => {props.onChange(e.target.value)}}
-					/>) },
+					/>) },*/
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
-		ep_smb: [
+		[`${app_abbr}_smb`]: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
@@ -399,10 +504,53 @@ class App extends React.Component {
 				validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Hostname", field: "host", width: "35%", 
 				validate: rowData => validators.string(rowData.host) },
+			{ title: "Credential", field: "credential", width: "15%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="credential" 
+					name="credential"
+					style={{ width: "150px" }}
+					defaultValue={props.value}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+			},/*
 			{ title: "Domain", field: "domain", width: "15%", 
 				validate: rowData => validators.string(rowData.domain) },
 			{ title: "Username", field: "username", width: "15%", 
 				validate: rowData => validators.string(rowData.username) },
+			{ title: "Password", field: "clear_password", width: "15%", 
+				validate: rowData => validators.string(rowData.password).isValid,
+				render: rowData => <span className="password_field">{((rowData.password === undefined || rowData.password == '') ? '' : '*'.repeat(8))}</span>,
+				editComponent: props => (
+					<TextField
+						error={ (props.value == null || !validators.string(props.value).isValid) }
+						type="password"
+						value={props.value}
+						inputProps={{"placeholder": "Password"}}
+						onChange={e => {props.onChange(e.target.value)}}
+					/>) },*/
+			{ title: "Share Name", field: "share_name", width: "15%", 
+				validate: rowData => validators.string(rowData.share_name).isValid },
+			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+		],
+		passwords: [
+			// actions = 10%
+			{ title: "Username", field: "username", width: "15%", 
+				validate: rowData => validators.string(rowData.username).isValid,
+				editComponent: props => ( 
+					props.rowData.id && <span>{props.rowData.username}</span> || <TextField
+					value={props.value}
+					inputProps={{"placeholder": "Username"}}
+					onChange={e => {props.onChange(e.target.value)}}
+				/>) 
+			},
 			{ title: "Password", field: "password", width: "15%", 
 				validate: rowData => validators.string(rowData.password).isValid,
 				render: rowData => <span className="password_field">{((rowData.password === undefined || rowData.password == '') ? '' : '*'.repeat(8))}</span>,
@@ -413,23 +561,85 @@ class App extends React.Component {
 						value={props.value}
 						inputProps={{"placeholder": "Password"}}
 						onChange={e => {props.onChange(e.target.value)}}
-					/>) },
-			{ title: "Share Name", field: "share_name", width: "15%", 
-				validate: rowData => validators.string(rowData.share_name).isValid },
-			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
-			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+					/>) 
+			},
+			{ title: "Realm/Domain", field: "realm", width: "15%",
+				editComponent: props => ( 
+					props.rowData.id && <span>{props.rowData.realm}</span> || <TextField
+					value={props.value}
+					inputProps={{"placeholder": "Realm"}}
+					onChange={e => {props.onChange(e.target.value)}}
+				/>) 
+			},
+			{ title: "Owner", field: "owner", width: "10%",
+				editComponent: props => 
+					<FormControl>
+					<Select 
+						id="owner" 
+						name="owner"
+						style={{ width: "150px" }}
+						defaultValue={props.value ?? 'nobody'}
+						//value={!props.value ? 'nobody' : props.value}
+						onChange={e => props.onChange(e.target.value)}
+						>
+						<MenuItem key='nobody' value='nobody'>nobody</MenuItem>
+						{this.state.users.map(user => (
+							<MenuItem key={user.name} value={user.name}>{user.name}</MenuItem>
+						))}
+					</Select>
+					</FormControl>
+			},
+			{ title: "Read", field: "read", width: "10%",
+				render: rowData => <span>{rowData['read'].join(', ')}</span>,
+				editComponent: props => 
+					<FormControl>
+					<Select 
+						id="read" 
+						name="read"
+						style={{ width: "150px" }}
+						defaultValue={(Array.isArray(props.value) && props.value) || props.value && [props.value] || ['*']}
+						multiple
+						onChange={e => {props.onChange(e.target.value)}}
+						>
+						<MenuItem key='*' value='*'>All</MenuItem>
+						{ this.state.roles.map(role =>
+							<MenuItem key={role.name} value={role.name}>{role.name}</MenuItem>
+						  )}
+					</Select>
+					</FormControl>
+			},
+			{ title: "Write", field: "write", width: "10%", 
+				render: rowData => <span>{rowData['write'].join(', ')}</span>,
+				editComponent: props => 
+					<FormControl>
+					<Select 
+						id="write" 
+						name="write"
+						style={{ width: "150px" }}
+						defaultValue={(Array.isArray(props.value) && props.value) || props.value && [props.value] || ['*']}
+						multiple
+						onChange={e => {props.onChange(e.target.value)}}
+						>
+						<MenuItem key='*' value='*'>All</MenuItem>
+						{ this.state.roles.map(role =>
+							<MenuItem key={role.name} value={role.name}>{role.name}</MenuItem>
+						  )}
+					</Select>
+					</FormControl>
+			}
 		]
 	};
 	
 	// Download the data and push it into the corresponding state entry
 	refresh_tables = () => {
 		let tables = Object.keys(this.columns);
-		//let state_updates = {};
 		for (let table of tables) {
 			this.get_config(table).then((d) => {
-				// Convert the REST response data into a usable row format
-				d = this.rest_to_rows(table, d);
-				this.setState({[table]: d});
+				if (table != 'passwords') {
+					// Convert the REST response data into a usable row format
+					d = this.rest_to_rows(table, d);
+					this.setState({[table]: d});
+				}
 			})
 		}
 	}
@@ -498,45 +708,151 @@ class App extends React.Component {
 		}
 	}
 
+	get_missing_form_data = (config_file, new_data) => {
+		// Check for missing items
+		let expected_fields = [];
+		this.columns[config_file].map(c => {
+			expected_fields.push(c.field);
+		});
+		console.log(`Fields enumerated for ${config_file}: ${expected_fields.join(', ')}`)
+		let missing_fields = [];
+		expected_fields.map(f => {
+			if (!(f in new_data)) {
+				missing_fields.push(f);
+			}
+		})
+		console.log(`Missing fields for ${config_file}: ${missing_fields.join(', ')}`)
+		// Get the missing field values from the table in case they were set
+		missing_fields.map(mf => {
+			try {
+				// dropdown value DOM path
+				let v = $(`#${mf} + input`).val();
+				if (v != null) {
+					new_data[mf] = v;
+					console.log(`Found missing field ${mf} = ${v}`);
+				}
+			} catch (error) {
+				console.error(error);
+			}
+		});
+		return new_data;
+	}
+
 	get_config_stanza = (config_file, stanza) => {
 		return new Promise((resolve, reject) => {
-			this.props.splunk.get(`event_push/${config_file}/${stanza}`).then((d) => {
+			this.props.splunk.get(`${app}/${config_file}/${stanza}`).then((d) => {
 				let clear = JSON.parse(d);
 				//resolve(clear);
 				resolve(clear["entry"][0]["content"]);
 			})
 		});
 	}
+
 	get_config = (config_file) => {
 		return new Promise((resolve, reject) => {
-			this.props.splunk.get(`event_push/${config_file}`)
-				.then((d) => {
-					let clear = JSON.parse(d);
-					resolve(clear["entry"]);
-					//resolve(clear["entry"][0]["content"]);
-				});
+			if (config_file == 'passwords') {
+				let password_endpoint = `/servicesNS/-/${app}/storage/passwords`;
+				this.get_endpoint(password_endpoint).then((passwords) => {
+					let role_endpoint = `/servicesNS/-/-/authorization/roles`;
+					this.get_endpoint(role_endpoint).then((roles) => {
+						let user_endpoint = `/servicesNS/-/-/authentication/users`;
+						this.get_endpoint(user_endpoint).then((users) => {
+							let pw_list = [];
+							for (let password of passwords) {
+								if (password.acl.app == app) {
+									// Build the custom password object to match the row fields in the UI
+									let c = {}
+									c.stanza = password.name;
+									c.id = password.id;
+									c.username = password.content.username;
+									c.password = password.content.encr_password;
+									c.realm = password.content.realm;
+									c.sharing = password.acl.sharing;
+									c['owner'] = password.acl.owner;
+									c['read'] = password.acl.perms.read;
+									c['write'] = password.acl.perms.write;
+									c.links = password.links;
+									c.api_entry = password;
+									pw_list.push(c);
+								}
+							}
+							this.setState({
+								'passwords': pw_list,
+								'users': users,
+								'roles': roles
+							});
+							resolve([]);
+						})
+					})
+				})
+
+			} else {
+				let endpoint = `/servicesNS/-/${app}/${app}/${config_file}`;
+				resolve(this.get_endpoint(endpoint));
+			}
 		});
 	}
 	
-	put_config_item = (config_file, items) => {
-		
+	get_endpoint = (endpoint) => {
 		return new Promise((resolve, reject) => {
-			if ( 'stanza' in items ) {
-				var rest_endpoint = `event_push/${config_file}/${items.stanza}`;
+			let params = {"output_mode": "json"};
+			this.props.splunk.request(endpoint,
+				"GET",
+				params,
+				null,
+				null,
+				{"Content-Type": "application/x-www-form-urlencoded"},
+				null
+			)
+			.error(data => {
+				alert(`Could not retrieve configuration for ${endpoint}`);
+				reject(data)
+			})
+			.done(data => {
+				let clear = JSON.parse(data);
+				//console.log(clear["entry"]);
+				resolve(clear["entry"]);
+			});
+		});
+	}
+
+	put_config_item = (config_file, items) => {
+		console.log("Config file = " + config_file);
+		return new Promise((resolve, reject) => {
+			let items_copy = { ...items };
+			if (config_file == 'passwords') {
+				console.log('items = ' + JSON.stringify(items_copy));
+				var rest_endpoint = `/servicesNS/-/${app}/storage/passwords`
+				/*if (items.password.startsWith('$7$')) {
+					items.encr_password = items.password;
+				} else {
+					items.clear_password = items.password;
+				}*/
+				// Rename property username to name
+				items_copy.name = items_copy.username;
+				delete items_copy.username;
+				delete items_copy.owner;
+				delete items_copy.stanza;
+				delete items_copy.read;
+				delete items_copy.write;
+				console.log(items_copy);
+			} else if ( 'stanza' in items_copy ) {
+				var rest_endpoint = `${app}/${config_file}/${items_copy.stanza}`;
 			} else {
-				var rest_endpoint = `event_push/${config_file}`;
+				var rest_endpoint = `${app}/${config_file}`;
 			};
 
 			this.props.splunk.request(rest_endpoint,
 				"POST",
 				{"output_mode": "json"},
 				null,
-				this.dict_to_querystring(items),
+				this.dict_to_querystring(items_copy),
 				{"Content-Type": "application/x-www-form-urlencoded"},
 				 null
 				)
 			.error(data => {
 				this.props.enqueueSnackbar('Error creating record', notistack_options('error'));
+				this.setState({loading: false})
 				reject(data)
 			})
 			.done(data => {
@@ -548,20 +864,68 @@ class App extends React.Component {
 	}
 	// Set the state data when adding a configuration item using the table view
 	add_row_data = (config_file, new_data) => {
+		console.log("New data = " + JSON.stringify(new_data));
 		return new Promise((resolve, reject) => {
-			setTimeout(async () => {
+			if (config_file != 'passwords') {
 				new_data.stanza = uuid.v4();
-				const dataNew = [...this.state[config_file]];
-				// If "default" is set for this new record, unset it for any other records that might have it
-				if ( (new_data.default === undefined) ? false : new_data.default ) {
-					this.unset_default_entry(config_file, new_data.stanza);
-				}
-				await this.put_config_item(config_file, new_data);
-				dataNew.push(new_data);
-				console.log("Setting state from add_row_data");
-				this.setState({[config_file]: dataNew});
-				resolve();
-			}, 1000);
+			}
+			const dataNew = [...this.state[config_file]];
+			// If "default" is set for this new record, unset it for any other records that might have it
+			if ( (new_data.default === undefined) ? false : new_data.default ) {
+				this.unset_default_entry(config_file, new_data.stanza);
+			}
+			new_data = this.get_missing_form_data(config_file, new_data);
+			this.put_config_item(config_file, new_data).then(d => {
+				return new Promise((resolve, reject) => {
+					console.log('[create] new_data = ' + JSON.stringify(new_data));
+					if (config_file == 'passwords') {
+						let remote_credential_entry = d.entry[0];
+						let c = {}
+						// Build the custom password object to match the row fields in the UI
+						c.stanza = remote_credential_entry.name;
+						c.id = remote_credential_entry.id;
+						c.username = remote_credential_entry.content.username;
+						c.password = remote_credential_entry.content.encr_password;
+						c.realm = remote_credential_entry.content.realm;
+						c.sharing = remote_credential_entry.acl.sharing;
+						c.app = remote_credential_entry.acl.app;
+						c.links = remote_credential_entry.links;
+						c.api_entry = remote_credential_entry;
+						// Material-UI refuses to pass these values into newData
+						c.owner = new_data.owner;
+						c.read = Array.isArray(new_data.read) ? new_data.read : new_data.read.split(',');
+						c.write = Array.isArray(new_data.write) ? new_data.write : new_data.write.split(',');
+
+						// Update the ACL to what was supplied
+						// Check to see if it is different from default
+						if (c.owner != remote_credential_entry.acl.owner || 
+							c.read != remote_credential_entry.acl.perms.read || 
+							c.write != remote_credential_entry.acl.perms.write) {
+							//(username, stanza, owner, read, write, sharing)
+							console.log("Calling update credential ACL for: " + JSON.stringify(c));
+							this.update_credential_acl(
+							   c.stanza,
+							   c.realm,
+							   c.owner,
+							   c.read,
+							   c.write,
+							   'global'
+							  ).then(r => {
+								resolve(c);
+							});
+						} else {
+							resolve(c);
+						}
+					} else {
+						resolve(new_data);
+					}
+				}).then(d => {
+					dataNew.push(d);
+					console.log("Setting state from add_row_data");
+					this.setState({[config_file]: dataNew});
+					resolve();
+				});
+			});
 		});
 	}
 
@@ -569,7 +933,24 @@ class App extends React.Component {
 	update_config_item = (config_file, item) => {
 		//console.log("Item = " + JSON.stringify(item));
 		return new Promise((resolve, reject) => {
-			this.props.splunk.request(`event_push/${config_file}/${item.stanza}`,
+			if (config_file == 'passwords') {
+				var rest_endpoint = `/servicesNS/-/${app}/storage/passwords/${item.stanza.replace(new RegExp("(:|%3A)+$", "i"), "")}`;
+				this.update_credential_acl(
+					item.stanza,
+					item.realm,
+					$('#owner + input').val(),
+					$('#read + input').val().split(','),
+					$('#write + input').val().split(','),
+					'global'
+				   );
+				let item_copy = { password: item.password };
+				// Move the pointer to our new object
+				item = item_copy;
+			} else {
+				var rest_endpoint = `${app}/${config_file}/${item.stanza}`
+			}
+
+			this.props.splunk.request(rest_endpoint,
 				"POST",
 				{"output_mode": "json"},
 				null,
@@ -592,6 +973,9 @@ class App extends React.Component {
 	update_row_data = (config_file, new_data, old_data) => {
 		return new Promise((resolve, reject) => {
 			setTimeout(async () => {
+				console.log("New data = " + JSON.stringify(new_data));
+				new_data = this.get_missing_form_data(config_file, new_data);
+
 				const dataUpdate = [...this.state[config_file]];
 				const index = old_data.tableData.id;
 				dataUpdate[index] = new_data;
@@ -609,7 +993,14 @@ class App extends React.Component {
 
 	delete_config_item = (config_file, stanza) => {
 		return new Promise((resolve, reject) => {
-			this.props.splunk.request(`event_push/${config_file}/${stanza}`,
+			
+			if (config_file == 'passwords') {
+				var rest_endpoint = `/servicesNS/-/${app}/storage/passwords/${stanza.replace(new RegExp(":+$"), "")}`
+			} else {
+				var rest_endpoint = `${app}/${config_file}/${stanza}`
+			}
+
+			this.props.splunk.request(rest_endpoint,
 				"DELETE",
 				{"output_mode": "json"},
 				null,
@@ -641,6 +1032,38 @@ class App extends React.Component {
 		})
 	}
 
+	update_credential_acl = (username, realm, owner, read, write, sharing) => {
+		return new Promise((resolve, reject) => {
+			// read and write must be arrays
+			let acl = {
+				'perms.read': read,
+				'perms.write': write,
+				'sharing': sharing,
+				'owner': owner
+			}
+			//console.log("New ACL = " + JSON.stringify(acl));
+			let rest_endpoint = `configs/conf-passwords/credential%3A${username}/acl`
+			this.props.splunk.request(rest_endpoint,
+				"POST",
+				{"output_mode": "json"},
+				null,
+				this.dict_to_querystring(acl),
+				{"Content-Type": "application/x-www-form-urlencoded"},
+					null
+				)
+			.error(data => {
+				this.props.enqueueSnackbar('Error updating ACL', notistack_options('error'));
+				this.setState({loading: false})
+				reject(data)
+			})
+			.done(data => {
+				this.refresh_tables();
+				this.props.enqueueSnackbar('ACL updated successfully', notistack_options('success'));
+				resolve(data);
+			});
+		});
+	}
+
 	handleFileAction = (data) => {
 		if (!data.payload.targetFile || !data.payload.targetFile.isDir) return;
 		const newPrefix = `${data.payload.targetFile.id.replace(/\/*$/, '')}/`;
@@ -657,16 +1080,24 @@ class App extends React.Component {
 				let old_files = [...this.state.file_list];
 				console.log("Old chain = " + JSON.stringify(old_chain));
 				console.log("Old files = " + JSON.stringify(old_files));
-				this.setState({loading: true, show_file_browser: true}, 
-					() => { // then
-						let url='event_push_dirlist';
+				
+				if (container_name === undefined || container_name === null || container_name.length == 0) {
+					container_name = '/' 
+				}
+				
+				this.setState({
+					loading: true, 
+					show_file_browser: true,
+					current_config: config_file,
+					current_config_alias: alias,
+					current_config_container: container_name
+				}, () => { // then
+						let url=`${app}_dirlist`;
 						let params = {
 							"config": config_file,
 							"alias": alias
 						};
-						if (container_name === undefined || container_name === null || container_name.length == 0) {
-							container_name = '/' 
-						}
+						
 						// Start with the root - /
 						let chain = [{
 							id: '/',
@@ -739,8 +1170,31 @@ class App extends React.Component {
 
 						this.props.splunk.get(url, params)
 						.then((d) => {
-							let file_list = JSON.parse(d);
-							if (file_list !== null) {
+							let response = JSON.parse(d);
+							let file_list;
+							if ('entry' in response) {
+								// Different format of response from Splunk. Get the data from within the object.
+								if ('content' in response.entry[0] && Array.isArray(response.entry[0].content)) {
+									file_list = JSON.parse(response.entry[0].content[0].payload);
+								} else {
+									// Error
+									let response_data = {};
+									// Convert the response to a dict
+									for (let e of response.entry) {
+										response_data[e.title] = e.content;
+									}
+									alert(`${response_data.status} Error retrieving the file listing: \n${response_data.error}`)
+									this.setState({loading: false, show_file_browser: false});
+									reject(response_data);
+								}
+							} else {
+								file_list = response;
+							}
+							if (file_list != null) {
+								if ('entry' in file_list) {
+									// Different format of response from Splunk. Get the data from within the object.
+									file_list = JSON.parse(file_list.entry[0].content[0].payload);
+								}
 								//console.log("File list = " + JSON.stringify(file_list));
 								for (var f=0; f<file_list.length; f++) {
 									if ( file_list[f].modDate !== undefined ) {
@@ -749,19 +1203,22 @@ class App extends React.Component {
 								}
 								this.setState({"file_list": file_list}, () => {
 									//console.log("Setting state from show_folder_contents (last)");
-									this.setState({loading: false,
-										folder_chain: chain,
-										current_config: config_file,
-										current_config_alias: alias,
-										current_config_container: container_name});
+									this.setState({
+										loading: false,
+										folder_chain: chain});
 								});
+								console.log(file_list);
+								resolve(file_list);
+							} else {
+								alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`)
+								this.setState({loading: false, show_file_browser: false});
+								reject(reason);
 							}
-							resolve(file_list);
 						}, reason => {
-							alert(`Error retrieving the file listing: ${reason.statusText} (${reason.status})`);
-							this.setState({loading: false});
+							alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`)
+							this.setState({loading: false, show_file_browser: false});
 							reject(reason);
-						}) ;
+						});
 					}
 				);
 				resolve();
@@ -845,6 +1302,7 @@ class App extends React.Component {
 					defaultIndex={0} transition={false} >
 					<TabList className="nav nav-tabs">
 						<Tab className="nav-item"><a href="#" className="toggle-tab">General</a></Tab>
+						<Tab className="nav-item"><a href="#" className="toggle-tab">Credentials</a></Tab>
 						<Tab className="nav-item"><a href="#" className="toggle-tab">Splunk HEC</a></Tab>
 						<Tab className="nav-item"><a href="#" className="toggle-tab">AWS S3-Compatible</a></Tab>
 						<Tab className="nav-item"><a href="#" className="toggle-tab">Box</a></Tab>
@@ -859,17 +1317,17 @@ class App extends React.Component {
 								<Select labelId="logging_label" 
 									id="log_level" 
 									style={{ width: "150px" }}
-									value={(this.state.ep_general.log_level === undefined) ? "" : this.state.ep_general.log_level}
+									value={(this.state[`${app_abbr}_general`].log_level === undefined) ? "" : this.state[`${app_abbr}_general`].log_level}
 									onChange={(event) => {
 										this.update_config_item( 
-											"ep_general", 
+											`${app_abbr}_general`, 
 											{
 												stanza: 'settings',
 												log_level: event.target.value
 											}
 										)
 										console.log("Setting state from General Settings tab");
-										this.setState({"ep_general": {log_level: event.target.value}});
+										this.setState({[`${app_abbr}_general`]: {log_level: event.target.value}});
 									}}>
 									<MenuItem value="DEBUG">Debug</MenuItem>
 									<MenuItem value="INFO">Info</MenuItem>
@@ -881,48 +1339,84 @@ class App extends React.Component {
 						</div>
 					</TabPanel>
 					<TabPanel className="tab-pane">
+						<div className="form form-horizontal form-complex">
+							<h1>Manage Credentials</h1>
+							<div style={{width: '700px', paddingBottom: '15px'}}>
+								<p>Use this panel to configure accounts, passwords, and secrets/passphrases to associate with your configured connections and private keys.  </p>
+								<ul>
+									<li>All credentials are stored securely in the Splunk secret store.</li>
+									<li>Users must have the list_storage_passwords capability to read the credentials added to their roles. This will not give them access to read all passwords, only those you explicitly share.</li>
+									<li>Access is secured using native Splunk roles as configured on this dashboard.</li>
+									<li>Credential objects are exported to all apps so they are available to this app's search commands and alert actions. </li>
+									<li>Only the password field is used for storing passphrases (e.g. for private keys), but the username must still be populated with an arbitrary value.</li>
+								</ul>
+							</div>
+							<div className="panel-element-row">
+								<MaterialTable
+									title={
+										<div className="form form-complex">
+											<h2>Account Management</h2>
+										</div>
+									}
+									icons={tableIcons}
+									columns={this.columns.passwords}
+									data={this.state.passwords}
+									editable={{
+										onRowAdd: newData => this.add_row_data('passwords', newData),
+										onRowUpdate: (newData, oldData) => this.update_row_data('passwords', newData, oldData),
+										onRowDelete: oldData => this.delete_row_data('passwords', oldData)
+									}}
+									options={table_options}
+									className={"actionicons-2"}
+								/>
+							</div>
+						</div>
+					</TabPanel>
+					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title="Event Push to Splunk HTTP Event Collector (ephec)" 
+							title={`Export to Splunk HTTP Event Collector (${app_abbr}hec)`}
 							heading="Splunk HTTP Event Collector Connections" 
 							action_columns="2" 
-							config="ep_hec" />
+							config={`${app_abbr}_hec`} />
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title="Event Push to AWS S3 (epawss3)" 
-							heading="AWS S3-Compatible Connections" 
+							title={`Export to AWS S3 (${app_abbr}awss3)`} 
+							heading="S3-Compatible Connections" 
 							action_columns="3"
 							browsable="true"
-							config="ep_aws_s3" />
+							config={`${app_abbr}_aws_s3`} />
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title="Event Push to Box (epbox)" 
+							title={`Export to Box (${app_abbr}box)`} 
 							heading="Box Connections" 
 							action_columns="3"
 							browsable="true"
-							config="ep_box">
+							config={`${app_abbr}_box`}>
 								In your <a href="https://app.box.com/developers/console/newapp">Box Admin Console</a>, create a new Custom App with Server Authentication (with JWT) and create a new key pair to get this information. Then, submit the new app for authorization.
 						</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title="Event Push to SFTP (epsftp)" 
+							title={`Export to SFTP (${app_abbr}sftp)`} 
 							heading="SFTP Connections" 
 							action_columns="3"
 							browsable="true"
-							config="ep_sftp" />
+							config={`${app_abbr}_sftp`} >
+								If a password is present in your credential and a private key is also specified, the private key will be used for authentication (whether or not a credential to decrypt the private key is supplied).
+							</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
-							title="Event Push to SMB (epsmb)" 
+							title={`Export to SMB (${app_abbr}smb)`} 
 							heading="SMB Connections" 
 							action_columns="3"
 							browsable="true"
-							config="ep_smb" />
+							config={`${app_abbr}_smb`} />
 					</TabPanel>
 				</Tabs>
-				<Suspense fallback={<div>Loading...</div>}>
+				<Suspense fallback={<div style={{width: "100%", margin: "25px auto", textAlign: "center"}}>Loading Script...</div>}>
 					{this.state.show_file_browser && (
 						<FileBrowserModal 
 							id="file_browser" 

@@ -16,8 +16,8 @@
     }
   </style>
   <div id="ep_docs">
-<h1><img alt="App icon" src="/splunkd/__raw/servicesNS/nobody/event_push/static/appIcon.png" /> Event Push - Splunk Add-On by <a href="https://www.deductiv.net/">Deductiv</a></h1>
-<p>This app exports your Splunk search results to remote destinations, so you can do more with your Splunk data. It provides search commands and alert actions to export/push/upload/share your data to multiple destinations of each type. The app must be configured via the Setup dashboard before using it. The setup dashboard includes a connection test feature in the form of a "<strong>Browse</strong>" action for all file-based destinations.</p>
+<h1><img alt="App icon" src="/splunkd/__raw/servicesNS/nobody/export_everything/static/appIcon.png" /> Export Everything - Splunk Add-On by Deductiv</h1>
+<p>This add-on exports your Splunk search results to remote destinations so you can do more with your Splunk data. It provides search commands and alert actions to export/push/upload/share your data to multiple destinations of each type. The app must be configured via the Setup dashboard before using it. The setup dashboard includes a connection test feature in the form of a "<strong>Browse</strong>" action for all file-based destinations.</p>
 <h2>Supported Export Formats</h2>
 <ul>
 <li>JSON</li>
@@ -38,6 +38,10 @@
 <ul>
 <li>Splunk HTTP Event Collector  </li>
 </ul>
+<h2>Credential Management</h2>  
+<p>Use the Credentials tab to manage usernames, passwords, and passphrases (used for private keys) within the Splunk secret store. Certain use cases (such as private key logins) may not require a password, but Splunk requires one to be entered anyway. For passphrases, type any description into the username field. OAuth credentials such as those for AWS use the username field for the access key and the password field for the secret access key. Due to the way Splunk manages credentials, the username field cannot be changed once it is saved.</p>
+<h2>Authorization via Capabilities</h2>  
+<p>Add read capabilities for each command to users who require access to use the search command or alert action. Add write capability to allow them to make changes to the configuration. By default, admin has full access and power has read-only access. Credential permissions must be granted separately, but are required to use each command that depends on them.</p>
 <hr />
 <h2>AWS S3-Compatible Object Storage (epawss3)</h2>
 <p>Export Splunk search results to AWS S3-compatible object storage. Connections can be configured to authenticate using OAuth credentials or the assumed role of the search head EC2 instance.  </p>
@@ -95,7 +99,7 @@
 </li>
 </ul>
 <hr />
-<h2>Box Event Push (epbox)</h2>
+<h2>Box Export (epbox)</h2>
 <p>Export Splunk search results to Box cloud storage. Box must be configured with a Custom App using Server Authentication (with JWT) and a certificate generated. Then, the app must be submitted for approval by the administrator. The administrator should create a folder within the app's account and share it with the appropriate users.  </p>
 <h3>Capabilities</h3>
 <ul>
@@ -144,7 +148,7 @@
 </li>
 </ul>
 <hr />
-<h2>SMB Event Push Search Command (epsmb)</h2>
+<h2>SMB Export Search Command (epsmb)</h2>
 <p>Export Splunk search results to SMB file shares.  </p>
 <h3>Capabilities</h3>
 <ul>
@@ -193,7 +197,7 @@
 </li>
 </ul>
 <hr />
-<h2>SFTP Event Push Search Command (epsftp)</h2>
+<h2>SFTP Export Search Command (epsftp)</h2>
 <p>Export Splunk search results to SFTP servers.  </p>
 <h3>Capabilities</h3>
 <ul>
@@ -242,8 +246,8 @@
 </li>
 </ul>
 <hr />
-<h2>Splunk HEC Event Push (ephec)</h2>
-<p>Push Splunk search results to Splunk HTTP Event Collector (HEC) listener.</p>
+<h2>Splunk HEC Export (ephec)</h2>
+<p>Export Splunk search results to Splunk HTTP Event Collector (HEC) listener.</p>
 <h3>Capabilities</h3>
 <ul>
 <li>configure_ep_hec_read  </li>
@@ -261,25 +265,25 @@
 <li>
 <h4>Host</h4>
 <p><strong>Syntax:</strong> host=[host_value|$host_field$]</p><p>
-<strong>Description:</strong> Field or string to be assigned to the host field on the pushed event</p><p>
+<strong>Description:</strong> Field or string to be assigned to the host field on the exported event</p><p>
 <strong>Default:</strong> $host$, or if not defined, the hostname of the sending host (from inputs.conf)  </p>
 </li>
 <li>
 <h4>Source</h4>
 <p><strong>Syntax:</strong> source=[source_value|$source_field$]</p><p>
-<strong>Description:</strong> Field or string to be assigned to the source field on the pushed event</p><p>
+<strong>Description:</strong> Field or string to be assigned to the source field on the exported event</p><p>
 <strong>Default:</strong> $source$, or if not defined, it is omitted  </p>
 </li>
 <li>
 <h4>Sourcetype</h4>
 <p><strong>Syntax:</strong> sourcetype=[sourcetype_value|$sourcetype_field$]</p><p>
-<strong>Description:</strong> Field or string to be assigned to the sourcetype field on the pushed event</p><p>
+<strong>Description:</strong> Field or string to be assigned to the sourcetype field on the exported event</p><p>
 <strong>Default:</strong> $sourcetype$, or if not defined, json  </p>
 </li>
 <li>
 <h4>Index</h4>
 <p><strong>Syntax:</strong> index=[index_value|$index_field$]</p><p>
-<strong>Description:</strong> The remote index in which to store the pushed event</p><p>
+<strong>Description:</strong> The remote index in which to store the exported event</p><p>
 <strong>Default:</strong> $index$, or if not defined, the remote endpoint's default.  </p>
 </li>
 </ul>
@@ -287,7 +291,7 @@
 <h2>Support</h2>
 <p>Having trouble with the app? Feel free to <a href="mailto:contact@deductiv.net">email us</a> and we’ll help you sort it out. You can also <a href="https://splunk-usergroups.slack.com/team/U30E9LS79">reach the author</a> on the Splunk Community Slack.  </p>
 <h2>Roadmap</h2>
-<p>We welcome your input on our app feature roadmap, which can be found on <a href="https://trello.com/b/YbFOsuKJ/event-push-add-on-for-splunk-by-deductiv">Trello</a>.</p>
+<p>We welcome your input on our app feature roadmap, which can be found on <a href="https://trello.com/b/YbFOsuKJ/export-everything-add-on-for-splunk-by-deductiv">Trello</a>.</p>
 </div>
 </body>
 </html>

@@ -1,4 +1,4 @@
-require.config({"paths":{"main":"/static/app/event_push/react/main.js?v=d365b4f68034b8757049","react":"/static/app/event_push/react/react.js?v=154a92c29ec52a4692dc","react-dom":"/static/app/event_push/react/react-dom.js?v=25fe35808c42c2c5a78c"},"shim":{"main":{"exports":["main"]},"react":{"exports":"react"},"react-dom":{"exports":"react-dom"}}});
+require.config({"paths":{"main":"/static/app/export_everything/react/main.js?v=ef7b39e159f3500457c7","react":"/static/app/export_everything/react/react.js?v=3f2c236ae439d1c15d61","react-dom":"/static/app/export_everything/react/react-dom.js?v=bbe0fe8f90f1a0844ba7"},"shim":{"main":{"exports":["main"]},"react":{"exports":"react"},"react-dom":{"exports":"react-dom"}}});
         require([
                 "splunkjs/ready!",
                 "splunkjs/mvc/simplexml/ready!",
@@ -10,7 +10,7 @@ require.config({"paths":{"main":"/static/app/event_push/react/main.js?v=d365b4f6
                             main, react, reactdom, backbone, $
             ) {
             
-            let myObjects = $(".eventpush_setup").each((k, v)=>{
+            let myObjects = $(".export_everything_setup").each((k, v)=>{
                 reactdom.render(
                 react.createElement(main.default, {
                     splunk: mvc,

@@ -16,7 +16,7 @@
 
 # Python 2 and 3 compatible
 # search_ep_aws_s3.py
-# Push Splunk search results to AWS S3 - Search Command
+# Export Splunk search results to AWS S3 - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.0.0 (2021-04-26)
@@ -25,23 +25,22 @@ from __future__ import print_function
 from builtins import str
 from future import standard_library
 standard_library.install_aliases()
-import logging
-import sys, os, platform
+#import logging
+import sys, os #, platform
 import random
-import re
-from deductiv_helpers import setup_logger, get_config_from_alias, replace_keywords, exit_error, replace_object_tokens, recover_parameters, str2bool
-
+#import re
+from deductiv_helpers import setup_logger, replace_keywords, exit_error, replace_object_tokens, recover_parameters, str2bool
+ 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 # pylint: disable=import-error
 from splunk.clilib import cli_common as cli
-import splunk.entity as entity
-import splunklib.client as client
-import splunklib.results as results
+#import splunk.entity as entity
+#import splunklib.results as results
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 import event_file
-from ep_helpers import get_aws_connection
+from ep_helpers import get_config_from_alias, get_aws_connection
 #import boto3
 #from botocore.config import Config
 
@@ -53,7 +52,7 @@ class epawss3(ReportingCommand):
 	search | epawss3 target=<target alias> bucket=<bucket> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe]
 
 	**Description**
-	Push Splunk events to AWS S3 (or compatible) over JSON or raw text.
+	Export Splunk events to AWS S3 (or compatible) over JSON or raw text.
 	'''
 
 	#Define Parameters
@@ -121,11 +120,11 @@ class epawss3(ReportingCommand):
 		facility = os.path.basename(__file__)
 		facility = os.path.splitext(facility)[0]
 		try:
-			logger = setup_logger(app_config["log_level"], 'event_push.log', facility)
+			logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
 		except BaseException as e:
 			raise Exception("Could not create logger: " + repr(e))
 
-		logger.info('AWS S3 Event Push search command initiated')
+		logger.info('AWS S3 Export search command initiated')
 		logger.debug("Configuration: " + str(cmd_config))
 		logger.debug('search_ep_awss3 command: %s', self)  # logs command line
 
@@ -133,6 +132,7 @@ class epawss3(ReportingCommand):
 		app = self._metadata.searchinfo.app
 		user = self._metadata.searchinfo.username
 		dispatch = self._metadata.searchinfo.dispatch_dir
+		session_key = self._metadata.searchinfo.session_key
 
 		if self.target is None and 'target=' in str(self):
 			recover_parameters(self)
@@ -141,7 +141,7 @@ class epawss3(ReportingCommand):
 
 		# Build the configuration
 		try:
-			aws_config = get_config_from_alias(cmd_config, self.target)
+			aws_config = get_config_from_alias(session_key, cmd_config, self.target)
 			if aws_config is None:
 				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
 			logger.debug("Target configuration: " + str(aws_config))
@@ -172,7 +172,7 @@ class epawss3(ReportingCommand):
 
 		if self.outputfile is None:
 			# Boto is special. We need repr to give it the encoding it expects to match the hashing.
-			self.outputfile = repr(app + '_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
+			self.outputfile = repr('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 		
 		# Replace keywords from output filename
 		self.outputfile = replace_keywords(self.outputfile)
@@ -187,7 +187,7 @@ class epawss3(ReportingCommand):
 		
 		# Use the random number to support running multiple outputs in a single search
 		random_number = str(random.randint(10000, 100000))
-		staging_filename = 'eventpush_staging_' + random_number + '.txt'
+		staging_filename = 'export_everything_staging_' + random_number + '.txt'
 		local_output_file = os.path.join(dispatch, staging_filename)
 
 		# Append .gz to the output file if compress=true
@@ -221,7 +221,7 @@ class epawss3(ReportingCommand):
 				s3.upload_fileobj(f, self.bucket, self.outputfile)
 			s3 = None
 			sts_client = None
-			logger.info("Successfully pushed events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, event_counter, self.bucket, self.outputfile, user))
+			logger.info("Successfully exported events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, event_counter, self.bucket, self.outputfile, user))
 			os.remove(local_output_file)
 		except s3.exceptions.NoSuchBucket as e:
 			exit_error(logger, "Error: No such bucket", 123833)

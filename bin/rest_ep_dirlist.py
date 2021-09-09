@@ -18,20 +18,28 @@ import splunk.entity as entity
 import splunklib.client as client
 from splunk.persistconn.application import PersistentServerConnectionApplication
 from splunk.appserver.mrsparkle.lib.util import make_splunkhome_path
-from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret, get_config_from_alias
-from ep_helpers import get_aws_s3_directory, get_box_directory, get_sftp_directory, get_smb_directory
+import splunk.rest
+
+from deductiv_helpers import setup_logger
+from ep_helpers import get_config_from_alias, get_aws_s3_directory, get_box_directory, get_sftp_directory, get_smb_directory
 
 config = cli.getConfStanza('ep_general','settings')
 # Facility info - prepended to log lines
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
-logger = setup_logger(config["log_level"], 'event_push.log', facility)
+logger = setup_logger(config["log_level"], 'export_everything.log', facility)
 temp_dir = os.path.join(os.environ.get('SPLUNK_HOME'), 'etc','users','splunk-system-user','.eptemp')
 os.makedirs(temp_dir, exist_ok=True)
 os.chdir(temp_dir)
 
+app = 'export_everything'
+
 def return_error(error_text):
+	error_text = re.sub(r'Exception\(|\\|\'|"', '', error_text)
+	error_text = re.sub(r'\(+', '(', error_text)
+	error_text = re.sub(r'\)+', ')', error_text)
 	return {'error': error_text, 
+		'payload': error_text,
 		'status': 500}
 
 def get_directory_contents(config_file, config, query):
@@ -48,15 +56,21 @@ def get_directory_contents(config_file, config, query):
 			
 	except BaseException as e:
 		logger.exception("Could not get directory listing: " + repr(e))
-		raise Exception("Could not get directory listing: " + repr(e))
+		raise Exception(repr(e))
 
-class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
-	def __init__(self, command_line, command_arg):
-		#super(PersistentServerConnectionApplication, self).__init__()	# pylint: disable=bad-super-call
-		PersistentServerConnectionApplication.__init__(self)
-	
-	# Handle a syncronous from splunkd.
-	def handle(self, in_string):
+#class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
+class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):	
+	#def __init__(self, command_line, command_arg):
+	#	#super(PersistentServerConnectionApplication, self).__init__()	# pylint: disable=bad-super-call
+	#	#PersistentServerConnectionApplication.__init__(self)
+	#	pass
+
+	def __init__(self, method, requestInfo, responseInfo, sessionKey):
+		splunk.rest.BaseRestHandler.__init__(self, method, requestInfo, responseInfo, sessionKey)
+
+	# Handle a synchronous from splunkd.
+	#def handle(self, in_string):
+	def handle_GET(self):
 		"""
 		Called for a simple synchronous request.
 		@param in_string: request data passed in
@@ -65,28 +79,53 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 				it will automatically be JSON encoded before being returned.
 		"""
 
+		logger.debug('Started REST directory listing process')
+		#input = json.loads(in_string)
+		#input = self.args
+		session_key = self.sessionKey
+		
 		try:
+
+			service = client.connect(token=session_key)
+			# Get all credentials in the secret store for this app
+			credentials = {}
+			storage_passwords = service.storage_passwords
+			for credential in storage_passwords:
+				if credential.access.app == app:
+					credentials[credential._state.title] = {
+						'username': credential.content.get('username'),
+						'password': credential.content.get('clear_password'),
+						'realm':    credential.content.get('realm')
+					}
+			
 			config = {
-				"general": cli.getConfStanza('ep_general','settings'),
-				"ep_aws_s3": cli.getConfStanzas('ep_aws_s3'),
-				"ep_box": cli.getConfStanzas('ep_box'),
-				"ep_sftp": cli.getConfStanzas('ep_sftp'),
-				"ep_smb": cli.getConfStanzas('ep_smb'),
+				"general": cli.getConfStanza('ep_general','settings')
 			}
+			configurations = ["ep_aws_s3", "ep_box", "ep_sftp", "ep_smb"]
+			for c in configurations:
+				config[c] = cli.getConfStanzas(c)
+				for stanza in list(config[c].keys()):
+					for k, v in list(config[c][stanza].items()):
+						if 'credential' in k:
+							if v in list(credentials.keys()):
+								config[c][stanza][k + '_username'] = credentials[v]['username']
+								config[c][stanza][k + '_realm'] = credentials[v]['realm']
+								config[c][stanza][k + '_password'] = credentials[v]['password']
 		
 		except BaseException as e:
 			raise Exception("Could not read configuration: " + repr(e))
 		
-		input = json.loads(in_string)
-		logger.debug("Received connection from src_ip=%s user=%s" % (input['connection']['src_ip'], input['session']['user']))
+		logger.debug("Received connection from src_ip=%s user=%s" % (self.request['remoteAddr'], self.request['userId']))
 		# Check for permissions
 
-		if "query" in list(input.keys()):
+		if "query" in list(self.request.keys()):
 			query = {}
 			#logger.debug('input query = ' + str(input['query']))
-			if isinstance(input['query'], list):
-				for i in input['query']:
+			if isinstance(self.request['query'], list):
+				for i in self.request.query:
 					query[i[0]] = i[1]
+			elif isinstance(self.request['query'], dict):
+				query = self.request['query']
 			logger.debug('query = ' + str(query))
 
 			if "config" in list(query.keys()) and "alias" in list(query.keys()):
@@ -96,11 +135,10 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 				return_error("Invalid query")
 
 			try:
-				datasource_config = get_config_from_alias(config[config_file], entry_alias)
+				datasource_config = get_config_from_alias(session_key, config[config_file], entry_alias)
 			except BaseException as e:
-				logger.exception("Could not get config: " + repr(e))
+				return return_error("Could not get config: %s" % repr(e))
 
-			#logger.debug('datasource_config = ' + str(datasource_config))
 			if datasource_config is not None:
 				# Set the defaults
 				if 'folder' not in list(query.keys()) or len(query['folder']) == 0:
@@ -117,29 +155,15 @@ class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
 					try:
 						payload = json.dumps(payload)
 					except BaseException as e:
-						return_error("Could not convert payload to JSON: " + repr(e))
-					return {
+						return return_error("Could not convert payload to JSON: %s" % repr(e))
+					return [{
 						"payload": payload,
 						"status": 200
-					}
+					}]
 				except BaseException as e:
-					return_error("Error getting the directory listing: " + repr(e))
+					return return_error(repr(e))
 			else:
-				return_error("Cannot find the specified configuration")
+				return return_error("Cannot find the specified configuration")
 		else:
-			return_error("No query supplied")
-		
-	def handleStream(self, handle, in_string):
-		"""
-		For future use
-		"""
-		raise NotImplementedError(
-			"PersistentServerConnectionApplication.handleStream")
-
-	def done(self):
-		"""
-		Virtual method which can be optionally overridden to receive a
-		callback after the request completes.
-		"""
-		pass
+			return return_error("No query supplied")
 

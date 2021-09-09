@@ -13,7 +13,7 @@
 
     <splunk-control-group label="Target Instance" style="width: 150px; padding-right: 10px">
             <splunk-search-dropdown name="action.alert_ep_hec.param.dest_guid"
-                    search="| rest /servicesNS/-/event_push/event_push/ep_hec | table title alias" 
+                    search="| rest /servicesNS/-/export_everything/export_everything/ep_hec | table title alias" 
                     label-field="alias" value-field="title" />
           </splunk-control-group>
     </splunk-control-group>

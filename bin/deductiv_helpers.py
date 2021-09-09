@@ -151,48 +151,6 @@ def escape_quotes(string):
 def escape_quotes_csv(string):
 	return string.replace('"', '""')
 
-def get_config_from_alias(config_data, stanza_guid_alias = None):
-	# Parse and merge the configuration
-	try:
-		# Delete blank configuration values (in case setup process wrote them)
-		for guid in list(config_data.keys()):
-			for setting in list(config_data[guid].keys()):
-				if config_data[guid][setting] is not None and len(config_data[guid][setting]) == 0:
-					del config_data[guid][setting]
-
-		# Set the default configuration
-		if 'default' in list(config_data.keys()):
-			default_target_config = config_data['default']
-		else:
-			default_target_config = {}
-
-		# See if a GUID was provided explicitly (used by alert actions)
-		# 8-4-4-4-12 format 
-		logger = setup_logging('event_push')
-		try:
-			if stanza_guid_alias is not None:
-				logger.debug(type(stanza_guid_alias))
-				if re.match(r'[({]?[a-f0-9]{8}[-]?([a-f0-9]{4}[-]?){3}[a-f0-9]{12}[})]?', stanza_guid_alias, flags=re.IGNORECASE):
-					logger.debug("Using guid " + stanza_guid_alias)
-					return merge_two_dicts(default_target_config, config_data[stanza_guid_alias])
-		except BaseException as e:
-			logger.exception("Exception caught: " + repr(e))
-
-		# Loop through all GUID stanzas for the specified alias
-		for guid in list(config_data.keys()):
-			if guid != 'default':
-				# Merge the configuration with the default config to fill in null values
-				config_stanza = merge_two_dicts(default_target_config, config_data[guid])
-				guid_is_default = str2bool(config_stanza['default'])
-				# Check to see if this is the configuration we want to use
-				if 'alias' in list(config_stanza.keys()):
-					if config_stanza['alias'] == stanza_guid_alias or (stanza_guid_alias is None and guid_is_default):
-						# Return the specified target configuration, or default if target not specified
-						return config_stanza
-		return None
-	except BaseException as e:
-		raise Exception("Unable to find target configuration: " + repr(e))
-
 def replace_keywords(s):
 
 	now = str(int(time.time()))

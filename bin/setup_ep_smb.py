@@ -31,19 +31,23 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 import splunk.admin as admin
 import splunk.rest as rest
 import splunk.entity as en
+import splunklib.client as client
 from splunk.clilib import cli_common as cli
 from deductiv_helpers import setup_logger, eprint
 
 # https://github.com/HurricaneLabs/splunksecrets/blob/master/splunksecrets.py
 from splunksecrets import encrypt, encrypt_new
 
-options = ['stanza', 'default', 'alias', 'host', 'share_name', 'default_folder',
-	'username', 'password', 'domain', 'compress']
+options = ['stanza', 'default', 'alias', 'host', 
+	'share_name', 'default_folder',
+	'credential', 'username', 'password', 'domain', 
+	'compress']
 
 password_options = ['password']
 
+app = 'export_everything'
 app_config = cli.getConfStanza('ep_general','settings')
-setup_log = 'event_push_setup.log'
+setup_log = app + '_setup.log'
 config_file = 'ep_smb'
 
 # Read the splunk.secret file
@@ -74,8 +78,19 @@ class SetupApp(admin.MConfigHandler):
 		facility = config_file + '_list'
 		logger = setup_logger(app_config["log_level"], setup_log, facility)
 		logger.info(config_file + " list handler started")
-
+		service = client.connect(token=self.getSessionKey())
 		confDict = self.readConf(config_file)
+
+		# Get all credentials for this app
+		credentials = {}
+		storage_passwords = service.storage_passwords
+		for credential in storage_passwords:
+			if credential.access.app == app:
+				credentials[credential._state.title] = {
+					'username': credential.content.get('username'),
+					'password': credential.content.get('clear_password'),
+					'realm':    credential.content.get('realm')
+				}
 
 		if None != confDict:
 			for stanza, settings in list(confDict.items()):
@@ -84,6 +99,13 @@ class SetupApp(admin.MConfigHandler):
 						logger.debug("%s stanza: %s, key: %s, value: %s", facility, stanza, k, v)
 						if k.lower() in password_options and v is not None and len(v) > 0 and not '$7$' in v:
 							v = encrypt_new(splunk_secret, v)
+
+						if 'credential' in k:
+							if v in list(credentials.keys()):
+								confInfo[stanza].append(k + '_username', credentials[v]['username'])
+								confInfo[stanza].append(k + '_realm', credentials[v]['realm'])
+								confInfo[stanza].append(k + '_password', credentials[v]['password'])
+
 						confInfo[stanza].append(k, v)
 
 	# Update settings once they are saved by the user

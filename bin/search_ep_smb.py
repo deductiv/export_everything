@@ -16,7 +16,7 @@
 
 # Python 3 compatible only (Does not work on Mac version of Splunk's Python)
 # search_ep_sftp.py
-# Push Splunk search results to a remote SFTP server - Search Command
+# Export Splunk search results to a remote SFTP server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.0.0 (2021-04-27)
@@ -28,7 +28,7 @@ standard_library.install_aliases()
 import sys, os
 import random
 import socket
-from deductiv_helpers import setup_logger, eprint, decrypt_with_secret, get_config_from_alias, exit_error, replace_object_tokens, recover_parameters
+from deductiv_helpers import setup_logger, eprint, exit_error, replace_object_tokens, recover_parameters
 
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -37,6 +37,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 from splunk.clilib import cli_common as cli
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 import event_file
+from ep_helpers import get_config_from_alias
 from smb.SMBConnection import SMBConnection
 
 # Define class and type for Splunk command
@@ -47,7 +48,7 @@ class epsmb(ReportingCommand):
 	search | epsmb target=<target host alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
 
 	**Description**
-	Push (export) Splunk events to an SMB server share in any format.
+	Export Splunk events to an SMB server share in any format.
 	'''
 
 	# Define Parameters
@@ -109,11 +110,11 @@ class epsmb(ReportingCommand):
 		facility = os.path.basename(__file__)
 		facility = os.path.splitext(facility)[0]
 		try:
-			logger = setup_logger(app_config["log_level"], 'event_push.log', facility)
+			logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
 		except BaseException as e:
 			raise Exception("Could not create logger: " + repr(e))
 
-		logger.info('SMB Event Push search command initiated')
+		logger.info('SMB Export search command initiated')
 		logger.debug('search_ep_smb command: %s', self)  # logs command line
 
 		# Enumerate proxy settings
@@ -132,6 +133,7 @@ class epsmb(ReportingCommand):
 		app = self._metadata.searchinfo.app
 		user = self._metadata.searchinfo.username
 		dispatch = self._metadata.searchinfo.dispatch_dir
+		session_key = self._metadata.searchinfo.session_key
 		
 		if self.target is None and 'target=' in str(self):
 			recover_parameters(self)
@@ -142,7 +144,7 @@ class epsmb(ReportingCommand):
 		random_number = str(random.randint(10000, 100000))
 
 		try:
-			target_config = get_config_from_alias(cmd_config, self.target)
+			target_config = get_config_from_alias(session_key, cmd_config, self.target)
 			if target_config is None:
 				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
 		except BaseException as e:
@@ -157,20 +159,37 @@ class epsmb(ReportingCommand):
 		# Check to see if we have credentials
 		valid_settings = []
 		for l in list(target_config.keys()):
-			if target_config[l][0] == '$':
-				target_config[l] = decrypt_with_secret(target_config[l]).strip()
 			if len(target_config[l]) > 0:
 				valid_settings.append(l) 
 		if 'host' in valid_settings:
 			# A target has been configured. Check for credentials.
 			try:
-				if 'username' in valid_settings and 'password' in valid_settings and 'domain' in valid_settings and 'share_name' in valid_settings:
+				if 'credential_username' in valid_settings and 'credential_password' in valid_settings and 'share_name' in valid_settings:
+					domain = target_config['credential_realm'] if 'credential_realm' in list(target_config.keys()) else target_config['host']
+
 					try:
-						conn = SMBConnection(target_config['username'], target_config['password'], client_name, 
-							target_config['host'], domain=target_config['domain'], use_ntlm_v2=True,
+						# Try port 445 first
+						conn = SMBConnection(target_config['credential_username'], target_config['credential_password'], client_name, 
+							target_config['host'], domain=domain, use_ntlm_v2=True, 
+							sign_options = SMBConnection.SIGN_WHEN_SUPPORTED, is_direct_tcp=True) 
+						connected = conn.connect(target_config['host'], 445, timeout=5)
+					except BaseException as e445:
+						p445_error = repr(e445)
+						try:
+							# Try port 139 if that didn't work
+							conn = SMBConnection(target_config['credential_username'], target_config['credential_password'], client_name, 
+							target_config['host'], domain=domain, use_ntlm_v2=True,
+							sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
+							connected = conn.connect(target_config['host'], 139, timeout=5)
+						except BaseException as e139:
+							p139_error = repr(e139)
+							raise Exception("Errors connecting to host: \\nPort 139: %s\\nPort 445: %s" % (p139_error, p445_error))
+
+						'''
+						conn = SMBConnection(target_config['credential_username'], target_config['credential_password'], client_name, 
+							target_config['host'], domain=domain, use_ntlm_v2=True,
 							sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
 						connected = conn.connect(target_config['host'], 139)
-						'''
 						shares = 
 						share_exists = False
 						for i in range(len(shares)):
@@ -201,7 +220,7 @@ class epsmb(ReportingCommand):
 		if self.outputformat is None:
 			self.outputformat = 'csv'
 		# Create the default filename
-		default_filename = (app + '_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
+		default_filename = ('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 
 		folder, filename = event_file.parse_outputfile(self.outputfile, default_filename, target_config)
 
@@ -213,7 +232,7 @@ class epsmb(ReportingCommand):
 			except:
 				self.compress = False
 		
-		staging_filename = 'eventpush_staging_' + random_number + '.txt'
+		staging_filename = 'export_everything_staging_' + random_number + '.txt'
 		local_output_file = os.path.join(dispatch, staging_filename)
 		if self.compress:
 			local_output_file = local_output_file + '.gz'
@@ -276,7 +295,7 @@ class epsmb(ReportingCommand):
 						exit_error(logger, "Error uploading file to SMB server: " + repr(e), 109693)
 			
 					if bytes_uploaded > 0:
-						message = "SMB Push Status: Success. File name: %s" % (folder + '/' + filename)
+						message = "SMB Export Status: Success. File name: %s" % (folder + '/' + filename)
 						eprint(message)
 						logger.info(message)
 					else:

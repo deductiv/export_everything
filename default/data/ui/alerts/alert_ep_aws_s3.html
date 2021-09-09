@@ -13,7 +13,7 @@
 
     <splunk-control-group label="S3 Account" style="width: 150px; padding-right: 10px">
             <splunk-search-dropdown name="action.alert_ep_aws_s3.param.dest_guid"
-                    search="| rest /servicesNS/-/event_push/event_push/ep_aws_s3 | table title alias" 
+                    search="| rest /servicesNS/-/export_everything/export_everything/ep_aws_s3 | table title alias" 
                     label-field="alias" value-field="title" />
           </splunk-control-group>
     </splunk-control-group>
