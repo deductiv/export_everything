@@ -16,8 +16,8 @@
     }
   </style>
   <div id="ep_docs">
-<h1><img alt="App icon" src="/splunkd/__raw/servicesNS/nobody/export_everything/static/appIcon.png" /> Export Everything - Splunk Add-On by <a href="https://www.deductiv.net/">Deductiv</a></h1>
-<p>This app exports your Splunk search results to remote destinations, so you can do more with your Splunk data. It provides search commands and alert actions to export/push/upload/share your data to multiple destinations of each type. The app must be configured via the Setup dashboard before using it. The setup dashboard includes a connection test feature in the form of a "<strong>Browse</strong>" action for all file-based destinations.</p>
+<h1><img alt="App icon" src="/splunkd/__raw/servicesNS/nobody/export_everything/static/appIcon.png" /> Export Everything - Splunk Add-On by Deductiv</h1>
+<p>This add-on exports your Splunk search results to remote destinations so you can do more with your Splunk data. It provides search commands and alert actions to export/push/upload/share your data to multiple destinations of each type. The app must be configured via the Setup dashboard before using it. The setup dashboard includes a connection test feature in the form of a "<strong>Browse</strong>" action for all file-based destinations.</p>
 <h2>Supported Export Formats</h2>
 <ul>
 <li>JSON</li>
@@ -38,6 +38,10 @@
 <ul>
 <li>Splunk HTTP Event Collector  </li>
 </ul>
+<h2>Credential Management</h2>  
+<p>Use the Credentials tab to manage usernames, passwords, and passphrases (used for private keys) within the Splunk secret store. Certain use cases (such as private key logins) may not require a password, but Splunk requires one to be entered anyway. For passphrases, type any description into the username field. OAuth credentials such as those for AWS use the username field for the access key and the password field for the secret access key. Due to the way Splunk manages credentials, the username field cannot be changed once it is saved.</p>
+<h2>Authorization via Capabilities</h2>  
+<p>Add read capabilities for each command to users who require access to use the search command or alert action. Add write capability to allow them to make changes to the configuration. By default, admin has full access and power has read-only access. Credential permissions must be granted separately, but are required to use each command that depends on them.</p>
 <hr />
 <h2>AWS S3-Compatible Object Storage (epawss3)</h2>
 <p>Export Splunk search results to AWS S3-compatible object storage. Connections can be configured to authenticate using OAuth credentials or the assumed role of the search head EC2 instance.  </p>

@@ -1,6 +1,6 @@
-# ![App icon](static/appIcon.png) Export Everything - Splunk Add-On by [Deductiv](https://www.deductiv.net/)  
+# ![App icon](static/appIcon.png) Export Everything - Splunk Add-On by Deductiv  
 
-This app exports your Splunk search results to remote destinations, so you can do more with your Splunk data. It provides search commands and alert actions to export/push/upload/share your data to multiple destinations of each type. The app must be configured via the Setup dashboard before using it. The setup dashboard includes a connection test feature in the form of a "**Browse**" action for all file-based destinations.
+This add-on exports your Splunk search results to remote destinations so you can do more with your Splunk data. It provides search commands and alert actions to export/push/upload/share your data to multiple destinations of each type. The app must be configured via the Setup dashboard before using it. The setup dashboard includes a connection test feature in the form of a "**Browse**" action for all file-based destinations.
 
 ## Supported Export Formats
 - JSON
@@ -18,6 +18,12 @@ This app exports your Splunk search results to remote destinations, so you can d
 
 ## Streaming Destinations  
 - Splunk HTTP Event Collector  
+
+## Credential Management  
+Use the Credentials tab to manage usernames, passwords, and passphrases (used for private keys) within the Splunk secret store. Certain use cases (such as private key logins) may not require a password, but Splunk requires one to be entered anyway. For passphrases, type any description into the username field. OAuth credentials such as those for AWS use the username field for the access key and the password field for the secret access key. Due to the way Splunk manages credentials, the username field cannot be changed once it is saved.  
+
+## Authorization via Capabilities  
+Add read capabilities for each command to users who require access to use the search command or alert action. Add write capability to allow them to make changes to the configuration. By default, admin has full access and power has read-only access. Credential permissions must be granted separately, but are required to use each command that depends on them.  
 
 ___
 ## AWS S3-Compatible Object Storage (epawss3)
