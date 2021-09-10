@@ -31,7 +31,7 @@
 <ul>
 <li>Amazon Web Services (AWS) S3-Compatible Object Storage  </li>
 <li>Box.com Cloud Storage  </li>
-<li>SMB File Shares  </li>
+<li>Windows/SMB File Shares  </li>
 <li>SFTP Servers  </li>
 </ul>
 <h2>Streaming Destinations</h2>  
@@ -43,7 +43,7 @@
 <h2>Authorization via Capabilities</h2>  
 <p>Add read capabilities for each command to users who require access to use the search command or alert action. Add write capability to allow them to make changes to the configuration. By default, admin has full access and power has read-only access. Credential permissions must be granted separately, but are required to use each command that depends on them.</p>
 <hr />
-<h2>AWS S3-Compatible Object Storage (epawss3)</h2>
+<h2>AWS S3-Compatible Object Storage Export (epawss3)</h2>
 <p>Export Splunk search results to AWS S3-compatible object storage. Connections can be configured to authenticate using OAuth credentials or the assumed role of the search head EC2 instance.  </p>
 <h3>Capabilities</h3>
 <ul>
@@ -148,7 +148,7 @@
 </li>
 </ul>
 <hr />
-<h2>SMB Export Search Command (epsmb)</h2>
+<h2>Windows/SMB Export (epsmb)</h2>
 <p>Export Splunk search results to SMB file shares.  </p>
 <h3>Capabilities</h3>
 <ul>
@@ -197,7 +197,7 @@
 </li>
 </ul>
 <hr />
-<h2>SFTP Export Search Command (epsftp)</h2>
+<h2>SFTP Export (epsftp)</h2>
 <p>Export Splunk search results to SFTP servers.  </p>
 <h3>Capabilities</h3>
 <ul>

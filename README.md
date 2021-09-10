@@ -13,7 +13,7 @@ This add-on exports your Splunk search results to remote destinations so you can
 ## File-Based Destinations  
 - Amazon Web Services (AWS) S3-Compatible Object Storage  
 - Box.com Cloud Storage  
-- SMB File Shares  
+- Windows/SMB File Shares  
 - SFTP Servers  
 
 ## Streaming Destinations  
@@ -26,7 +26,7 @@ Use the Credentials tab to manage usernames, passwords, and passphrases (used fo
 Add read capabilities for each command to users who require access to use the search command or alert action. Add write capability to allow them to make changes to the configuration. By default, admin has full access and power has read-only access. Credential permissions must be granted separately, but are required to use each command that depends on them.  
 
 ___
-## AWS S3-Compatible Object Storage (epawss3)
+## AWS S3-Compatible Object Storage Export (epawss3)
 
 Export Splunk search results to AWS S3-compatible object storage. Connections can be configured to authenticate using OAuth credentials or the assumed role of the search head EC2 instance.  
 
@@ -114,7 +114,7 @@ Export Splunk search results to Box cloud storage. Box must be configured with a
     **Default:** Specified within the target configuration  
 
 ___
-## SMB Export Search Command (epsmb)  
+## Windows/SMB Export (epsmb)  
 
 Export Splunk search results to SMB file shares.  
 
@@ -156,7 +156,7 @@ Export Splunk search results to SMB file shares.
     **Default:** Specified within the target configuration  
 
 ___
-## SFTP Export Search Command (epsftp)  
+## SFTP Export (epsftp)  
 
 Export Splunk search results to SFTP servers.  
 
