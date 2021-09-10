@@ -173,7 +173,10 @@ class epsmb(ReportingCommand):
 							target_config['host'], domain=domain, use_ntlm_v2=True, 
 							sign_options = SMBConnection.SIGN_WHEN_SUPPORTED, is_direct_tcp=True) 
 						connected = conn.connect(target_config['host'], 445, timeout=5)
-					except BaseException as e445:
+
+						if target_config['share_name'] not in (s.name for s in conn.listShares(timeout=10)):
+							exit_error(logger, "Unable to find the specified share name on the server", 553952)
+						'''
 						p445_error = repr(e445)
 						try:
 							# Try port 139 if that didn't work
@@ -185,7 +188,6 @@ class epsmb(ReportingCommand):
 							p139_error = repr(e139)
 							raise Exception("Errors connecting to host: \\nPort 139: %s\\nPort 445: %s" % (p139_error, p445_error))
 
-						'''
 						conn = SMBConnection(target_config['credential_username'], target_config['credential_password'], client_name, 
 							target_config['host'], domain=domain, use_ntlm_v2=True,
 							sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
@@ -197,8 +199,6 @@ class epsmb(ReportingCommand):
 								share_exists = True
 								break
 						'''
-						if target_config['share_name'] not in (s.name for s in conn.listShares(timeout=10)):
-							exit_error(logger, "Unable to find the specified share name on the server", 553952)
 					except BaseException as e:
 						exit_error(logger, "Unable to setup SMB connection: " + repr(e), 921982)
 				else:

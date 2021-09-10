@@ -381,13 +381,38 @@ def get_smb_directory(smb_config, folder_path = '/'):
 					domain = smb_config['credential_realm']
 				else:
 					domain = smb_config['host']
-				conn = SMBConnection(smb_config['credential_username'], smb_config['credential_password'], client_name, 
-					smb_config['host'], domain=domain, use_ntlm_v2=True,
-					sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
-				conn.connect(smb_config['host'], 139)
+				try:
+					# Try port 445 first
+					conn = SMBConnection(smb_config['credential_username'], smb_config['credential_password'], client_name, 
+						smb_config['host'], domain=domain, use_ntlm_v2=True, 
+						sign_options = SMBConnection.SIGN_WHEN_SUPPORTED, is_direct_tcp=True) 
+					connected = conn.connect(smb_config['host'], 445, timeout=5)
+					
+					if smb_config['share_name'] not in (s.name for s in conn.listShares(timeout=10)):
+						raise Exception("Unable to find the specified share name on the server")
+						
+					# Omitting this code because Splunk prohibits UDP socket functionality in appinspect
+					# Port 139 connection is dependent on NBNS protocol
+					'''
+					try:
+						# Try port 139 if that didn't work
+						conn = SMBConnection(target_config['credential_username'], target_config['credential_password'], client_name, 
+						target_config['host'], domain=domain, use_ntlm_v2=True,
+						sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
+						connected = conn.connect(target_config['host'], 139, timeout=5)
+					except BaseException as e139:
+						p139_error = repr(e139)
+						raise Exception("Errors connecting to host: \\nPort 139: %s\\nPort 445: %s" % (p139_error, p445_error))
 
-				if smb_config['share_name'] not in (s.name for s in conn.listShares(timeout=10)):
-					raise Exception("Unable to find the specified share name on the server")
+					conn = SMBConnection(smb_config['credential_username'], smb_config['credential_password'], client_name, 
+						smb_config['host'], domain=domain, use_ntlm_v2=True,
+						sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
+					conn.connect(smb_config['host'], 139)
+
+					'''
+				
+				except BaseException as e445:
+					raise Exception("Could not connect to server on port 445: %s" % repr(e445))
 				
 				# List the directory contents
 				contents = conn.listPath(smb_config['share_name'], folder_path)
