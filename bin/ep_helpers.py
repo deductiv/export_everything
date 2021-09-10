@@ -136,7 +136,7 @@ def get_aws_connection(aws_config):
 	else:
 		endpoint_url = None
 
-	use_arn = True if aws_config['credential'] == '[Use ARN]' else False
+	use_arn = True if aws_config['credential'] == '[EC2 ARN]' else False
 
 	if use_arn:
 		# Use the current/caller identity ARN from the EC2 instance to connect to S3
@@ -167,7 +167,7 @@ def get_aws_connection(aws_config):
 		except BaseException as e:
 			raise Exception("Could not connect to S3. Failed to assume role: " + repr(e))
 
-	elif aws_config['credential_username'] is not None and aws_config['credential_password'] is not None:
+	elif 'credential_username' in list(aws_config.keys()) and 'credential_password' in list(aws_config.keys()) and aws_config['credential_username'] is not None and aws_config['credential_password'] is not None:
 		# Use the credential to connect to S3
 		try:
 			logger.debug("Connecting using OAuth credential")
