@@ -1,4 +1,4 @@
-<dashboard stylesheet="application.css">
+<dashboard stylesheet="application.css" version="1.1">
   <label>Documentation</label>
   <row>
     <panel>
