@@ -795,24 +795,25 @@ class App extends React.Component {
 	
 	get_endpoint = (endpoint) => {
 		return new Promise((resolve, reject) => {
-			let params = {"output_mode": "json"};
+			let params = {
+				"output_mode": "json",
+				"count": "0"
+			};
 			this.props.splunk.request(endpoint,
 				"GET",
 				params,
 				null,
 				null,
 				{"Content-Type": "application/x-www-form-urlencoded"},
-				null
+				(err, response) => {
+					if (err == null) {
+						resolve(response.data.entry);
+					} else {
+						this.props.enqueueSnackbar(`Error querying ${endpoint}:\n ${err.status}: ${err.error}`, notistack_options('error'));
+						reject(String(err.status) + ': ' + err.error);
+					}
+				}
 			)
-			.error(data => {
-				alert(`Could not retrieve configuration for ${endpoint}`);
-				reject(data)
-			})
-			.done(data => {
-				let clear = JSON.parse(data);
-				//console.log(clear["entry"]);
-				resolve(clear["entry"]);
-			});
 		});
 	}
 
@@ -848,18 +849,17 @@ class App extends React.Component {
 				null,
 				this.dict_to_querystring(items_copy),
 				{"Content-Type": "application/x-www-form-urlencoded"},
-				 null
-				)
-			.error(data => {
-				this.props.enqueueSnackbar('Error creating record', notistack_options('error'));
-				this.setState({loading: false})
-				reject(data)
-			})
-			.done(data => {
-				this.refresh_tables();
-				this.props.enqueueSnackbar('Record created successfully', notistack_options('success'));
-				resolve(JSON.parse(data))
-			});
+				(err, response) => {
+					if (err == null) {
+						this.refresh_tables();
+						this.props.enqueueSnackbar('Record created successfully', notistack_options('success'));
+						resolve(response.data);
+					} else {
+						this.props.enqueueSnackbar(`Error creating record:\n ${err.status}: ${err.error}`, notistack_options('error'));
+						reject(String(err.status) + ': ' + err.error);
+					}
+				}
+			);
 		});
 	}
 	// Set the state data when adding a configuration item using the table view
@@ -878,7 +878,9 @@ class App extends React.Component {
 			this.put_config_item(config_file, new_data).then(d => {
 				return new Promise((resolve, reject) => {
 					console.log('[create] new_data = ' + JSON.stringify(new_data));
+					console.log('d = ' + JSON.stringify(d));
 					if (config_file == 'passwords') {
+
 						let remote_credential_entry = d.entry[0];
 						let c = {}
 						// Build the custom password object to match the row fields in the UI
@@ -956,17 +958,17 @@ class App extends React.Component {
 				null,
 				this.dict_to_querystring(item),
 				{"Content-Type": "application/x-www-form-urlencoded"},
-				null
-			)
-			.error(data => {
-				this.props.enqueueSnackbar('Error updating record', notistack_options('error'));
-				reject(data)
-			})
-			.done(data => {
-				this.refresh_tables();
-				this.props.enqueueSnackbar('Update successful', notistack_options('success'));
-				resolve(JSON.parse(data))
-			});
+				(err, response) => {
+					if (err == null) {
+						this.refresh_tables();
+						this.props.enqueueSnackbar('Update successful', notistack_options('success'));
+						resolve(response.data);
+					} else {
+						this.props.enqueueSnackbar(`Error updating record:\n ${err.status}: ${err.error}`, notistack_options('error'));
+						reject(String(err.status) + ': ' + err.error);
+					}
+				}
+			);
 		});
 	}
 	// Update the UI and state
@@ -1006,16 +1008,16 @@ class App extends React.Component {
 				null,
 				null,
 				{"Content-Type": "application/x-www-form-urlencoded"}, 
-				null
-			)
-			.error(data => {
-				reject(data)
-				this.props.enqueueSnackbar('Error deleting record', notistack_options('error'));
-			})
-			.done(data => {
-				resolve(data)
-				this.props.enqueueSnackbar('Record deleted successfully', notistack_options('success'));
-			});
+				(err, response) => {
+					if (err == null) {
+						this.props.enqueueSnackbar('Record deleted successfully', notistack_options('success'));
+						resolve(response.data);
+					} else {
+						this.props.enqueueSnackbar(`Error deleting record:\n ${err.status}: ${err.error}`, notistack_options('error'));
+						reject(String(err.status) + ': ' + err.error);
+					}
+				}
+			);
 		});
 	}
 	delete_row_data = (config_file, oldData) => {
@@ -1049,18 +1051,18 @@ class App extends React.Component {
 				null,
 				this.dict_to_querystring(acl),
 				{"Content-Type": "application/x-www-form-urlencoded"},
-					null
-				)
-			.error(data => {
-				this.props.enqueueSnackbar('Error updating ACL', notistack_options('error'));
-				this.setState({loading: false})
-				reject(data)
-			})
-			.done(data => {
-				this.refresh_tables();
-				this.props.enqueueSnackbar('ACL updated successfully', notistack_options('success'));
-				resolve(data);
-			});
+				(err, response) => {
+					if (err == null) {
+						this.refresh_tables();
+						this.props.enqueueSnackbar('ACL updated successfully', notistack_options('success'));
+						resolve(response.data);
+					} else {
+						this.props.enqueueSnackbar(`Error updating ACL:\n ${err.status}: ${err.error}`, notistack_options('error'));
+						this.setState({loading: false})
+						reject(String(err.status) + ': ' + err.error);
+					}
+				}
+			);
 		});
 	}
 
@@ -1207,7 +1209,7 @@ class App extends React.Component {
 										loading: false,
 										folder_chain: chain});
 								});
-								console.log(file_list);
+								//console.log(file_list);
 								resolve(file_list);
 							} else {
 								alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`)
