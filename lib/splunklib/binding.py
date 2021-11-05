@@ -471,7 +471,7 @@ class Context(object):
     """
     def __init__(self, handler=None, **kwargs):
         self.http = HttpLib(handler, kwargs.get("verify", False), key_file=kwargs.get("key_file"),
-                            cert_file=kwargs.get("cert_file"))  # Default to False for backward compat
+                            cert_file=kwargs.get("cert_file"), context=kwargs.get("context"))  # Default to False for backward compat
         self.token = kwargs.get("token", _NoAuthenticationToken)
         if self.token is None: # In case someone explicitly passes token=None
             self.token = _NoAuthenticationToken
@@ -724,7 +724,12 @@ class Context(object):
         :type headers: ``list`` of 2-tuples.
         :param query: All other keyword arguments, which are used as query
             parameters.
-        :type query: ``string``
+        :param body: Parameters to be used in the post body. If specified,
+            any parameters in the query will be applied to the URL instead of
+            the body. If a dict is supplied, the key-value pairs will be form
+            encoded. If a string is supplied, the body will be passed through
+            in the request unchanged.
+        :type body: ``dict`` or ``str``
         :return: The response from the server.
         :rtype: ``dict`` with keys ``body``, ``headers``, ``reason``,
                 and ``status``
@@ -1065,7 +1070,7 @@ class AuthenticationError(HTTPError):
 #
 
 # Encode the given kwargs as a query string. This wrapper will also _encode
-# a list value as a sequence of assignemnts to the corresponding arg name,
+# a list value as a sequence of assignments to the corresponding arg name,
 # for example an argument such as 'foo=[1,2,3]' will be encoded as
 # 'foo=1&foo=2&foo=3'.
 def _encode(**kwargs):
@@ -1132,9 +1137,9 @@ class HttpLib(object):
 
     If using the default handler, SSL verification can be disabled by passing verify=False.
     """
-    def __init__(self, custom_handler=None, verify=False, key_file=None, cert_file=None):
+    def __init__(self, custom_handler=None, verify=False, key_file=None, cert_file=None, context=None):
         if custom_handler is None:
-            self.handler = handler(verify=verify, key_file=key_file, cert_file=cert_file)
+            self.handler = handler(verify=verify, key_file=key_file, cert_file=cert_file, context=context)
         else:
             self.handler = custom_handler
         self._cookies = {}
@@ -1223,6 +1228,8 @@ class HttpLib(object):
                 headers.append(("Content-Type", "application/x-www-form-urlencoded"))
 
             body = kwargs.pop('body')
+            if isinstance(body, dict):
+                body = _encode(**body).encode('utf-8')
             if len(kwargs) > 0:
                 url = url + UrlEncoded('?' + _encode(**kwargs), skip_encode=True)
         else:
@@ -1344,7 +1351,7 @@ class ResponseReader(io.RawIOBase):
         return bytes_read
 
 
-def handler(key_file=None, cert_file=None, timeout=None, verify=False):
+def handler(key_file=None, cert_file=None, timeout=None, verify=False, context=None):
     """This class returns an instance of the default HTTP request handler using
     the values you provide.
 
@@ -1356,6 +1363,8 @@ def handler(key_file=None, cert_file=None, timeout=None, verify=False):
     :type timeout: ``integer`` or "None"
     :param `verify`: Set to False to disable SSL verification on https connections.
     :type verify: ``Boolean``
+    :param `context`: The SSLContext that can is used with the HTTPSConnection when verify=True is enabled and context is specified
+    :type context: ``SSLContext`
     """
 
     def connect(scheme, host, port):
@@ -1369,6 +1378,10 @@ def handler(key_file=None, cert_file=None, timeout=None, verify=False):
 
             if not verify:
                 kwargs['context'] = ssl._create_unverified_context()
+            elif context:
+                # verify is True in elif branch and context is not None
+                kwargs['context'] = context
+
             return six.moves.http_client.HTTPSConnection(host, port, **kwargs)
         raise ValueError("unsupported scheme: %s" % scheme)
 
@@ -1378,7 +1391,7 @@ def handler(key_file=None, cert_file=None, timeout=None, verify=False):
         head = {
             "Content-Length": str(len(body)),
             "Host": host,
-            "User-Agent": "splunk-sdk-python/1.6.13",
+            "User-Agent": "splunk-sdk-python/1.6.17",
             "Accept": "*/*",
             "Connection": "Close",
         } # defaults
