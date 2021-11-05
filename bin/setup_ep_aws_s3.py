@@ -20,8 +20,7 @@
 
 from builtins import str
 from builtins import range
-import logging
-import sys, os, platform
+import sys, os
 import re
 
 # Add lib folders to import path
@@ -39,11 +38,11 @@ from deductiv_helpers import setup_logger, eprint
 from splunksecrets import encrypt, encrypt_new
 
 options = ['stanza', 'default', 'alias', 'default_s3_bucket', 'region',
-	'credential', 'use_arn', 'access_key_id', 'secret_key', 'endpoint_url', 'compress']
+           'credential', 'use_arn', 'access_key_id', 'secret_key', 'endpoint_url', 'compress']
 password_options = ['secret_key']
 
 app = 'export_everything'
-app_config = cli.getConfStanza('ep_general','settings')
+app_config = cli.getConfStanza('ep_general', 'settings')
 setup_log = app + '_setup.log'
 config_file = 'ep_aws_s3'
 
@@ -74,21 +73,35 @@ class SetupApp(admin.MConfigHandler):
 	def handleList(self, confInfo):
 		facility = config_file + '_list'
 		logger = setup_logger(app_config["log_level"], setup_log, facility)
-		logger.info(config_file + " list handler started")
-		service = client.connect(token=self.getSessionKey())
 		confDict = self.readConf(config_file)
-
-		# Get all credentials for this app
 		credentials = {}
-		storage_passwords = service.storage_passwords
-		for credential in storage_passwords:
-			if credential.access.app == app:
-				credentials[credential._state.title] = {
-					'username': credential.content.get('username'),
-					'password': credential.content.get('clear_password'),
-					'realm':    credential.content.get('realm')
-				}
-		
+		logger.info(config_file + " list handler started")
+
+		try:
+			session_key = self.getSessionKey()
+			entity = en.getEntity('/server',
+			   'settings',
+			   namespace='-',
+			   sessionKey=session_key, 
+			   owner='-')
+			splunkd_port = entity["mgmtHostPort"]
+			service = client.connect(token=session_key, port=splunkd_port)
+
+			# Get all credentials for this app
+			storage_passwords = service.storage_passwords
+
+			for credential in storage_passwords:
+				if credential.access.app == app:
+					credentials[credential._state.title] = {
+						'username': credential.content.get('username'),
+						'password': credential.content.get('clear_password'),
+						'realm':    credential.content.get('realm')
+					}
+
+		except BaseException as e:
+			logger.exception('Could not connect to service: %s' % e)
+			raise(e)
+
 		if None != confDict:
 			for stanza, settings in list(confDict.items()):
 				for k, v in list(settings.items()):
