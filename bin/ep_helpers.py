@@ -31,6 +31,7 @@ sys.path.append(path_prepend)
 # Splunk
 from splunk.clilib import cli_common as cli
 import splunklib.client as client
+import splunk.entity as en
 
 app = 'export_everything'
 
@@ -52,7 +53,13 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
 	credentials = {}
 	# Get all credentials for this app 
 	try:
-		service = client.connect(token=session_key)
+		entity = en.getEntity('/server',
+			'settings',
+			namespace='-',
+			sessionKey=session_key,
+			owner='-')
+		splunkd_port = entity["mgmtHostPort"]
+		service = client.connect(token=session_key, port=splunkd_port)
 		# Get all credentials in the secret store for this app
 		storage_passwords = service.storage_passwords
 		for credential in storage_passwords:
