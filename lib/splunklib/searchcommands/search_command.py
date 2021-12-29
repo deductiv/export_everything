@@ -124,6 +124,7 @@ class SearchCommand(object):
         self._default_logging_level = self._logger.level
         self._record_writer = None
         self._records = None
+        self._allow_empty_input = True
 
     def __str__(self):
         text = ' '.join(chain((type(self).name, str(self.options)), [] if self.fieldnames is None else self.fieldnames))
@@ -398,7 +399,7 @@ class SearchCommand(object):
         :return: :const:`None`
 
         """
-        self._record_writer.flush(partial=True)
+        self._record_writer.flush(finished=False)
 
     def prepare(self):
         """ Prepare for execution.
@@ -413,7 +414,7 @@ class SearchCommand(object):
         """
         pass
 
-    def process(self, argv=sys.argv, ifile=sys.stdin, ofile=sys.stdout):
+    def process(self, argv=sys.argv, ifile=sys.stdin, ofile=sys.stdout, allow_empty_input=True):
         """ Process data.
 
         :param argv: Command line arguments.
@@ -425,10 +426,16 @@ class SearchCommand(object):
         :param ofile: Output data file.
         :type ofile: file
 
+        :param allow_empty_input: Allow empty input records for the command, if False an Error will be returned if empty chunk body is encountered when read
+        :type allow_empty_input: bool
+
         :return: :const:`None`
         :rtype: NoneType
 
         """
+
+        self._allow_empty_input = allow_empty_input
+
         if len(argv) > 1:
             self._process_protocol_v1(argv, ifile, ofile)
         else:
@@ -656,7 +663,7 @@ class SearchCommand(object):
         # noinspection PyBroadException
         try:
             debug('Reading metadata')
-            metadata, body = self._read_chunk(ifile)
+            metadata, body = self._read_chunk(self._as_binary_stream(ifile))
 
             action = getattr(metadata, 'action', None)
 
@@ -776,7 +783,6 @@ class SearchCommand(object):
         # noinspection PyBroadException
         try:
             debug('Executing under protocol_version=2')
-            self._records = self._records_protocol_v2
             self._metadata.action = 'execute'
             self._execute(ifile, None)
         except SystemExit:
@@ -833,6 +839,8 @@ class SearchCommand(object):
 
     _encoded_value = re.compile(r'\$(?P<item>(?:\$\$|[^$])*)\$(?:;|$)')  # matches a single value in an encoded list
 
+    # Note: Subclasses must override this method so that it can be called
+    # called as self._execute(ifile, None)
     def _execute(self, ifile, process):
         """ Default processing loop
 
@@ -846,21 +854,38 @@ class SearchCommand(object):
         :rtype: NoneType
 
         """
-        self._record_writer.write_records(process(self._records(ifile)))
-        self.finish()
+        if self.protocol_version == 1:
+            self._record_writer.write_records(process(self._records(ifile)))
+            self.finish()
+        else:
+            assert self._protocol_version == 2
+            self._execute_v2(ifile, process)
 
     @staticmethod
-    def _read_chunk(ifile):
-        # noinspection PyBroadException
+    def _as_binary_stream(ifile):
+        naught = ifile.read(0)
+        if isinstance(naught, bytes):
+            return ifile
+
         try:
-            header = ifile.readline()
+            return ifile.buffer
+        except AttributeError as error:
+            raise RuntimeError('Failed to get underlying buffer: {}'.format(error))
+
+    @staticmethod
+    def _read_chunk(istream):
+        # noinspection PyBroadException
+        assert isinstance(istream.read(0), six.binary_type), 'Stream must be binary'
+
+        try:
+            header = istream.readline()
         except Exception as error:
             raise RuntimeError('Failed to read transport header: {}'.format(error))
 
         if not header:
             return None
 
-        match = SearchCommand._header.match(header)
+        match = SearchCommand._header.match(six.ensure_str(header))
 
         if match is None:
             raise RuntimeError('Failed to parse transport header: {}'.format(header))
@@ -870,14 +895,14 @@ class SearchCommand(object):
         body_length = int(body_length)
 
         try:
-            metadata = ifile.read(metadata_length)
+            metadata = istream.read(metadata_length)
         except Exception as error:
             raise RuntimeError('Failed to read metadata of length {}: {}'.format(metadata_length, error))
 
         decoder = MetadataDecoder()
 
         try:
-            metadata = decoder.decode(metadata)
+            metadata = decoder.decode(six.ensure_str(metadata))
         except Exception as error:
             raise RuntimeError('Failed to parse metadata of length {}: {}'.format(metadata_length, error))
 
@@ -887,16 +912,18 @@ class SearchCommand(object):
         body = ""
         try:
             if body_length > 0:
-                body = ifile.read(body_length)
+                body = istream.read(body_length)
         except Exception as error:
             raise RuntimeError('Failed to read body of length {}: {}'.format(body_length, error))
 
-        return metadata, body
+        return metadata, six.ensure_str(body)
 
     _header = re.compile(r'chunked\s+1.0\s*,\s*(\d+)\s*,\s*(\d+)\s*\n')
 
     def _records_protocol_v1(self, ifile):
+        return self._read_csv_records(ifile)
 
+    def _read_csv_records(self, ifile):
         reader = csv.reader(ifile, dialect=CsvDialect)
 
         try:
@@ -921,51 +948,37 @@ class SearchCommand(object):
                     record[fieldname] = value
             yield record
 
-    def _records_protocol_v2(self, ifile):
+    def _execute_v2(self, ifile, process):
+        istream = self._as_binary_stream(ifile)
 
         while True:
-            result = self._read_chunk(ifile)
+            result = self._read_chunk(istream)
 
             if not result:
                 return
 
             metadata, body = result
             action = getattr(metadata, 'action', None)
-
             if action != 'execute':
                 raise RuntimeError('Expected execute action, not {}'.format(action))
 
-            finished = getattr(metadata, 'finished', False)
+            self._finished = getattr(metadata, 'finished', False)
             self._record_writer.is_flushed = False
 
-            if len(body) > 0:
-                reader = csv.reader(StringIO(body), dialect=CsvDialect)
+            self._execute_chunk_v2(process, result)
 
-                try:
-                    fieldnames = next(reader)
-                except StopIteration:
-                    return
+            self._record_writer.write_chunk(finished=self._finished)
 
-                mv_fieldnames = dict([(name, name[len('__mv_'):]) for name in fieldnames if name.startswith('__mv_')])
+    def _execute_chunk_v2(self, process, chunk):
+            metadata, body = chunk
 
-                if len(mv_fieldnames) == 0:
-                    for values in reader:
-                        yield OrderedDict(izip(fieldnames, values))
-                else:
-                    for values in reader:
-                        record = OrderedDict()
-                        for fieldname, value in izip(fieldnames, values):
-                            if fieldname.startswith('__mv_'):
-                                if len(value) > 0:
-                                    record[mv_fieldnames[fieldname]] = self._decode_list(value)
-                            elif fieldname not in record:
-                                record[fieldname] = value
-                        yield record
+            if len(body) <= 0 and not self._allow_empty_input:
+                raise ValueError(
+                    "No records found to process. Set allow_empty_input=True in dispatch function to move forward "
+                    "with empty records.")
 
-            if finished:
-                return
-
-            self.flush()
+            records = self._read_csv_records(StringIO(body))
+            self._record_writer.write_records(process(records))
 
     def _report_unexpected_error(self):
 
@@ -1058,8 +1071,7 @@ class SearchCommand(object):
 SearchMetric = namedtuple('SearchMetric', ('elapsed_seconds', 'invocation_count', 'input_count', 'output_count'))
 
 
-
-def dispatch(command_class, argv=sys.argv, input_file=sys.stdin, output_file=sys.stdout, module_name=None):
+def dispatch(command_class, argv=sys.argv, input_file=sys.stdin, output_file=sys.stdout, module_name=None, allow_empty_input=True):
     """ Instantiates and executes a search command class
 
     This function implements a `conditional script stanza <https://docs.python.org/2/library/__main__.html>`_ based on the value of
@@ -1082,6 +1094,8 @@ def dispatch(command_class, argv=sys.argv, input_file=sys.stdin, output_file=sys
     :type output_file: :code:`file`
     :param module_name: Name of the module calling :code:`dispatch` or :const:`None`.
     :type module_name: :code:`basestring`
+    :param allow_empty_input: Allow empty input records for the command, if False an Error will be returned if empty chunk body is encountered when read
+    :type allow_empty_input: bool
     :returns: :const:`None`
 
     **Example**
@@ -1119,4 +1133,4 @@ def dispatch(command_class, argv=sys.argv, input_file=sys.stdin, output_file=sys
     assert issubclass(command_class, SearchCommand)
 
     if module_name is None or module_name == '__main__':
-        command_class().process(argv, input_file, output_file)
+        command_class().process(argv, input_file, output_file, allow_empty_input)

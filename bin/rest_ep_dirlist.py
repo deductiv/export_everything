@@ -14,7 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 # pylint: disable=import-error 
 # pyright: reportMissingImports=false
 from splunk.clilib import cli_common as cli
-import splunk.entity as entity
+import splunk.entity as en
 import splunklib.client as client
 from splunk.persistconn.application import PersistentServerConnectionApplication
 from splunk.appserver.mrsparkle.lib.util import make_splunkhome_path
@@ -83,10 +83,15 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 		#input = json.loads(in_string)
 		#input = self.args
 		session_key = self.sessionKey
-		
+		entity = en.getEntity('/server',
+			'settings',
+			namespace='-',
+			sessionKey=session_key,
+			owner='-')
+		splunkd_port = entity["mgmtHostPort"]
 		try:
 
-			service = client.connect(token=session_key)
+			service = client.connect(token=session_key, port=splunkd_port)
 			# Get all credentials in the secret store for this app
 			credentials = {}
 			storage_passwords = service.storage_passwords
@@ -113,6 +118,7 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 								config[c][stanza][k + '_password'] = credentials[v]['password']
 		
 		except BaseException as e:
+			logger.error("Could not read configuration: " + repr(e))
 			raise Exception("Could not read configuration: " + repr(e))
 		
 		logger.debug("Received connection from src_ip=%s user=%s" % (self.request['remoteAddr'], self.request['userId']))
