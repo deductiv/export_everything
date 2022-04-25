@@ -15,7 +15,7 @@
 # limitations under the License.
 
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.0
+# Version: 2.0.5 (2022-04-25)
 
 from __future__ import print_function
 from builtins import str
@@ -104,7 +104,7 @@ def setup_logger(level, filename, facility):
 	logger.propagate = False 
 	logger.setLevel(level)
 	
-	log_file = os.path.join( os.environ['SPLUNK_HOME'], 'var', 'log', 'splunk', filename )
+	log_file = os.path.join(os.environ['SPLUNK_HOME'], 'var', 'log', 'splunk', filename)
 	file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=25000000, backupCount=2)
 	formatter = logging.Formatter('%(asctime)s [{0}] %(levelname)s %(message)s'.format(facility))
 	file_handler.setFormatter(formatter)

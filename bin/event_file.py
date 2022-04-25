@@ -3,7 +3,7 @@
 # Write Splunk search results to a custom formatted file
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 1.1.2 (2020-06-29)
+# Version: 2.0.5 (2022-04-25)
 
 from __future__ import print_function
 from builtins import str

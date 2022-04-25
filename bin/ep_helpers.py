@@ -1,11 +1,12 @@
 #!/usr/bin/env python
+# Version: 2.0.5 (2022-04-25)
 import random
 import sys, os, platform
 import re
 import socket
 import stat
 from datetime import datetime
-from deductiv_helpers import setup_logging, setup_logger, str2bool, decrypt_with_secret, exit_error, merge_two_dicts, eprint
+from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret, exit_error, merge_two_dicts, eprint
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
@@ -175,7 +176,7 @@ def get_aws_connection(aws_config):
 		except ClientError as ce:
 			# Try anyway 
 			try:
-				logger.debug("Failed to assume role. Attempting to use implicit permissions.")
+				logger.debug("Could not assume STS role. Attempting to use implicit permissions.")
 				return boto3.client('s3')
 			except BaseException as cee:
 				raise Exception("Could not connect to S3. Failed to assume role: " + repr(e))

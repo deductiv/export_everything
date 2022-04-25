@@ -19,7 +19,7 @@
 # Export Splunk search results to Box - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.0 (2021-04-26)
+# Version: 2.0.5 (2022-04-25)
 
 from __future__ import print_function
 from builtins import str

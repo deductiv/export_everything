@@ -19,24 +19,19 @@
 # Export Splunk events to Splunk HEC over JSON - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.0 (2021-04-26)
+# Version: 2.0.5 (2022-04-25)
 
 from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()
-#import logging
 import sys, os
 import time
-#import socket
-#import json
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 # pylint: disable=import-error
 from splunk.clilib import cli_common as cli
-import splunklib.client as client
-import splunklib.results as results
 from splunklib.searchcommands import StreamingCommand, dispatch, Configuration, Option, validators
 from CsvResultParser import *
 from deductiv_helpers import setup_logger, str2bool, exit_error, port_is_open, replace_object_tokens, recover_parameters

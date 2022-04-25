@@ -16,12 +16,11 @@
 
 # REST endpoint for configuration via setup.xml
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.0 (2021-04-26)
+# Version: 2.0.5 (2022-04-25)
 
 from builtins import str
 from builtins import range
-import logging
-import sys, os, platform
+import sys, os
 import re
 
 # Add lib folders to import path
@@ -29,14 +28,13 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 # pylint: disable=import-error
 import splunk.admin as admin
-import splunk.rest as rest
 import splunk.entity as en
 import splunklib.client as client
 from splunk.clilib import cli_common as cli
 from deductiv_helpers import setup_logger, eprint
 
 # https://github.com/HurricaneLabs/splunksecrets/blob/master/splunksecrets.py
-from splunksecrets import encrypt, encrypt_new
+from splunksecrets import encrypt_new
 
 options = ['stanza', 'default', 'alias', 'host', 'token', 'port', 'ssl']
 password_options = []
@@ -109,13 +107,6 @@ class SetupApp(admin.MConfigHandler):
 						logger.debug("%s stanza: %s, key: %s, value: %s", facility, stanza, k, v)
 						if k.lower() in password_options and v is not None and len(v) > 0 and not '$7$' in v:
 							v = encrypt_new(splunk_secret, v)
-
-						if 'credential' in k:
-							if v in list(credentials.keys()):
-								confInfo[stanza].append(k + '_username', credentials[v]['username'])
-								confInfo[stanza].append(k + '_realm', credentials[v]['realm'])
-								confInfo[stanza].append(k + '_password', credentials[v]['password'])
-
 						confInfo[stanza].append(k, v)
 
 	# Update settings once they are saved by the user
@@ -156,8 +147,18 @@ class SetupApp(admin.MConfigHandler):
 
 		logger.debug("%s Writing new config for %s: %s", facility, config_id, str(new_config))
 		try:
-			# Write the config stanza
-			self.writeConf(config_file, config_id, new_config)
+			## Write the configuration via REST API
+			# Add the field values to an entity object
+			entity = en.getEntity('configs/conf-' + config_file,
+			   config_id,
+			   namespace=app,
+			   owner='nobody',
+			   sessionKey=self.getSessionKey()
+			)
+			for k, v in list(new_config.items()):
+				entity.__setitem__(k, v)
+			# Apply the entity object to the configuration
+			en.setEntity(entity, sessionKey=self.getSessionKey())
 		except BaseException as e:
 			logger.exception("%s Error writing config: %s", facility, e)
 	
