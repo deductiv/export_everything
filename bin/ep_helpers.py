@@ -122,6 +122,7 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
 def get_aws_connection(aws_config):
 	global boto3, Config
 	import boto3
+	from botocore.client import ClientError
 	from botocore.config import Config
 	
 	# Apply proxy settings to AWS config
@@ -147,11 +148,11 @@ def get_aws_connection(aws_config):
 
 	if use_arn:
 		# Use the current/caller identity ARN from the EC2 instance to connect to S3
-		logger.debug("Using ARN to connect")
+		logger.debug("Using ARN from STS to connect")
 		try:
 			account_arn_current = boto3.client('sts').get_caller_identity().get('Arn')
 			# arn:aws:sts::800000000000:assumed-role/SplunkInstance_ReadOnly/...
-			m = re.search(r'arn:aws:sts::(\d+):[^\/]+\/([^\/]+)', account_arn_current)
+			m = re.search(r'^arn:aws:sts::(\d+):[^\/]+\/(.+)\/[^\/]+$', account_arn_current)
 			aws_account = m.group(1)
 			aws_role = m.group(2)
 
@@ -171,6 +172,13 @@ def get_aws_connection(aws_config):
 			)
 		except AttributeError:
 			raise Exception("Could not connect to S3. Failed to assume role: Unable to get caller identity STS token")
+		except ClientError as ce:
+			# Try anyway 
+			try:
+				logger.debug("Failed to assume role. Attempting to use implicit permissions.")
+				return boto3.client('s3')
+			except BaseException as cee:
+				raise Exception("Could not connect to S3. Failed to assume role: " + repr(e))
 		except BaseException as e:
 			raise Exception("Could not connect to S3. Failed to assume role: " + repr(e))
 

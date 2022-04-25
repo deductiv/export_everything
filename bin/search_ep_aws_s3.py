@@ -25,10 +25,8 @@ from __future__ import print_function
 from builtins import str
 from future import standard_library
 standard_library.install_aliases()
-#import logging
-import sys, os #, platform
+import sys, os
 import random
-#import re
 from deductiv_helpers import setup_logger, replace_keywords, exit_error, replace_object_tokens, recover_parameters, str2bool
  
 # Add lib folders to import path
@@ -36,18 +34,14 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 # pylint: disable=import-error
 from splunk.clilib import cli_common as cli
-#import splunk.entity as entity
-#import splunklib.results as results
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 import event_file
 from ep_helpers import get_config_from_alias, get_aws_connection
-#import boto3
-#from botocore.config import Config
 
 # Define class and type for Splunk command
 @Configuration()
 class epawss3(ReportingCommand):
-	doc='''
+	'''
 	**Syntax:**
 	search | epawss3 target=<target alias> bucket=<bucket> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe]
 
@@ -100,10 +94,8 @@ class epawss3(ReportingCommand):
 		require=False, validate=validators.Boolean())
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
-	
-	def __getitem__(self, key):
-		return getattr(self,key)
-	
+
+	@Configuration()
 	def map(self, events):
 		for e in events:
 			yield(e)
@@ -220,7 +212,6 @@ class epawss3(ReportingCommand):
 			with open(local_output_file, "rb") as f:
 				s3.upload_fileobj(f, self.bucket, self.outputfile)
 			s3 = None
-			sts_client = None
 			logger.info("Successfully exported events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, event_counter, self.bucket, self.outputfile, user))
 			os.remove(local_output_file)
 		except s3.exceptions.NoSuchBucket as e:

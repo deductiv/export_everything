@@ -64,12 +64,11 @@ elif os_platform == 'Windows':
 
 sys.path.append(path_prepend)
 
-#import pysftp
 
 # Define class and type for Splunk command
 @Configuration()
 class epsftp(ReportingCommand):
-	doc='''
+	'''
 	**Syntax:**
 	search | epsftp target=<target host alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
 
@@ -116,9 +115,7 @@ class epsftp(ReportingCommand):
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 	
-	def __getitem__(self, key):
-		return getattr(self,key)
-	
+	@Configuration()
 	def map(self, events):
 		for e in events:
 			yield(e)

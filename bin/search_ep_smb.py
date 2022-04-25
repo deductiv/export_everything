@@ -43,7 +43,7 @@ from smb.SMBConnection import SMBConnection
 # Define class and type for Splunk command
 @Configuration()
 class epsmb(ReportingCommand):
-	doc='''
+	'''
 	**Syntax:**
 	search | epsmb target=<target host alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
 
@@ -90,9 +90,7 @@ class epsmb(ReportingCommand):
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 	
-	def __getitem__(self, key):
-		return getattr(self,key)
-	
+	@Configuration()
 	def map(self, events):
 		for e in events:
 			yield(e)

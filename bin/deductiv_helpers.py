@@ -69,7 +69,7 @@ def request(method, url, data, headers):
 	"""Helper function to fetch data from the given URL"""
 	# See if this is utf-8 encoded already
 	try:
-	    string.decode('utf-8')
+		data.decode('utf-8')
 	except:
 		try:
 			data = urllib.parse.urlencode(data).encode("utf-8")
@@ -170,6 +170,7 @@ def replace_keywords(s):
 
 def exit_error(logger, message, error_code=1):
 	logger.critical(message)
+	eprint(message)
 	print(message)
 	exit(error_code)
 

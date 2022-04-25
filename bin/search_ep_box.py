@@ -68,7 +68,7 @@ from boxsdk import BoxAPIException
 # Define class and type for Splunk command
 @Configuration()
 class epbox(ReportingCommand):
-	doc='''
+	'''
 	**Syntax:**
 	search | epbox target=<target alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
 
@@ -115,9 +115,7 @@ class epbox(ReportingCommand):
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 	
-	def __getitem__(self, key):
-		return getattr(self,key)
-	
+	@Configuration()
 	def map(self, events):
 		for e in events:
 			yield(e)

@@ -49,7 +49,7 @@ from splunk_http_event_collector.http_event_collector import http_event_collecto
 # Define class and type for Splunk command
 @Configuration()
 class ephec(StreamingCommand):
-	doc='''
+	'''
 	**Syntax:**
 	search | ephec target=<target_host_alias>
 			host=[host_value|$host_field$]
@@ -98,9 +98,6 @@ class ephec(StreamingCommand):
 		require=False) 
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
-
-	def __getitem__(self, key):
-		return getattr(self,key)
 
 	#define main function
 	def stream(self, events):
