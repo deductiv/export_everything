@@ -1,46 +1,26 @@
 #!/usr/bin/env python
 
-# Copyright 2021 Deductiv Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Python 2 and 3 compatible
+# Copyright 2022 Deductiv Inc.
 # search_ep_hec.py
 # Export Splunk events to Splunk HEC over JSON - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.0.5 (2022-04-25)
 
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-import sys, os
+import sys
+import os
 import time
+from deductiv_helpers import setup_logger, str2bool, exit_error, port_is_open, replace_object_tokens, recover_parameters
+from ep_helpers import get_config_from_alias
+from splunk.clilib import cli_common as cli
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-# pylint: disable=import-error
-from splunk.clilib import cli_common as cli
-from splunklib.searchcommands import StreamingCommand, dispatch, Configuration, Option, validators
 from CsvResultParser import *
-from deductiv_helpers import setup_logger, str2bool, exit_error, port_is_open, replace_object_tokens, recover_parameters
-from ep_helpers import get_config_from_alias
-
-# Use the library from George Starcher for HTTP Event Collector
-# Updated to support Python3
+from splunklib.searchcommands import StreamingCommand, dispatch, Configuration, Option
 from splunk_http_event_collector.http_event_collector import http_event_collector   # https://github.com/georgestarcher/Splunk-Class-httpevent
-	  
+
 # Define class and type for Splunk command
 @Configuration()
 class ephec(StreamingCommand):

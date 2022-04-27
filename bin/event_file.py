@@ -2,24 +2,19 @@
 # event_file.py
 # Write Splunk search results to a custom formatted file
 #
+# Copyright 2022 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.0.5 (2022-04-25)
 
-from __future__ import print_function
-from builtins import str
-from future import standard_library
-standard_library.install_aliases()
-import sys, os
-import time, datetime
+#import sys
+#import os
 import json
 import fnmatch
 import gzip
-import logging
-from collections import OrderedDict
 
 # Add lib folder to import path
-path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib')
-sys.path.append(path_prepend)
+#path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib')
+#sys.path.append(path_prepend)
 import deductiv_helpers as dhelp
 
 def flush_buffer(string_list, output_file):

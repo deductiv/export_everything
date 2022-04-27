@@ -1,44 +1,26 @@
 #!/usr/bin/env python
 
-# Copyright 2021 Deductiv Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Python 3 compatible only (Does not work on Mac version of Splunk's Python)
+# Copyright 2022 Deductiv Inc.
 # search_ep_smb.py
 # Export Splunk search results to a remote SMB server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.0.5 (2022-04-25)
 
-from __future__ import print_function
-from builtins import str
-from future import standard_library
-standard_library.install_aliases()
-import sys, os
+import sys
+import os
 import random
 import socket
 from deductiv_helpers import setup_logger, eprint, exit_error, replace_object_tokens, recover_parameters
+from ep_helpers import get_config_from_alias
+import event_file
+from splunk.clilib import cli_common as cli
 
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-# pylint: disable=import-error
-from splunk.clilib import cli_common as cli
-from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
-import event_file
-from ep_helpers import get_config_from_alias
 from smb.SMBConnection import SMBConnection
+from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 
 # Define class and type for Splunk command
 @Configuration()

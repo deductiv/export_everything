@@ -1,19 +1,6 @@
 # Common cross-app functions to simplify code
 
-# Copyright 2020 Deductiv Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+# Copyright 2022 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.0.5 (2022-04-25)
 
@@ -21,34 +8,32 @@ from __future__ import print_function
 from builtins import str
 from future import standard_library
 standard_library.install_aliases()
-import sys, os
-import urllib.request, urllib.parse, urllib.error
+import sys
+import os
+import urllib.request
+import urllib.parse
+import urllib.error
 import re
 import logging
-from logging import handlers
 import configparser
 import time
 import datetime
 import socket
 import json
 import random
+import splunk.entity as en
+from splunk.rest import simpleRequest
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-
 # https://github.com/HurricaneLabs/splunksecrets/blob/master/splunksecrets.py
-from splunksecrets import decrypt	# pylint: disable=import-error
-
-# pylint: disable=import-error
-import splunk.entity as en 
-from splunk.rest import simpleRequest
+from splunksecrets import decrypt
 
 def get_credentials(app, session_key):
 	try:
 		# list all credentials
 		entities = en.getEntities(['admin', 'passwords'], namespace=app,
-									owner='nobody', sessionKey=session_key)
+          owner='nobody', sessionKey=session_key)
 	except Exception as e:
 		raise Exception("Could not get %s credentials from Splunk. Error: %s" % (app, str(e)))
 
@@ -57,7 +42,9 @@ def get_credentials(app, session_key):
 	for id, c in list(entities.items()):		# pylint: disable=unused-variable
 		# c.keys() = ['clear_password', 'password', 'username', 'realm', 'eai:acl', 'encr_password']
 		if c['eai:acl']['app'] == app:
-			credentials.append( {'realm': c["realm"], 'username': c["username"], "password": c["clear_password"] } )
+			credentials.append({'realm': c["realm"], 
+			  'username': c["username"], 
+			  "password": c["clear_password"]})
 	
 	if len(credentials) > 0:
 		return credentials
@@ -118,7 +105,7 @@ def read_config(filename):
 	app_child_dirs = ['default', 'local']
 	for cdir in app_child_dirs:
 		try:
-			config_file = os.path.join( app_dir, cdir, filename )
+			config_file = os.path.join(app_dir, cdir, filename)
 			config.read(config_file)
 		except:
 			pass
@@ -223,10 +210,10 @@ def get_tokens(searchinfo):
 			owner=searchinfo.owner
 		)
 		job_response = simpleRequest(job_uri, method='GET', getargs={'output_mode':'json'}, sessionKey=searchinfo.session_key)[1]
-		search_job         = json.loads(job_response)
-		job_content        = search_job['entry'][0]['content']
+		search_job = json.loads(job_response)
+		job_content = search_job['entry'][0]['content']
 	else:
-		job_content        = {}
+		job_content = {}
 
 	for key, value in list(job_content.items()):
 		if value is not None:
