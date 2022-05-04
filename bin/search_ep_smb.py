@@ -227,9 +227,10 @@ class epsmb(ReportingCommand):
 				filename = filename + '.gz'
 		
 		if conn is not None:
-			# Use the credential to connect to the SFTP server
+			# Use the credential to connect to the SMB server
 			try:
 				# Check to see if the folder exists
+				logger.debug("Checking to see if folder %s exists", folder)
 				folder_attrs = conn.getAttributes(target_config['share_name'], folder, timeout=10)
 			except BaseException:
 				# Remote directory could not be loaded. It must not exist. Create it. 

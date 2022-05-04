@@ -83,17 +83,7 @@ class SetupApp(admin.MConfigHandler):
 		logger.debug("%s Writing new config for %s: %s", facility, config_id, str(new_config))
 		try:
 			## Write the configuration via REST API
-			# Add the field values to an entity object
-			entity = en.getEntity('configs/conf-' + config_file,
-			   config_id,
-			   namespace=app,
-			   owner='nobody',
-			   sessionKey=self.getSessionKey()
-			)
-			for k, v in list(new_config.items()):
-				entity.__setitem__(k, v)
-			# Apply the entity object to the configuration
-			en.setEntity(entity, sessionKey=self.getSessionKey())
+			self.writeConf(config_file, config_id, new_config)
 		except BaseException as e:
 			logger.critical("%s Error writing config: %s", facility, repr(e))
 			exit(1)

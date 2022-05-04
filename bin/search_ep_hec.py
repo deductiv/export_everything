@@ -10,7 +10,7 @@
 import sys
 import os
 import time
-from deductiv_helpers import setup_logger, str2bool, exit_error, port_is_open, replace_object_tokens, recover_parameters
+from deductiv_helpers import setup_logger, str2bool, exit_error, replace_object_tokens, recover_parameters, request
 from ep_helpers import get_config_from_alias
 from splunk.clilib import cli_common as cli
 
@@ -70,7 +70,7 @@ class ephec(StreamingCommand):
 		**Syntax:** **index=***[index_value|$index_field$]*
 		**Description:** The remote index in which to store the exported event
 		**Default:** $index$, or if not defined, the remote endpoint's default.''',
-		require=False) 
+		require=False)
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 
@@ -94,18 +94,18 @@ class ephec(StreamingCommand):
 		logger.debug('search_ep_hec command: %s', self)  # logs command line
 
 		# Set defaults
-		if self.host is None:
+		if self.host is None or self.host == '':
 			self.host = "$host$"
 		# Get the default values used for data originating from this machine
 		inputs_host = cli.getConfStanza('inputs','splunktcp')["host"]
 
-		if self.source is None:
+		if self.source is None or self.source == '':
 			self.source = "$source$"
 
-		if self.sourcetype is None:
+		if self.sourcetype is None or self.sourcetype == '':
 			self.sourcetype = "$sourcetype$"
 
-		if self.index is None:
+		if self.index is None or self.index == '':
 			self.index = "$index$"
 
 		# Enumerate proxy settings
@@ -149,65 +149,69 @@ class ephec(StreamingCommand):
 
 		# Create HEC object
 		hec = http_event_collector(hec_token, hec_host, http_event_port=hec_port, http_event_server_ssl=hec_ssl)
-		if port_is_open(hec_host, hec_port):
-			logger.debug("Port connectivity check passed")
-			if hec.check_connectivity():
-
-				# Special event key fields that can be specified/overridden in the alert action
-				meta_keys = ['source', 'sourcetype', 'host', 'index']
-				event_count = 0
-				for event in events:
-					# Get the fields list for the event
-					event_keys = list(event.keys())
-
-					payload = {}
-					payload_event_src = {}
-					# Copy event to new event, so we can change it
-					for f in event_keys:
-						payload_event_src[f] = event[f]
-
-					if '_time' in event_keys:
-						payload.update({ "time": payload_event_src['_time'] })
-						del(payload_event_src['_time'])
-					else:
-						payload.update({ "time": time.time() })
-
-					for k in meta_keys:
-						# Loop through the metadata keys: host/source/sourcetype/index
-						if getattr(self, k)[0] == getattr(self, k)[-1] and getattr(self, k)[-1] == "$":
-							if k in event_keys:
-								# If the key field is in the event and its output argument is set to a variable
-								payload.update({ k: payload_event_src[getattr(self, k)[1:-1]] })
-								# Delete it from the payload event source so it's not included when we dump the rest of the fields later.
-								del(payload_event_src[getattr(self, k)[1:-1]])
-							elif k == "host" and self.host == "$host$":
-								# "host" field not found in event, but has the default value. Use the one from inputs.conf.
-								payload.update({ k: inputs_host })
-						else:
-							# Plaintext entry
-							payload.update({ k: self[k] })
-
-					# Only send _raw (no other fields) if the _raw field was included in the search result.
-					# (Don't include other fields/values)
-					if '_raw' in list(payload_event_src.keys()):
-						#logger.debug("Using _raw from search result")
-						payload.update({ "event": payload_event_src['_raw'] })
-					else:
-						payload.update({ "event": payload_event_src })
-
-					event_count += 1
-					logger.debug("Payload = " + str(payload))
-					hec.batchEvent(payload)
-					yield(event)
-
-				hec.flushBatch()
-				logger.info("Successfully exported events. count=%s target=%s app=%s user=%s" % (event_count, hec_host, app, user))
-			else: # Connectivity check failed
-				exit_error(logger, "HEC endpoint port open but connection test failed.", 104893)
-		else:
-			if str2bool(hec_ssl):
-				protocol = 'https'
+		try:
+			protocol = "https" if hec_ssl else "http"
+			test_url = "%s://%s:%s/services/collector/health" % (protocol, hec_host, hec_port)
+			test_response, test_response_code = request('GET', test_url, '', {})
+			if test_response_code == 200:
+				hec_ok = True
 			else:
-				protocol = 'http'
-			exit_error(logger, "Unable to connect to the HEC endpoint: %s" % protocol+'://'+hec_host+':'+hec_port, 100253)
+				hec_ok = False
+				test_response = test_response.decode('utf-8')
+		except BaseException as e:
+			exit_error(logger, "Could not connect to HEC server: " % str(e), 1384185)
+			
+		if hec_ok:
+			logger.debug("Connectivity check passed")
+			# Special event key fields that can be specified/overridden in the alert action
+			meta_keys = ['source', 'sourcetype', 'host', 'index']
+			event_count = 0
+			for event in events:
+				# Get the fields list for the event
+				event_keys = list(event.keys())
+
+				payload = {}
+				payload_event_src = {}
+				# Copy event to new event, so we can change it
+				for f in event_keys:
+					payload_event_src[f] = event[f]
+
+				if '_time' in event_keys:
+					payload.update({ "time": payload_event_src['_time'] })
+					del(payload_event_src['_time'])
+				else:
+					payload.update({ "time": time.time() })
+
+				for k in meta_keys: # host, source, sourcetype, index
+					# Starts and ends with $
+					if len(getattr(self, k))>0 and getattr(self, k)[0] == "$" and getattr(self, k)[-1] == "$":
+						if k in event_keys:
+							# If the key field is in the event and its output argument is set to a variable
+							payload.update({ k: payload_event_src[getattr(self, k)[1:-1]] })
+							# Delete it from the payload event source so it's not included when we dump the rest of the fields later.
+							del(payload_event_src[getattr(self, k)[1:-1]])
+						elif k == "host" and self.host == "$host$":
+							# "host" field not found in event, but has the default value. Use the one from inputs.conf.
+							payload.update({ k: inputs_host })
+					else:
+						# Plaintext entry
+						payload.update({ k: getattr(self, k) })
+
+				# Only send _raw (no other fields) if the _raw field was included in the search result.
+				# (Don't include other fields/values)
+				if '_raw' in list(payload_event_src.keys()):
+					#logger.debug("Using _raw from search result")
+					payload.update({ "event": payload_event_src['_raw'] })
+				else:
+					payload.update({ "event": payload_event_src })
+
+				event_count += 1
+				logger.debug("Payload = " + str(payload))
+				hec.batchEvent(payload)
+				yield(event)
+
+			hec.flushBatch()
+			logger.info("Successfully exported events. count=%s target=%s app=%s user=%s" % (event_count, self.target, app, user))
+		else:
+			exit_error(logger, "HEC health endpoint error: %s" % test_response, 100253)
 dispatch(ephec, sys.argv, sys.stdin, sys.stdout, __name__)

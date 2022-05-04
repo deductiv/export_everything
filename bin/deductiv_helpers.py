@@ -13,6 +13,7 @@ import os
 import urllib.request
 import urllib.parse
 import urllib.error
+import http.client as httplib
 import re
 import logging
 import configparser
@@ -52,32 +53,36 @@ def get_credentials(app, session_key):
 		raise Exception("No credentials have been found")
 
 # HTTP request wrapper
-def request(method, url, data, headers):
+def request(method, url, data, headers, conn=None):
 	"""Helper function to fetch data from the given URL"""
 	# See if this is utf-8 encoded already
 	try:
 		data.decode('utf-8')
-	except:
+	except AttributeError:
 		try:
 			data = urllib.parse.urlencode(data).encode("utf-8")
 		except:
 			data = data.encode("utf-8")
-	req = urllib.request.Request(url, data, headers)
-	req.get_method = lambda: method
-	res_txt = ""
-	res_code = "0"
-	try: 
-		res = urllib.request.urlopen(req)
-		res_txt = res.read()
-		res_code = res.getcode()
-	except urllib.error.HTTPError as e:
-		res_code = e.code
-		res_txt = e.read()
-		eprint("HTTP Error: " + str(res_txt))
+	url_tuple = urllib.parse.urlparse(url)
+	if conn is None:
+		close_conn = True
+		if url_tuple.scheme == 'https':
+			conn = httplib.HTTPSConnection(url_tuple.netloc)
+		elif url_tuple.scheme == 'http':
+			conn = httplib.HTTPConnection(url_tuple.netloc)
+	else:
+		close_conn = False
+	try:
+		conn.request(method, url, data, headers)
+		response = conn.getresponse()
+		response_data = response.read()
+		response_status = response.status
+		if close_conn:
+			conn.close()
+		return response_data, response_status
 	except BaseException as e:
 		eprint("URL Request Error: " + str(e))
 		sys.exit(1)
-	return res_txt, res_code
 
 def setup_logging(logger_name):
 	logger = logging.getLogger(logger_name)

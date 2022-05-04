@@ -6,15 +6,9 @@
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.0.5 (2022-04-25)
 
-#import sys
-#import os
 import json
 import fnmatch
 import gzip
-
-# Add lib folder to import path
-#path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib')
-#sys.path.append(path_prepend)
 import deductiv_helpers as dhelp
 
 def flush_buffer(string_list, output_file):
@@ -166,41 +160,47 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 	
 def parse_outputfile(outputfile, default_filename, target_config):
 
+	# PSEUDO CODE
+	# Leading / = use the root folder
+	# No leading / = use default folder
+	# Has 1 or more / (not leading) = use root or default + path given
+	# Trailing / = use default filename
+
+	folder_list = []
 	# Split the output into folder and filename
 	if outputfile is not None:
 		outputfile = outputfile.replace('\\', '/')
-		folder_list = outputfile.split('/')
-		if len(folder_list) == 1:
-			# No folder specified, use the default
-			use_default_folder = True
-			filename = folder_list[0]
-		elif folder_list[0] == '':
+		if len(outputfile) > 0 and outputfile[0] == '/':
 			# Length > 1, outputfile points to the root folder (leading /)
 			use_default_folder = False
 		else:
-			# Length > 1 and outputfile points to a relative path (no leading /)
+			# outputfile points to a relative path (no leading /)
 			use_default_folder = True
-
-		if len(folder_list) > 1 and folder_list[-1] == '':
-			# No filename provided, trailing /
+		
+		outputfile = outputfile.lstrip('/')
+		if '/' in outputfile: # Not leading
+			folder_list = outputfile.split('/')
+			if folder_list[-1] == '':
+				# No filename provided, trailing /
+				filename = default_filename
+				# Purge the last (empty-string) entry
+				folder_list.pop()
+			else:
+				filename = folder_list.pop()
+		elif len(outputfile) > 0:
+			filename = outputfile
+		else:
+			# Folder set as /, no filename
 			filename = default_filename
-			folder_list.pop()
-		elif len(folder_list) > 1 and len(folder_list[-1]) > 0:
-			filename = folder_list[-1]
-			folder_list.pop()
 	else:
 		use_default_folder = True
 		filename = default_filename
-		folder_list = []
 	
 	if use_default_folder:
 		if 'default_folder' in list(target_config.keys()):
 			# Use the configured default folder
 			default_folder = target_config['default_folder'].replace('\\', '/')
 			folder_list = default_folder.strip('/').split('/') + folder_list
-		else:
-			# Use the root folder
-			folder_list = ['']
 	
 	# Replace keywords from output filename and folder
 	folder = dhelp.replace_keywords('/'.join(folder_list))

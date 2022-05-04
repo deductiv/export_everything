@@ -2,16 +2,18 @@ import sys
 import os
 import re
 import json
-from deductiv_helpers import setup_logger
-from ep_helpers import get_config_from_alias, get_aws_s3_directory, get_box_directory, get_sftp_directory, get_smb_directory
 from splunk.clilib import cli_common as cli
 import splunk.entity as en
 import splunk.rest
 
 # Add lib subfolders to import path
+sys.path.append(os.path.dirname(os.path.abspath(__file__))) # Special for REST endpoints
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
+from deductiv_helpers import setup_logger
+from ep_helpers import get_config_from_alias, get_aws_s3_directory, get_box_directory, get_sftp_directory, get_smb_directory
 import splunklib.client as client
+
 
 config = cli.getConfStanza('ep_general','settings')
 # Facility info - prepended to log lines

@@ -12,6 +12,8 @@ from deductiv_helpers import setup_logger
 import splunk.admin as admin
 import splunk.entity as en
 from splunk.clilib import cli_common as cli
+from splunk.rest import simpleRequest
+#from splunk import ResourceNotFound
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -37,6 +39,15 @@ with open(os.path.join(os.getenv('SPLUNK_HOME'), 'etc', 'auth', 'splunk.secret')
 	splunk_secret = ssfh.readline()
 
 class SetupApp(admin.MConfigHandler):
+	def connect(self):
+		session_key = self.getSessionKey()
+		entity = en.getEntity('/server',
+			'settings',
+			namespace='-',
+			sessionKey=session_key, 
+			owner='-')
+		splunkd_port = entity["mgmtHostPort"]
+		return client.connect(token=session_key, port=splunkd_port)
 
 	# Set up supported arguments
 	def setup(self):
@@ -64,16 +75,8 @@ class SetupApp(admin.MConfigHandler):
 		logger.info(config_file + " list handler started")
 
 		try:
-			session_key = self.getSessionKey()
-			entity = en.getEntity('/server',
-			   'settings',
-			   namespace='-',
-			   sessionKey=session_key, 
-			   owner='-')
-			splunkd_port = entity["mgmtHostPort"]
-			service = client.connect(token=session_key, port=splunkd_port)
-
 			# Get all credentials for this app
+			service = self.connect()
 			storage_passwords = service.storage_passwords
 
 			for credential in storage_passwords:
@@ -136,17 +139,7 @@ class SetupApp(admin.MConfigHandler):
 		logger.debug("%s Writing new config for %s: %s", facility, config_id, str(new_config))
 		try:
 			## Write the configuration via REST API
-			# Add the field values to an entity object
-			entity = en.getEntity('configs/conf-' + config_file,
-			   config_id,
-			   namespace=app,
-			   owner='nobody',
-			   sessionKey=self.getSessionKey()
-			)
-			for k, v in list(new_config.items()):
-				entity.__setitem__(k, v)
-			# Apply the entity object to the configuration
-			en.setEntity(entity, sessionKey=self.getSessionKey())
+			self.writeConf(config_file, config_id, new_config)
 		except BaseException as e:
 			logger.exception("%s Error writing config: %s", facility, e)
 	
