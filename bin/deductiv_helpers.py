@@ -255,11 +255,11 @@ def get_tokens(searchinfo):
 	for t, tv in list(tokens.items()):
 		tokens = merge_two_dicts(tokens, parse_nested_json(t, tv))
 	
-	#for t, tv in list(tokens.items()):
-	#	if type(tv) == str:
-	#		eprint(t + '=' + tv)
-	#	else:
-	#		eprint(t + "(type " + str(type(tv)) + ") = " + str(tv))
+	for t, tv in list(tokens.items()):
+		if type(tv) == str:
+			eprint(t + '=' + tv)
+		else:
+			eprint(t + "(type " + str(type(tv)) + ") = " + str(tv))
 	return tokens
 
 def parse_nested_json(parent_name, j):

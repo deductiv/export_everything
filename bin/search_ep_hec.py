@@ -159,8 +159,8 @@ class ephec(StreamingCommand):
 				hec_ok = False
 				test_response = test_response.decode('utf-8')
 		except BaseException as e:
-			exit_error(logger, "Could not connect to HEC server: " % str(e), 1384185)
-			
+			exit_error(logger, "Could not connect to HEC server: %s" % str(e), 1384185)
+
 		if hec_ok:
 			logger.debug("Connectivity check passed")
 			# Special event key fields that can be specified/overridden in the alert action
@@ -183,18 +183,22 @@ class ephec(StreamingCommand):
 					payload.update({ "time": time.time() })
 
 				for k in meta_keys: # host, source, sourcetype, index
-					# Starts and ends with $
+					# self.host, etc starts and ends with $
 					if len(getattr(self, k))>0 and getattr(self, k)[0] == "$" and getattr(self, k)[-1] == "$":
-						if k in event_keys:
+						referenced_field = getattr(self, k)[1:-1]
+						if referenced_field in event_keys:
+							substituted_token_value = payload_event_src[referenced_field]
 							# If the key field is in the event and its output argument is set to a variable
-							payload.update({ k: payload_event_src[getattr(self, k)[1:-1]] })
-							# Delete it from the payload event source so it's not included when we dump the rest of the fields later.
-							del(payload_event_src[getattr(self, k)[1:-1]])
+							payload.update({ k: substituted_token_value })
+							if k in event_keys:
+								# Delete meta field from the payload event source
+								#  so it's not included when we dump the rest of the fields later.
+								del(payload_event_src[k])
 						elif k == "host" and self.host == "$host$":
 							# "host" field not found in event, but has the default value. Use the one from inputs.conf.
 							payload.update({ k: inputs_host })
 					else:
-						# Plaintext entry
+						# Plain string value (not a token)
 						payload.update({ k: getattr(self, k) })
 
 				# Only send _raw (no other fields) if the _raw field was included in the search result.
