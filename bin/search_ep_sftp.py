@@ -11,7 +11,7 @@ import sys
 import os
 import platform
 import random
-from deductiv_helpers import setup_logger, eprint, exit_error, replace_object_tokens, recover_parameters
+from deductiv_helpers import setup_logger, eprint, exit_error, replace_object_tokens, recover_parameters, log_proxy_settings
 from ep_helpers import get_sftp_connection, get_config_from_alias
 import event_file
 from splunk.clilib import cli_common as cli
@@ -112,18 +112,7 @@ class epsftp(ReportingCommand):
 
 		logger.info('SFTP Export search command initiated')
 		logger.debug('search_ep_sftp command: %s', self)  # logs command line
-
-		# Enumerate proxy settings
-		http_proxy = os.environ.get('HTTP_PROXY')
-		https_proxy = os.environ.get('HTTPS_PROXY')
-		proxy_exceptions = os.environ.get('NO_PROXY')
-
-		if http_proxy is not None:
-			logger.debug("HTTP proxy: %s" % http_proxy)
-		if https_proxy is not None:
-			logger.debug("HTTPS proxy: %s" % https_proxy)
-		if proxy_exceptions is not None:
-			logger.debug("Proxy Exceptions: %s" % proxy_exceptions)
+		log_proxy_settings(logger)
 	
 		# Enumerate settings
 		app = self._metadata.searchinfo.app

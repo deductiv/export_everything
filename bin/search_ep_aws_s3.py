@@ -10,7 +10,7 @@
 import sys
 import os
 import random
-from deductiv_helpers import setup_logger, replace_keywords, exit_error, replace_object_tokens, recover_parameters, str2bool
+from deductiv_helpers import setup_logger, replace_keywords, exit_error, replace_object_tokens, recover_parameters, str2bool, log_proxy_settings
 from ep_helpers import get_config_from_alias, get_aws_connection
 import event_file
 from splunk.clilib import cli_common as cli
@@ -99,6 +99,7 @@ class epawss3(ReportingCommand):
 		logger.info('AWS S3 Export search command initiated')
 		logger.debug("Configuration: " + str(cmd_config))
 		logger.debug('search_ep_awss3 command: %s', self)  # logs command line
+		log_proxy_settings(logger)
 
 		# Enumerate settings
 		app = self._metadata.searchinfo.app
@@ -148,6 +149,7 @@ class epawss3(ReportingCommand):
 		
 		# Replace keywords from output filename
 		self.outputfile = replace_keywords(self.outputfile)
+		self.outputfile = self.outputfile.lstrip('/')
 
 		if self.compress is not None:
 			logger.debug('Compression: %s', self.compress)

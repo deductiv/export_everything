@@ -321,3 +321,16 @@ def recover_parameters(obj):
 			setattr(obj, key, value)
 		else:
 			setattr(obj, key, None)
+
+def log_proxy_settings(logger):
+	# Enumerate proxy settings
+	http_proxy = os.environ.get('HTTP_PROXY')
+	https_proxy = os.environ.get('HTTPS_PROXY')
+	proxy_exceptions = os.environ.get('NO_PROXY')
+
+	if http_proxy is not None:
+		logger.debug("HTTP proxy: %s" % http_proxy)
+	if https_proxy is not None:
+		logger.debug("HTTPS proxy: %s" % https_proxy)
+	if proxy_exceptions is not None:
+		logger.debug("Proxy Exceptions: %s" % proxy_exceptions)

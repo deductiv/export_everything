@@ -10,7 +10,7 @@
 import sys
 import os
 import time
-from deductiv_helpers import setup_logger, str2bool, exit_error, replace_object_tokens, recover_parameters, request
+from deductiv_helpers import setup_logger, str2bool, exit_error, replace_object_tokens, recover_parameters, request, log_proxy_settings
 from ep_helpers import get_config_from_alias
 from splunk.clilib import cli_common as cli
 
@@ -108,17 +108,7 @@ class ephec(StreamingCommand):
 		if self.index is None or self.index == '':
 			self.index = "$index$"
 
-		# Enumerate proxy settings
-		http_proxy = os.environ.get('HTTP_PROXY')
-		https_proxy = os.environ.get('HTTPS_PROXY')
-		proxy_exceptions = os.environ.get('NO_PROXY')
-
-		if http_proxy is not None:
-			logger.debug("HTTP proxy: %s" % http_proxy)
-		if https_proxy is not None:
-			logger.debug("HTTPS proxy: %s" % https_proxy)
-		if proxy_exceptions is not None:
-			logger.debug("Proxy Exceptions: %s" % proxy_exceptions)
+		log_proxy_settings(logger)
 
 		# Enumerate settings
 		searchinfo = self._metadata.searchinfo
