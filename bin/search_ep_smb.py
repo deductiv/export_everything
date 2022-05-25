@@ -186,8 +186,12 @@ class epsmb(ReportingCommand):
 			'json': '.json'
 		}
 
-		if self.outputformat is None:
+		# If the parameters are not supplied or blank (alert actions), supply defaults
+		if self.outputformat is None or self.outputformat == "":
 			self.outputformat = 'csv'
+		if self.fields is not None and self.fields == "":
+			self.fields = None # None = All
+		
 		# Create the default filename
 		default_filename = ('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 

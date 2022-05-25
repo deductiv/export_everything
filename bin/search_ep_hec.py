@@ -10,6 +10,7 @@
 import sys
 import os
 import time
+import re
 from deductiv_helpers import setup_logger, str2bool, exit_error, replace_object_tokens, recover_parameters, request, log_proxy_settings
 from ep_helpers import get_config_from_alias
 from splunk.clilib import cli_common as cli
@@ -99,6 +100,7 @@ class ephec(StreamingCommand):
 		# Get the default values used for data originating from this machine
 		inputs_host = cli.getConfStanza('inputs','splunktcp')["host"]
 
+		# If the parameters are not supplied or blank (alert actions), supply defaults
 		if self.source is None or self.source == '':
 			self.source = "$source$"
 
@@ -157,6 +159,8 @@ class ephec(StreamingCommand):
 			meta_keys = ['source', 'sourcetype', 'host', 'index']
 			event_count = 0
 			for event in events:
+
+				logger.debug("event")
 				# Get the fields list for the event
 				event_keys = list(event.keys())
 
@@ -174,22 +178,34 @@ class ephec(StreamingCommand):
 
 				for k in meta_keys: # host, source, sourcetype, index
 					# self.host, etc starts and ends with $
-					if len(getattr(self, k))>0 and getattr(self, k)[0] == "$" and getattr(self, k)[-1] == "$":
-						referenced_field = getattr(self, k)[1:-1]
-						if referenced_field in event_keys:
-							substituted_token_value = payload_event_src[referenced_field]
-							# If the key field is in the event and its output argument is set to a variable
-							payload.update({ k: substituted_token_value })
-							if k in event_keys:
-								# Delete meta field from the payload event source
-								#  so it's not included when we dump the rest of the fields later.
-								del(payload_event_src[k])
-						elif k == "host" and self.host == "$host$":
+					meta_value = getattr(self, k)
+					logger.debug("Meta value(1) = %s", meta_value)
+					#if len(getattr(self, k))>0 and getattr(self, k)[0] == "$" and getattr(self, k)[-1] == "$":
+					if meta_value is not None and '$' in meta_value:
+						meta_value = meta_value.replace("$result.", "$")
+						logger.debug("Meta value(2) = %s", meta_value)
+						#extracted_tokens = re.findall(r'(\$(?:result.)?([^$]+)\$)', meta_value)
+						#referenced_field = getattr(self, k)[1:-1]
+						#referenced_field = re.sub("^result.", "", referenced_field)
+						for event_field, event_field_value in list(payload_event_src.items()):
+							token_string = '$'+event_field+'$'
+							if token_string in meta_value:
+								meta_value = meta_value.replace(token_string, event_field_value)
+								if meta_value == event_field_value and event_field in list(payload_event_src.keys()):
+									# Delete meta field from the payload event source
+									#  so it's not included when we dump the rest of the fields later.
+									del(payload_event_src[event_field])
+						payload.update({ k: meta_value })
+						#if referenced_field in event_keys:
+						#substituted_token_value = payload_event_src[referenced_field]
+						# If the key field is in the event and its output argument is set to a variable
+						#if k in event_keys:
+						if k == "host" and self.host == "$host$":
 							# "host" field not found in event, but has the default value. Use the one from inputs.conf.
 							payload.update({ k: inputs_host })
-					else:
+					elif len(meta_value) > 0:
 						# Plain string value (not a token)
-						payload.update({ k: getattr(self, k) })
+						payload.update({ k: meta_value })
 
 				# Only send _raw (no other fields) if the _raw field was included in the search result.
 				# (Don't include other fields/values)

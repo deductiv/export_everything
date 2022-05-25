@@ -148,16 +148,17 @@ def replace_keywords(s):
 	now = str(int(time.time()))
 	nowft = datetime.datetime.now().strftime("%F_%H%M%S")
 	today = datetime.datetime.now().strftime("%F")
+	yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%F")
 
 	strings_to_replace = {
 		'__now__': now,
 		'__nowft__': nowft,
-		'__today__': today
+		'__today__': today,
+		'__yesterday__': yesterday
 	}
 	
 	for x in list(strings_to_replace.keys()):
 		s = s.replace(x, strings_to_replace[x])
-	
 	return s
 
 def exit_error(logger, message, error_code=1):
@@ -255,11 +256,11 @@ def get_tokens(searchinfo):
 	for t, tv in list(tokens.items()):
 		tokens = merge_two_dicts(tokens, parse_nested_json(t, tv))
 	
-	for t, tv in list(tokens.items()):
-		if type(tv) == str:
-			eprint(t + '=' + tv)
-		else:
-			eprint(t + "(type " + str(type(tv)) + ") = " + str(tv))
+	#for t, tv in list(tokens.items()):
+	#	if type(tv) == str:
+	#		eprint(t + '=' + tv)
+	#	else:
+	#		eprint(t + "(type " + str(type(tv)) + ") = " + str(tv))
 	return tokens
 
 def parse_nested_json(parent_name, j):
@@ -306,7 +307,7 @@ def replace_string_tokens(tokens, v):
 	# Replace all tokenized strings
 	for t, tv in list(tokens.items()):
 		if tv is not None:
-			v = v.replace('$'+t+'$', str(tv))
+			v = v.replace('$'+t+'$', str(tv).strip('"').strip("'"))
 	# Print the result if the value changed
 	#if b != v:
 	#	eprint(b + ' -> ' + v)

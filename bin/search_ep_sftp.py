@@ -133,7 +133,7 @@ class epsftp(ReportingCommand):
 			target_config = get_config_from_alias(session_key, cmd_config, self.target)
 			if target_config is None:
 				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
-			#logger.debug("Target configuration: " + str(target_config))
+			#logger.debug("Target configuration: " + str(target_config)) # This logs the full credential and pass
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
 
@@ -193,8 +193,12 @@ class epsftp(ReportingCommand):
 			'json': '.json'
 		}
 
-		if self.outputformat is None:
+		# If the parameters are not supplied or blank (alert actions), supply defaults
+		if self.outputformat is None or self.outputformat == "":
 			self.outputformat = 'csv'
+		if self.fields is not None and self.fields == "":
+			self.fields = None # None = All
+		
 		# Create the default filename
 		#now = str(int(time.time()))
 		default_filename = ('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")

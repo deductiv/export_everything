@@ -9,6 +9,7 @@
 import json
 import fnmatch
 import gzip
+import copy
 import deductiv_helpers as dhelp
 
 def flush_buffer(string_list, output_file):
@@ -88,17 +89,17 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 				if key in event_keys:
 					# Convert list to string value
 					if isinstance(value, list):
-						#value = '"' + delimiter.join(value).replace('"', r'\"') + '"'
 						value = '"' + delimiter.join(value).replace('"', r'""') + '"'
 					if outputformat == "csv":
 						# Escape any double-quotes
-						if '"' in value:
+						unquoted_value = value.strip('"')
+						if '"' in unquoted_value:
 							# String has a quotation mark. Quote it and escape those inside.
-							value = dhelp.escape_quotes_csv(value)
+							value = dhelp.escape_quotes_csv(unquoted_value)
 							value = '"' + value + '"'
 						# Quote the string if it has a space or separator
-						elif ' ' in value or ',' in value:
-							value = '"' + value + '"'
+						elif ' ' in unquoted_value or ',' in unquoted_value:
+							value = '"' + unquoted_value + '"'
 					
 					output_text += value + delimiter
 			output_text = output_text[:-1]
@@ -119,10 +120,16 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			if fields is not None:
 				json_event = {}
 				for key in event_keys:
-					json_event[key] = event[key]
+					try:
+						json_event[key] = event[key]
+					except BaseException as e:
+						logger.debug("Exception writing field %s with value %s to output: %s", key, event[key], str(e))
 			else:
-				json_event = event
-			output_text = json.dumps(json_event) + ','
+				json_event = copy.deepcopy(event)
+			try:
+				output_text = json.dumps(json_event) + ','
+			except BaseException as e:
+				logger.debug("Exception writing event to output: %s\n\t%s", str(e), json_event)
 
 		# Append entry to the lists
 		output_file_buf.append((output_text + '\n').encode('utf-8'))
@@ -168,7 +175,7 @@ def parse_outputfile(outputfile, default_filename, target_config):
 
 	folder_list = []
 	# Split the output into folder and filename
-	if outputfile is not None:
+	if outputfile is not None and outputfile != "":
 		outputfile = outputfile.replace('\\', '/')
 		if len(outputfile) > 0 and outputfile[0] == '/':
 			# Length > 1, outputfile points to the root folder (leading /)
