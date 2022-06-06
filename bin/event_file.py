@@ -229,5 +229,8 @@ def parse_outputfile(outputfile, default_filename, target_config):
 		folder = '/'+('/'.join(folder_list))
 	else:
 		folder = '/'.join(folder_list)
-	#filename = dhelp.replace_keywords(filename)
+
+	folder = dhelp.replace_keywords(folder)
+	filename = dhelp.replace_keywords(filename)
+
 	return [folder, filename]
