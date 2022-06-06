@@ -212,10 +212,16 @@ def parse_outputfile(outputfile, default_filename, target_config):
 	
 	if use_default_folder:
 		if 'default_folder' in list(target_config.keys()) and len(target_config["default_folder"].strip()) > 0:
-			print('Using default')
 			# Use the configured default folder
 			default_folder = target_config['default_folder'].replace('\\', '/')
 			folder_list = default_folder.strip('/').split('/') + folder_list
+			if default_folder[0] == '/':
+				use_leading_slash = True
+			else:
+				use_leading_slash = False
+		else:
+			# No folder specified or blank
+			use_leading_slash = False
 	
 	# Replace keywords from output filename and folder
 	#folder = dhelp.replace_keywords('/'.join(folder_list))
