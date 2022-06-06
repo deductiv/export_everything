@@ -1200,7 +1200,7 @@ class App extends React.Component {
 								//console.log("File list = " + JSON.stringify(file_list));
 								for (var f=0; f<file_list.length; f++) {
 									if ( file_list[f].modDate !== undefined ) {
-										file_list[f].modDate = moment.unix(file_list[f].modDate).format('YYYY-MM-DD hh:mm:ss ZZ');
+										file_list[f].modDate = moment.unix(file_list[f].modDate).format('YYYY-MM-DD hh:mm:ss A');
 									}
 								}
 								this.setState({"file_list": file_list}, () => {
@@ -1246,7 +1246,7 @@ class App extends React.Component {
 
 		return(
 			<div className="form form-horizontal form-complex">
-				<h1>{title}</h1>
+				<h1 className="ep">{title}</h1>
 				{(props.children != null && props.children.length > 0) && (
 					<div style={{width: '700px', paddingBottom: '15px'}}>
 						<p>{props.children}</p>
@@ -1264,7 +1264,7 @@ class App extends React.Component {
 						}}
 						title={
 							<div className="form form-complex">
-								<h2>{heading}</h2>
+								<h2 className="ep">{heading}</h2>
 							</div>
 						}
 						icons={tableIcons}
@@ -1313,7 +1313,7 @@ class App extends React.Component {
 					</TabList>
 					<TabPanel className="tab-pane">
 						<div className="form form-horizontal form-complex">
-							<h1>General Settings</h1>
+							<h1 className="ep">General Settings</h1>
 							<FormControl id="general_form">
 								<InputLabel id="logging_label">Logging Level</InputLabel>
 								<Select labelId="logging_label" 
@@ -1342,7 +1342,7 @@ class App extends React.Component {
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<div className="form form-horizontal form-complex">
-							<h1>Manage Credentials</h1>
+							<h1 className="ep">Manage Credentials</h1>
 							<div style={{width: '700px', paddingBottom: '15px'}}>
 								<p>Use this panel to configure accounts, passwords, and secrets/passphrases to associate with your configured connections and private keys.  </p>
 								<ul>
@@ -1357,7 +1357,7 @@ class App extends React.Component {
 								<MaterialTable
 									title={
 										<div className="form form-complex">
-											<h2>Account Management</h2>
+											<h2 className="ep">Account Management</h2>
 										</div>
 									}
 									icons={tableIcons}
