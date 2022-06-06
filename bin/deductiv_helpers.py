@@ -1,54 +1,40 @@
 # Common cross-app functions to simplify code
 
-# Copyright 2020 Deductiv Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+# Copyright 2022 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.0
+# Version: 2.0.5 (2022-04-25)
 
 from __future__ import print_function
 from builtins import str
 from future import standard_library
 standard_library.install_aliases()
-import sys, os
-import urllib.request, urllib.parse, urllib.error
+import sys
+import os
+import urllib.request
+import urllib.parse
+import urllib.error
+import http.client as httplib
 import re
 import logging
-from logging import handlers
 import configparser
 import time
 import datetime
 import socket
 import json
 import random
+import splunk.entity as en
+from splunk.rest import simpleRequest
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-
 # https://github.com/HurricaneLabs/splunksecrets/blob/master/splunksecrets.py
-from splunksecrets import decrypt	# pylint: disable=import-error
-
-# pylint: disable=import-error
-import splunk.entity as en 
-from splunk.rest import simpleRequest
+from splunksecrets import decrypt
 
 def get_credentials(app, session_key):
 	try:
 		# list all credentials
 		entities = en.getEntities(['admin', 'passwords'], namespace=app,
-									owner='nobody', sessionKey=session_key)
+          owner='nobody', sessionKey=session_key)
 	except Exception as e:
 		raise Exception("Could not get %s credentials from Splunk. Error: %s" % (app, str(e)))
 
@@ -57,7 +43,9 @@ def get_credentials(app, session_key):
 	for id, c in list(entities.items()):		# pylint: disable=unused-variable
 		# c.keys() = ['clear_password', 'password', 'username', 'realm', 'eai:acl', 'encr_password']
 		if c['eai:acl']['app'] == app:
-			credentials.append( {'realm': c["realm"], 'username': c["username"], "password": c["clear_password"] } )
+			credentials.append({'realm': c["realm"], 
+			  'username': c["username"], 
+			  "password": c["clear_password"]})
 	
 	if len(credentials) > 0:
 		return credentials
@@ -65,32 +53,36 @@ def get_credentials(app, session_key):
 		raise Exception("No credentials have been found")
 
 # HTTP request wrapper
-def request(method, url, data, headers):
+def request(method, url, data, headers, conn=None):
 	"""Helper function to fetch data from the given URL"""
 	# See if this is utf-8 encoded already
 	try:
-	    string.decode('utf-8')
-	except:
+		data.decode('utf-8')
+	except AttributeError:
 		try:
 			data = urllib.parse.urlencode(data).encode("utf-8")
 		except:
 			data = data.encode("utf-8")
-	req = urllib.request.Request(url, data, headers)
-	req.get_method = lambda: method
-	res_txt = ""
-	res_code = "0"
-	try: 
-		res = urllib.request.urlopen(req)
-		res_txt = res.read()
-		res_code = res.getcode()
-	except urllib.error.HTTPError as e:
-		res_code = e.code
-		res_txt = e.read()
-		eprint("HTTP Error: " + str(res_txt))
+	url_tuple = urllib.parse.urlparse(url)
+	if conn is None:
+		close_conn = True
+		if url_tuple.scheme == 'https':
+			conn = httplib.HTTPSConnection(url_tuple.netloc)
+		elif url_tuple.scheme == 'http':
+			conn = httplib.HTTPConnection(url_tuple.netloc)
+	else:
+		close_conn = False
+	try:
+		conn.request(method, url, data, headers)
+		response = conn.getresponse()
+		response_data = response.read()
+		response_status = response.status
+		if close_conn:
+			conn.close()
+		return response_data, response_status
 	except BaseException as e:
 		eprint("URL Request Error: " + str(e))
 		sys.exit(1)
-	return res_txt, res_code
 
 def setup_logging(logger_name):
 	logger = logging.getLogger(logger_name)
@@ -104,7 +96,7 @@ def setup_logger(level, filename, facility):
 	logger.propagate = False 
 	logger.setLevel(level)
 	
-	log_file = os.path.join( os.environ['SPLUNK_HOME'], 'var', 'log', 'splunk', filename )
+	log_file = os.path.join(os.environ['SPLUNK_HOME'], 'var', 'log', 'splunk', filename)
 	file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=25000000, backupCount=2)
 	formatter = logging.Formatter('%(asctime)s [{0}] %(levelname)s %(message)s'.format(facility))
 	file_handler.setFormatter(formatter)
@@ -118,7 +110,7 @@ def read_config(filename):
 	app_child_dirs = ['default', 'local']
 	for cdir in app_child_dirs:
 		try:
-			config_file = os.path.join( app_dir, cdir, filename )
+			config_file = os.path.join(app_dir, cdir, filename)
 			config.read(config_file)
 		except:
 			pass
@@ -156,20 +148,22 @@ def replace_keywords(s):
 	now = str(int(time.time()))
 	nowft = datetime.datetime.now().strftime("%F_%H%M%S")
 	today = datetime.datetime.now().strftime("%F")
+	yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%F")
 
 	strings_to_replace = {
 		'__now__': now,
 		'__nowft__': nowft,
-		'__today__': today
+		'__today__': today,
+		'__yesterday__': yesterday
 	}
 	
 	for x in list(strings_to_replace.keys()):
 		s = s.replace(x, strings_to_replace[x])
-	
 	return s
 
 def exit_error(logger, message, error_code=1):
 	logger.critical(message)
+	eprint(message)
 	print(message)
 	exit(error_code)
 
@@ -222,10 +216,10 @@ def get_tokens(searchinfo):
 			owner=searchinfo.owner
 		)
 		job_response = simpleRequest(job_uri, method='GET', getargs={'output_mode':'json'}, sessionKey=searchinfo.session_key)[1]
-		search_job         = json.loads(job_response)
-		job_content        = search_job['entry'][0]['content']
+		search_job = json.loads(job_response)
+		job_content = search_job['entry'][0]['content']
 	else:
-		job_content        = {}
+		job_content = {}
 
 	for key, value in list(job_content.items()):
 		if value is not None:
@@ -313,7 +307,7 @@ def replace_string_tokens(tokens, v):
 	# Replace all tokenized strings
 	for t, tv in list(tokens.items()):
 		if tv is not None:
-			v = v.replace('$'+t+'$', str(tv))
+			v = v.replace('$'+t+'$', str(tv).strip('"').strip("'"))
 	# Print the result if the value changed
 	#if b != v:
 	#	eprint(b + ' -> ' + v)
@@ -328,3 +322,16 @@ def recover_parameters(obj):
 			setattr(obj, key, value)
 		else:
 			setattr(obj, key, None)
+
+def log_proxy_settings(logger):
+	# Enumerate proxy settings
+	http_proxy = os.environ.get('HTTP_PROXY')
+	https_proxy = os.environ.get('HTTPS_PROXY')
+	proxy_exceptions = os.environ.get('NO_PROXY')
+
+	if http_proxy is not None:
+		logger.debug("HTTP proxy: %s" % http_proxy)
+	if https_proxy is not None:
+		logger.debug("HTTPS proxy: %s" % https_proxy)
+	if proxy_exceptions is not None:
+		logger.debug("Proxy Exceptions: %s" % proxy_exceptions)

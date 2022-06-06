@@ -1,43 +1,26 @@
 #!/usr/bin/env python
 
-# Copyright 2020 Deductiv Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Python 3 compatible only (Does not work on Mac version of Splunk's Python)
+# Copyright 2022 Deductiv Inc.
 # search_ep_box.py
 # Export Splunk search results to Box - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.0 (2021-04-26)
+# Version: 2.0.5 (2022-04-25)
 
-from __future__ import print_function
-from builtins import str
-from future import standard_library
-standard_library.install_aliases()
-import sys, os, platform
+import sys
+import os
+import platform
 import time
 import random
-from deductiv_helpers import setup_logger, eprint, replace_keywords, exit_error, replace_object_tokens, recover_parameters
+from deductiv_helpers import setup_logger, eprint, replace_keywords, exit_error, replace_object_tokens, recover_parameters, log_proxy_settings
+from ep_helpers import get_config_from_alias, get_box_connection
+import event_file
+from splunk.clilib import cli_common as cli
 
 # Add lib subfolders to import path
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-# pylint: disable=import-error
-from splunk.clilib import cli_common as cli
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
-import event_file
-from ep_helpers import get_config_from_alias, get_box_connection
 
 # Import the correct version of cryptography
 # https://pypi.org/project/cryptography/
@@ -48,19 +31,12 @@ py_major_ver = sys.version_info[0]
 if os_platform == 'Linux':
 	if py_major_ver == 3:
 		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
-	elif py_major_ver == 2:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_linux_x86_64')
 elif os_platform == 'Darwin': # Does not work with Splunk Python3 build. It requires code signing for libs.
 	if py_major_ver == 3:
 		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
-	elif py_major_ver == 2:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_darwin_x86_64')
 elif os_platform == 'Windows':
 	if py_major_ver == 3:
 		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
-	elif py_major_ver == 2:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_win_amd64')
-
 sys.path.append(path_prepend)
 
 from boxsdk import BoxAPIException
@@ -68,7 +44,7 @@ from boxsdk import BoxAPIException
 # Define class and type for Splunk command
 @Configuration()
 class epbox(ReportingCommand):
-	doc='''
+	'''
 	**Syntax:**
 	search | epbox target=<target alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
 
@@ -115,9 +91,7 @@ class epbox(ReportingCommand):
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 	
-	def __getitem__(self, key):
-		return getattr(self,key)
-	
+	@Configuration()
 	def map(self, events):
 		for e in events:
 			yield(e)
@@ -141,18 +115,7 @@ class epbox(ReportingCommand):
 
 		logger.info('Box Export search command initiated')
 		logger.debug('search_ep_box command: %s', self)  # logs command line
-
-		# Enumerate proxy settings
-		http_proxy = os.environ.get('HTTP_PROXY')
-		https_proxy = os.environ.get('HTTPS_PROXY')
-		proxy_exceptions = os.environ.get('NO_PROXY')
-
-		if http_proxy is not None:
-			logger.debug("HTTP proxy: %s" % http_proxy)
-		if https_proxy is not None:
-			logger.debug("HTTPS proxy: %s" % https_proxy)
-		if proxy_exceptions is not None:
-			logger.debug("Proxy Exceptions: %s" % proxy_exceptions)
+		log_proxy_settings(logger)
 	
 		# Enumerate settings
 		app = self._metadata.searchinfo.app
@@ -169,7 +132,7 @@ class epbox(ReportingCommand):
 			target_config = get_config_from_alias(session_key, cmd_config, self.target)
 			if target_config is None:
 				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
-			logger.debug("Target configuration: " + str(target_config))
+			#logger.debug("Target configuration: " + str(target_config)) # This logs the full credential and pass
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
 		
@@ -182,15 +145,17 @@ class epbox(ReportingCommand):
 			'json': '.json'
 		}
 
-		if self.outputformat is None:
+		# If the parameters are not supplied or blank (alert actions), supply defaults
+		if self.outputformat is None or self.outputformat == "":
 			self.outputformat = 'csv'
+		if self.fields is not None and self.fields == "":
+			self.fields = None # None = All
 
 		# Create the default filename
-		now = str(int(time.time()))
 		default_filename = ('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 
 		# Split the output into folder and filename
-		if self.outputfile is not None:
+		if self.outputfile is not None or self.outputfile == "":
 			folder_list = self.outputfile.split('/')
 			if len(folder_list) == 1:
 				# No folder specified, use the default
@@ -254,8 +219,6 @@ class epbox(ReportingCommand):
 			if filename[-3:] != '.gz':
 				filename = filename + '.gz'
 		
-		#if auth is not None:
-			
 		# Use the credential to connect to Box
 		try:
 			client = get_box_connection(target_config)

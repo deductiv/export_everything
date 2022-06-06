@@ -2,24 +2,14 @@
 # event_file.py
 # Write Splunk search results to a custom formatted file
 #
+# Copyright 2022 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 1.1.2 (2020-06-29)
+# Version: 2.0.5 (2022-04-25)
 
-from __future__ import print_function
-from builtins import str
-from future import standard_library
-standard_library.install_aliases()
-import sys, os
-import time, datetime
 import json
 import fnmatch
 import gzip
-import logging
-from collections import OrderedDict
-
-# Add lib folder to import path
-path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib')
-sys.path.append(path_prepend)
+import copy
 import deductiv_helpers as dhelp
 
 def flush_buffer(string_list, output_file):
@@ -99,17 +89,17 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 				if key in event_keys:
 					# Convert list to string value
 					if isinstance(value, list):
-						#value = '"' + delimiter.join(value).replace('"', r'\"') + '"'
 						value = '"' + delimiter.join(value).replace('"', r'""') + '"'
 					if outputformat == "csv":
 						# Escape any double-quotes
-						if '"' in value:
+						unquoted_value = value.strip('"')
+						if '"' in unquoted_value:
 							# String has a quotation mark. Quote it and escape those inside.
-							value = dhelp.escape_quotes_csv(value)
+							value = dhelp.escape_quotes_csv(unquoted_value)
 							value = '"' + value + '"'
 						# Quote the string if it has a space or separator
-						elif ' ' in value or ',' in value:
-							value = '"' + value + '"'
+						elif ' ' in unquoted_value or ',' in unquoted_value:
+							value = '"' + unquoted_value + '"'
 					
 					output_text += value + delimiter
 			output_text = output_text[:-1]
@@ -130,10 +120,16 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			if fields is not None:
 				json_event = {}
 				for key in event_keys:
-					json_event[key] = event[key]
+					try:
+						json_event[key] = event[key]
+					except BaseException as e:
+						logger.debug("Exception writing field %s with value %s to output: %s", key, event[key], str(e))
 			else:
-				json_event = event
-			output_text = json.dumps(json_event) + ','
+				json_event = copy.deepcopy(event)
+			try:
+				output_text = json.dumps(json_event) + ','
+			except BaseException as e:
+				logger.debug("Exception writing event to output: %s\n\t%s", str(e), json_event)
 
 		# Append entry to the lists
 		output_file_buf.append((output_text + '\n').encode('utf-8'))
@@ -171,43 +167,70 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 	
 def parse_outputfile(outputfile, default_filename, target_config):
 
+	# PSEUDO CODE
+	# Leading / = use the root folder
+	# No leading / = use default folder
+	# Has 1 or more / (not leading) = use root or default + path given
+	# Trailing / = use default filename
+
+	folder_list = []
 	# Split the output into folder and filename
 	if outputfile is not None:
 		outputfile = outputfile.replace('\\', '/')
-		folder_list = outputfile.split('/')
-		if len(folder_list) == 1:
-			# No folder specified, use the default
-			use_default_folder = True
-			filename = folder_list[0]
-		elif folder_list[0] == '':
+		if len(outputfile) > 0 and outputfile[0] == '/':
 			# Length > 1, outputfile points to the root folder (leading /)
 			use_default_folder = False
 		else:
-			# Length > 1 and outputfile points to a relative path (no leading /)
+			# outputfile points to a relative path (no leading /)
 			use_default_folder = True
+		
+		if (use_default_folder == False and outputfile[0] == '/') or \
+			(use_default_folder and 'default_folder' in list(target_config.keys()) and \
+				len(target_config["default_folder"].strip()) > 0):
+			use_leading_slash = True
+		else:
+			use_leading_slash = False
 
-		if len(folder_list) > 1 and folder_list[-1] == '':
-			# No filename provided, trailing /
+		outputfile = outputfile.lstrip('/')
+		if '/' in outputfile: # Not leading
+			folder_list = outputfile.split('/')
+			if folder_list[-1] == '':
+				# No filename provided, trailing /
+				filename = default_filename
+				# Purge the last (empty-string) entry
+				folder_list.pop()
+			else:
+				filename = folder_list.pop()
+		elif len(outputfile) > 0:
+			filename = outputfile
+		else:
+			# Folder set as /, no filename
 			filename = default_filename
-			folder_list.pop()
-		elif len(folder_list) > 1 and len(folder_list[-1]) > 0:
-			filename = folder_list[-1]
-			folder_list.pop()
 	else:
 		use_default_folder = True
 		filename = default_filename
-		folder_list = []
 	
 	if use_default_folder:
-		if 'default_folder' in list(target_config.keys()):
+		if 'default_folder' in list(target_config.keys()) and len(target_config["default_folder"].strip()) > 0:
 			# Use the configured default folder
 			default_folder = target_config['default_folder'].replace('\\', '/')
 			folder_list = default_folder.strip('/').split('/') + folder_list
+			if default_folder[0] == '/':
+				use_leading_slash = True
+			else:
+				use_leading_slash = False
 		else:
-			# Use the root folder
-			folder_list = ['']
+			# No folder specified or blank
+			use_leading_slash = False
 	
 	# Replace keywords from output filename and folder
-	folder = dhelp.replace_keywords('/'.join(folder_list))
+	#folder = dhelp.replace_keywords('/'.join(folder_list))
+	if use_leading_slash:
+		folder = '/'+('/'.join(folder_list))
+	else:
+		folder = '/'.join(folder_list)
+
+	folder = dhelp.replace_keywords(folder)
 	filename = dhelp.replace_keywords(filename)
+
 	return [folder, filename]

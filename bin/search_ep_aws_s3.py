@@ -1,53 +1,27 @@
 #!/usr/bin/env python
 
-# Copyright 2020 Deductiv Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Python 2 and 3 compatible
+# Copyright 2022 Deductiv Inc.
 # search_ep_aws_s3.py
 # Export Splunk search results to AWS S3 - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.0 (2021-04-26)
+# Version: 2.0.5 (2022-04-25)
 
-from __future__ import print_function
-from builtins import str
-from future import standard_library
-standard_library.install_aliases()
-#import logging
-import sys, os #, platform
+import sys
+import os
 import random
-#import re
-from deductiv_helpers import setup_logger, replace_keywords, exit_error, replace_object_tokens, recover_parameters, str2bool
- 
-# Add lib folders to import path
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-# pylint: disable=import-error
-from splunk.clilib import cli_common as cli
-#import splunk.entity as entity
-#import splunklib.results as results
-from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
-import event_file
+from deductiv_helpers import setup_logger, replace_keywords, exit_error, replace_object_tokens, recover_parameters, str2bool, log_proxy_settings
 from ep_helpers import get_config_from_alias, get_aws_connection
-#import boto3
-#from botocore.config import Config
+import event_file
+from splunk.clilib import cli_common as cli
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 
 # Define class and type for Splunk command
 @Configuration()
 class epawss3(ReportingCommand):
-	doc='''
+	'''
 	**Syntax:**
 	search | epawss3 target=<target alias> bucket=<bucket> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe]
 
@@ -100,10 +74,8 @@ class epawss3(ReportingCommand):
 		require=False, validate=validators.Boolean())
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
-	
-	def __getitem__(self, key):
-		return getattr(self,key)
-	
+
+	@Configuration()
 	def map(self, events):
 		for e in events:
 			yield(e)
@@ -127,6 +99,7 @@ class epawss3(ReportingCommand):
 		logger.info('AWS S3 Export search command initiated')
 		logger.debug("Configuration: " + str(cmd_config))
 		logger.debug('search_ep_awss3 command: %s', self)  # logs command line
+		log_proxy_settings(logger)
 
 		# Enumerate settings
 		app = self._metadata.searchinfo.app
@@ -144,7 +117,7 @@ class epawss3(ReportingCommand):
 			aws_config = get_config_from_alias(session_key, cmd_config, self.target)
 			if aws_config is None:
 				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
-			logger.debug("Target configuration: " + str(aws_config))
+			#logger.debug("Target configuration: " + str(aws_config)) # This logs the full credential and pass
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
 		
@@ -167,15 +140,18 @@ class epawss3(ReportingCommand):
 			'json': '.json'
 		}
 
-		if self.outputformat is None:
+		# If the parameters are not supplied or blank (alert actions), supply defaults
+		if self.outputformat is None or self.outputformat == "":
 			self.outputformat = 'csv'
-
-		if self.outputfile is None:
+		if self.fields is not None and self.fields == "":
+			self.fields = None # None = All
+		if self.outputfile is None or self.outputfile == "":
 			# Boto is special. We need repr to give it the encoding it expects to match the hashing.
 			self.outputfile = repr('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 		
 		# Replace keywords from output filename
 		self.outputfile = replace_keywords(self.outputfile)
+		self.outputfile = self.outputfile.lstrip('/')
 
 		if self.compress is not None:
 			logger.debug('Compression: %s', self.compress)
@@ -220,7 +196,6 @@ class epawss3(ReportingCommand):
 			with open(local_output_file, "rb") as f:
 				s3.upload_fileobj(f, self.bucket, self.outputfile)
 			s3 = None
-			sts_client = None
 			logger.info("Successfully exported events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, event_counter, self.bucket, self.outputfile, user))
 			os.remove(local_output_file)
 		except s3.exceptions.NoSuchBucket as e:

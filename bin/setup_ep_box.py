@@ -1,42 +1,24 @@
 #!/usr/bin/env python
 
-# Copyright 2021 Deductiv Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# REST endpoint for configuration via setup.xml
+# Copyright 2022 Deductiv Inc.
+# REST endpoint for configuration
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.0 (2021-04-26)
+# Version: 2.0.5 (2022-04-25)
 
-from builtins import str
-from builtins import range
-import logging
-import sys, os, platform
+import sys
+import os
 import re
+from deductiv_helpers import setup_logger
+import splunk.admin as admin
+import splunk.entity as en
+from splunk.clilib import cli_common as cli
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-# pylint: disable=import-error
-import splunk.admin as admin
-import splunk.rest as rest
-import splunk.entity as en
-import splunklib.client as client
-from splunk.clilib import cli_common as cli
-from deductiv_helpers import setup_logger, eprint
-
 # https://github.com/HurricaneLabs/splunksecrets/blob/master/splunksecrets.py
-from splunksecrets import encrypt, encrypt_new
+from splunksecrets import encrypt_new
+import splunklib.client as client
 
 options = ['stanza', 'default', 'alias', 'default_folder', 'enterprise_id', 
 	'client_id', 'client_secret', 'client_credential', 'public_key_id',
@@ -112,13 +94,6 @@ class SetupApp(admin.MConfigHandler):
 						logger.debug("%s stanza: %s, key: %s, value: %s", facility, stanza, k, v)
 						if k.lower() in password_options and v is not None and len(v) > 0 and not '$7$' in v:
 							v = encrypt_new(splunk_secret, v)
-
-						if 'credential' in k:
-							if v in list(credentials.keys()):
-								confInfo[stanza].append(k + '_username', credentials[v]['username'])
-								confInfo[stanza].append(k + '_realm', credentials[v]['realm'])
-								confInfo[stanza].append(k + '_password', credentials[v]['password'])
-
 						confInfo[stanza].append(k, v)
 
 	# Update settings once they are saved by the user
@@ -159,7 +134,7 @@ class SetupApp(admin.MConfigHandler):
 
 		logger.debug("%s Writing new config for %s: %s", facility, config_id, str(new_config))
 		try:
-			# Write the config stanza
+			## Write the configuration via REST API
 			self.writeConf(config_file, config_id, new_config)
 		except BaseException as e:
 			logger.exception("%s Error writing config: %s", facility, e)

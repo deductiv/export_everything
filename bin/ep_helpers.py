@@ -1,37 +1,34 @@
 #!/usr/bin/env python
+
+# Copyright 2022 Deductiv Inc.
+# Author: J.R. Murray <jr.murray@deductiv.net>
+# Version: 2.0.5 (2022-04-25)
 import random
-import sys, os, platform
+import sys
+import os
+import platform
 import re
 import socket
 import stat
 from datetime import datetime
-from deductiv_helpers import setup_logging, setup_logger, str2bool, decrypt_with_secret, exit_error, merge_two_dicts, eprint
+from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret, exit_error, merge_two_dicts
+from splunk.clilib import cli_common as cli
+import splunk.entity as en
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
+import splunklib.client as client
 
 os_platform = platform.system()
 py_major_ver = sys.version_info[0]
 # Import the correct version of platform-specific libraries
 if os_platform == 'Linux':
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
-	elif py_major_ver == 2:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_linux_x86_64')
+	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
 elif os_platform == 'Darwin': # Does not work with Splunk Python build. It requires code signing for libs.
-	path_prepend = ''
+	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
 elif os_platform == 'Windows':
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
-	elif py_major_ver == 2:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py2_win_amd64')
+	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
 sys.path.append(path_prepend)
-
-# pylint: disable=import-error
-# Splunk
-from splunk.clilib import cli_common as cli
-import splunklib.client as client
-import splunk.entity as en
 
 app = 'export_everything'
 
@@ -122,6 +119,7 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
 def get_aws_connection(aws_config):
 	global boto3, Config
 	import boto3
+	from botocore.client import ClientError
 	from botocore.config import Config
 	
 	# Apply proxy settings to AWS config
@@ -147,11 +145,11 @@ def get_aws_connection(aws_config):
 
 	if use_arn:
 		# Use the current/caller identity ARN from the EC2 instance to connect to S3
-		logger.debug("Using ARN to connect")
+		logger.debug("Using ARN from STS to connect")
 		try:
 			account_arn_current = boto3.client('sts').get_caller_identity().get('Arn')
 			# arn:aws:sts::800000000000:assumed-role/SplunkInstance_ReadOnly/...
-			m = re.search(r'arn:aws:sts::(\d+):[^\/]+\/([^\/]+)', account_arn_current)
+			m = re.search(r'^arn:aws:sts::(\d+):[^\/]+\/(.+)\/[^\/]+$', account_arn_current)
 			aws_account = m.group(1)
 			aws_role = m.group(2)
 
@@ -171,6 +169,13 @@ def get_aws_connection(aws_config):
 			)
 		except AttributeError:
 			raise Exception("Could not connect to S3. Failed to assume role: Unable to get caller identity STS token")
+		except ClientError as ce:
+			# Try anyway 
+			try:
+				logger.debug("Could not assume STS role. Attempting to use implicit permissions.")
+				return boto3.client('s3')
+			except BaseException as cee:
+				raise Exception("Could not connect to S3. Failed to assume role: " + repr(e))
 		except BaseException as e:
 			raise Exception("Could not connect to S3. Failed to assume role: " + repr(e))
 

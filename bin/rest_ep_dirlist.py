@@ -1,27 +1,19 @@
-from __future__ import print_function
-from builtins import str
-from future import standard_library
-standard_library.install_aliases()
-import sys, os, platform
-import random
+import sys
+import os
 import re
 import json
-
-# Add lib subfolders to import path
-#sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-# pylint: disable=import-error 
-# pyright: reportMissingImports=false
 from splunk.clilib import cli_common as cli
 import splunk.entity as en
-import splunklib.client as client
-from splunk.persistconn.application import PersistentServerConnectionApplication
-from splunk.appserver.mrsparkle.lib.util import make_splunkhome_path
 import splunk.rest
 
+# Add lib subfolders to import path
+sys.path.append(os.path.dirname(os.path.abspath(__file__))) # Special for REST endpoints
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 from deductiv_helpers import setup_logger
 from ep_helpers import get_config_from_alias, get_aws_s3_directory, get_box_directory, get_sftp_directory, get_smb_directory
+import splunklib.client as client
+
 
 config = cli.getConfStanza('ep_general','settings')
 # Facility info - prepended to log lines

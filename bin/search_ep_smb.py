@@ -1,49 +1,31 @@
 #!/usr/bin/env python
 
-# Copyright 2021 Deductiv Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Python 3 compatible only (Does not work on Mac version of Splunk's Python)
-# search_ep_sftp.py
-# Export Splunk search results to a remote SFTP server - Search Command
+# Copyright 2022 Deductiv Inc.
+# search_ep_smb.py
+# Export Splunk search results to a remote SMB server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.0 (2021-04-27)
+# Version: 2.0.5 (2022-04-25)
 
-from __future__ import print_function
-from builtins import str
-from future import standard_library
-standard_library.install_aliases()
-import sys, os
+import sys
+import os
 import random
 import socket
-from deductiv_helpers import setup_logger, eprint, exit_error, replace_object_tokens, recover_parameters
+from deductiv_helpers import setup_logger, eprint, exit_error, replace_object_tokens, recover_parameters, log_proxy_settings
+from ep_helpers import get_config_from_alias
+import event_file
+from splunk.clilib import cli_common as cli
 
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-# pylint: disable=import-error
-from splunk.clilib import cli_common as cli
-from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
-import event_file
-from ep_helpers import get_config_from_alias
 from smb.SMBConnection import SMBConnection
+from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
 
 # Define class and type for Splunk command
 @Configuration()
 class epsmb(ReportingCommand):
-	doc='''
+	'''
 	**Syntax:**
 	search | epsmb target=<target host alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
 
@@ -90,9 +72,7 @@ class epsmb(ReportingCommand):
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 	
-	def __getitem__(self, key):
-		return getattr(self,key)
-	
+	@Configuration()
 	def map(self, events):
 		for e in events:
 			yield(e)
@@ -116,18 +96,7 @@ class epsmb(ReportingCommand):
 
 		logger.info('SMB Export search command initiated')
 		logger.debug('search_ep_smb command: %s', self)  # logs command line
-
-		# Enumerate proxy settings
-		http_proxy = os.environ.get('HTTP_PROXY')
-		https_proxy = os.environ.get('HTTPS_PROXY')
-		proxy_exceptions = os.environ.get('NO_PROXY')
-
-		if http_proxy is not None:
-			logger.debug("HTTP proxy: %s" % http_proxy)
-		if https_proxy is not None:
-			logger.debug("HTTPS proxy: %s" % https_proxy)
-		if proxy_exceptions is not None:
-			logger.debug("Proxy Exceptions: %s" % proxy_exceptions)
+		log_proxy_settings(logger)
 	
 		# Enumerate settings
 		app = self._metadata.searchinfo.app
@@ -217,8 +186,12 @@ class epsmb(ReportingCommand):
 			'json': '.json'
 		}
 
-		if self.outputformat is None:
+		# If the parameters are not supplied or blank (alert actions), supply defaults
+		if self.outputformat is None or self.outputformat == "":
 			self.outputformat = 'csv'
+		if self.fields is not None and self.fields == "":
+			self.fields = None # None = All
+		
 		# Create the default filename
 		default_filename = ('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
 
@@ -247,9 +220,10 @@ class epsmb(ReportingCommand):
 				filename = filename + '.gz'
 		
 		if conn is not None:
-			# Use the credential to connect to the SFTP server
+			# Use the credential to connect to the SMB server
 			try:
 				# Check to see if the folder exists
+				logger.debug("Checking to see if folder %s exists", folder)
 				folder_attrs = conn.getAttributes(target_config['share_name'], folder, timeout=10)
 			except BaseException:
 				# Remote directory could not be loaded. It must not exist. Create it. 
