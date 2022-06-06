@@ -175,7 +175,7 @@ def parse_outputfile(outputfile, default_filename, target_config):
 
 	folder_list = []
 	# Split the output into folder and filename
-	if outputfile is not None and outputfile != "":
+	if outputfile is not None:
 		outputfile = outputfile.replace('\\', '/')
 		if len(outputfile) > 0 and outputfile[0] == '/':
 			# Length > 1, outputfile points to the root folder (leading /)
@@ -184,6 +184,13 @@ def parse_outputfile(outputfile, default_filename, target_config):
 			# outputfile points to a relative path (no leading /)
 			use_default_folder = True
 		
+		if (use_default_folder == False and outputfile[0] == '/') or \
+			(use_default_folder and 'default_folder' in list(target_config.keys()) and \
+				len(target_config["default_folder"].strip()) > 0):
+			use_leading_slash = True
+		else:
+			use_leading_slash = False
+
 		outputfile = outputfile.lstrip('/')
 		if '/' in outputfile: # Not leading
 			folder_list = outputfile.split('/')
@@ -204,12 +211,17 @@ def parse_outputfile(outputfile, default_filename, target_config):
 		filename = default_filename
 	
 	if use_default_folder:
-		if 'default_folder' in list(target_config.keys()):
+		if 'default_folder' in list(target_config.keys()) and len(target_config["default_folder"].strip()) > 0:
+			print('Using default')
 			# Use the configured default folder
 			default_folder = target_config['default_folder'].replace('\\', '/')
 			folder_list = default_folder.strip('/').split('/') + folder_list
 	
 	# Replace keywords from output filename and folder
-	folder = dhelp.replace_keywords('/'.join(folder_list))
-	filename = dhelp.replace_keywords(filename)
+	#folder = dhelp.replace_keywords('/'.join(folder_list))
+	if use_leading_slash:
+		folder = '/'+('/'.join(folder_list))
+	else:
+		folder = '/'.join(folder_list)
+	#filename = dhelp.replace_keywords(filename)
 	return [folder, filename]
