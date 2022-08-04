@@ -149,7 +149,7 @@ def get_aws_connection(aws_config):
 		try:
 			account_arn_current = boto3.client('sts').get_caller_identity().get('Arn')
 			# arn:aws:sts::800000000000:assumed-role/SplunkInstance_ReadOnly/...
-			m = re.search(r'^arn:aws:sts::(\d+):[^\/]+\/(.+)\/[^\/]+$', account_arn_current)
+			m = re.search(r'^arn:aws[^\/]+:sts::(\d+):[^\/]+\/(.+)\/[^\/]+$', account_arn_current)
 			aws_account = m.group(1)
 			aws_role = m.group(2)
 
