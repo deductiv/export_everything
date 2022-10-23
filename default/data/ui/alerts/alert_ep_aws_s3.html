@@ -22,6 +22,10 @@
         <label class="control-label" style="width: 150px;" for="bucket">Bucket</label>
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_aws_s3.param.bucket" id="bucket"/>
+            <span class="help-block">
+                <strong>Syntax:</strong> bucket=&lt;bucket name&gt;
+                <strong>Description:</strong> The name of the destination S3 bucket
+            </span>
         </div>
     </div>
 
@@ -30,6 +34,12 @@
 
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_aws_s3.param.outputfile" id="outputfile" />
+	    <span class="help-block">
+                <strong>Syntax:</strong>outputfile=&lt;[folder/]file name&gt;
+                <strong>Description:</strong> The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.
+                <strong>Default:</strong> `app_username_epoch.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log
+                <strong>Keywords:</strong> `__now__`=epoch, `__today__`=date in yyyy-mm-dd format, `__nowft__`=timestamp in yyyy-mm-dd_hhmmss format.
+            </span>
         </div>
     </div>
 
@@ -51,6 +61,11 @@
         <label class="control-label" style="width: 150px;" for="fields">Fields List</label>
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_aws_s3.param.fields" id="fields" />
+            <span class="help-block">
+                <strong>Syntax:</strong> fields="field1, field2, field3"
+                <strong>Description:</strong> Limit the fields to be written to the exported file. Wildcards are supported.
+                <strong>Default:</strong> All (*)
+	    </span>
         </div>
     </div>
 
@@ -58,6 +73,10 @@
         <label class="control-label" style="width: 150px;" for="compress">Compression</label>
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="checkbox" name="action.alert_ep_aws_s3.param.compress" id="compress" value="1" />
+	    <span class="help-block">
+                <strong>Syntax:</strong> compress=[true|false]
+                <strong>Description:</strong> Create the file as a .gz compressed archive
+            </span>
         </div>
     </div>
 </form>
