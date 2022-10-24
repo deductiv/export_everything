@@ -23,9 +23,9 @@
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_source" id="source"/>
             <span class="help-block">
-                <strong>Syntax:</strong> source=[source_value|$source_field$]
-                <strong>Description:</strong> Field or string to be assigned to the source field on the pushed event
-		<strong>Default:</strong> $source$, or if not defined, it is omitted
+                <p><strong>Syntax:</strong> <code>source=[source_value|$source_field$]</code></p>
+                <p><strong>Description:</strong> Field or string to be assigned to the source field on the pushed event</p>
+                <p><strong>Default:</strong> <code>$source$</code>, or if not defined, it is omitted</p>
             </span>
         </div>
     </div>
@@ -36,9 +36,9 @@
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_sourcetype" id="sourcetype" />
             <span class="help-block">
-                <strong>Syntax:</strong> sourcetype=[sourcetype_value|$sourcetype_field$]
-                <strong>Description:</strong> Field or string to be assigned to the sourcetype field on the pushed event
-                <strong>Default:</strong> $sourcetype$, or if not defined, json
+                <p><strong>Syntax:</strong> <code>sourcetype=[sourcetype_value|$sourcetype_field$]</code></p>
+                <p><strong>Description:</strong> Field or string to be assigned to the sourcetype field on the pushed event</p>
+                <p><strong>Default:</strong> <code>$sourcetype$</code>, or if not defined, json</p>
             </span>
         </div>
     </div>
@@ -49,10 +49,10 @@
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_index" id="index" />
             <span class="help-block">
-                <strong>Syntax:</strong> index=[index_value|$index_field$]
-                <strong>Description:</strong> The remote index in which to store the pushed event
-                <strong>Default:</strong> $index$, or if not defined, the remote endpoint's default.
-	    </span>
+                <p><strong>Syntax:</strong> <code>index=[index_value|$index_field$]</code></p>
+                <p><strong>Description:</strong> The remote index in which to store the pushed event</p>
+                <p><strong>Default:</strong> <code>$index$</code>, or if not defined, the remote endpoint's default.</p>
+            </span>
         </div>
     </div>
     
@@ -63,10 +63,10 @@
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_host" id="host" />
             <span class="help-block">
-                <strong>Syntax:</strong> host=[host_value|$host_field$]
-                <strong>Description:</strong> Field or string to be assigned to the host field on the pushed event
-                <strong>Default:</strong> $host$, or if not defined, the hostname of the sending host (from inputs.conf)
-	    </span>
+                <p><strong>Syntax:</strong> <code>host=[host_value|$host_field$]</code></p>
+                <p><strong>Description:</strong> Field or string to be assigned to the host field on the pushed event</p>
+                <p><strong>Default:</strong> <code>$host$</code>, or if not defined, the hostname of the sending host (from inputs.conf)</p>
+            </span>
         </div>
     </div>
 </form>
