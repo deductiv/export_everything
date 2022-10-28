@@ -22,6 +22,12 @@
         <label class="control-label" style="width: 150px;" for="outputfile">Output Folder/File</label>
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_smb.param.outputfile" id="outputfile" />
+            <span class="help-block">
+                <p><strong>Syntax:</strong> <code>outputfile=&lt;[folder/]file name&gt;</code></p>
+                <p><strong>Description:</strong> The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p>
+                <p><strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log</p>
+                <p><strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.</p>
+            </span>
         </div>
     </div>
 
@@ -43,6 +49,11 @@
         <label class="control-label" style="width: 150px;" for="fields">Fields List</label>
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_smb.param.fields" id="fields" />
+            <span class="help-block">
+                <p><strong>Syntax:</strong> <code>fields="field1, field2, field3"</code></p>
+                <p><strong>Description:</strong> Limit the fields to be written to the exported file. Wildcards are supported.</p>
+                <p><strong>Default:</strong> All (*)</p>
+            </span>
         </div>
     </div>
 
@@ -50,6 +61,10 @@
         <label class="control-label" style="width: 150px;" for="compress">Compression</label>
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="checkbox" name="action.alert_ep_smb.param.compress" id="compress" />
+            <span class="help-block">
+                <p><strong>Syntax:</strong> <code>compress=[true|false]</code></p>
+                <p><strong>Description:</strong> Create the file as a .gz compressed archive</p>
+            </span>
         </div>
     </div>
 </form>
