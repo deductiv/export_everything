@@ -3,7 +3,7 @@
 # Copyright 2022 Deductiv Inc.
 # REST endpoint for configuration
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.0.6 (2022-12-02)
 
 import sys
 import os

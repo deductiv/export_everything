@@ -5,7 +5,7 @@
 # Export Splunk search results to a remote SFTP server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.0.6 (2022-12-02)
 
 import sys
 import os
@@ -19,7 +19,7 @@ from splunk.clilib import cli_common as cli
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
+from splunklib.searchcommands import EventingCommand, dispatch, Configuration, Option, validators
 
 # Import the correct version of cryptography
 # https://pypi.org/project/cryptography/
@@ -28,19 +28,16 @@ py_major_ver = sys.version_info[0]
 
 # Import the correct version of platform-specific libraries
 if os_platform == 'Linux':
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
-elif os_platform == 'Darwin': # Does not work with Splunk Python3 build. It requires code signing for libs.
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
+	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
+elif os_platform == 'Darwin': # Does not work with Splunk Python build. It requires code signing for libs.
+	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
 elif os_platform == 'Windows':
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
+	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
 sys.path.append(path_prepend)
 
 # Define class and type for Splunk command
 @Configuration()
-class epsftp(ReportingCommand):
+class epsftp(EventingCommand):
 	'''
 	**Syntax:**
 	search | epsftp target=<target host alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
@@ -89,12 +86,7 @@ class epsftp(ReportingCommand):
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 	
 	@Configuration()
-	def map(self, events):
-		for e in events:
-			yield(e)
-
-	#define main function
-	def reduce(self, events):
+	def transform(self, events):
 
 		try:
 			app_config = cli.getConfStanza('ep_general','settings')
@@ -213,20 +205,31 @@ class epsftp(ReportingCommand):
 			except:
 				self.compress = False
 		
-		staging_filename = 'export_everything_staging_' + random_number + '.txt'
-		local_output_file = os.path.join(dispatch, staging_filename)
-		if self.compress:
-			local_output_file = local_output_file + '.gz'
-
+		local_output_file_pattern = os.path.join(dispatch, "export_everything_staging_sftp_*.txt")
+		local_output_files = glob.glob(local_output_file_pattern)
+		if len(local_output_files) > 0:
+			#logger.debug("Local output files: " + str(local_output_files))
+			local_output_file = local_output_files[0]
+			append = True
+		else:
+			# Use the random number to support running multiple outputs in a single search
+			random_number = str(random.randint(10000, 100000))
+			staging_filename = 'export_everything_staging_sftp_' + random_number + '.txt'
+			local_output_file = os.path.join(dispatch, staging_filename)
+			append = False
+		
 		# Append .gz to the output file if compress=true
 		if not self.compress and len(filename) > 3:
+			# We have a .gz extension when compression was not specified. Enable compression.
 			if filename[-3:] == '.gz':
-				# We have a .gz extension when compression was not specified. Enable compression.
 				self.compress = True
 		elif self.compress and len(filename) > 3:
 			if filename[-3:] != '.gz':
 				filename = filename + '.gz'
-		
+
+		if self.compress:
+			local_output_file = local_output_file + '.gz'
+				
 		if sftp is not None:
 			# Use the credential to connect to the SFTP server
 			try:
@@ -245,7 +248,7 @@ class epsftp(ReportingCommand):
 				event_counter = 0
 				# Write the output file to disk in the dispatch folder
 				logger.debug("Writing events to dispatch file. file=\"%s\" format=%s compress=%s fields=%s", local_output_file, self.outputformat, self.compress, self.fields)
-				for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress):
+				for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress, append):
 					yield event
 					event_counter += 1
 			except BaseException as e:

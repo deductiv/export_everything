@@ -2,9 +2,10 @@
 
 # Copyright 2022 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.0.6 (2022-12-02)
 
 from __future__ import print_function
+from array import array
 from builtins import str
 from future import standard_library
 standard_library.install_aliases()
@@ -98,7 +99,7 @@ def setup_logger(level, filename, facility):
 	
 	log_file = os.path.join(os.environ['SPLUNK_HOME'], 'var', 'log', 'splunk', filename)
 	file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=25000000, backupCount=2)
-	formatter = logging.Formatter('%(asctime)s [{0}] %(levelname)s %(message)s'.format(facility))
+	formatter = logging.Formatter('%(asctime)s [{0}:%(process)d] %(levelname)s %(message)s'.format(facility))
 	file_handler.setFormatter(formatter)
 	logger.addHandler(file_handler)
 	
@@ -146,12 +147,14 @@ def escape_quotes_csv(string):
 def replace_keywords(s):
 
 	now = str(int(time.time()))
+	nowms = str(int(time.time()*1000))
 	nowft = datetime.datetime.now().strftime("%F_%H%M%S")
 	today = datetime.datetime.now().strftime("%F")
 	yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime("%F")
 
 	strings_to_replace = {
 		'__now__': now,
+		'__nowms__': nowms,
 		'__nowft__': nowft,
 		'__today__': today,
 		'__yesterday__': yesterday

@@ -5,7 +5,7 @@
 # Export Splunk search results to a remote SMB server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.0.6 (2022-12-02)
 
 import sys
 import os
@@ -20,11 +20,11 @@ from splunk.clilib import cli_common as cli
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 from smb.SMBConnection import SMBConnection
-from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
+from splunklib.searchcommands import EventingCommand, dispatch, Configuration, Option, validators
 
 # Define class and type for Splunk command
 @Configuration()
-class epsmb(ReportingCommand):
+class epsmb(EventingCommand):
 	'''
 	**Syntax:**
 	search | epsmb target=<target host alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
@@ -73,12 +73,7 @@ class epsmb(ReportingCommand):
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 	
 	@Configuration()
-	def map(self, events):
-		for e in events:
-			yield(e)
-
-	#define main function
-	def reduce(self, events):
+	def transform(self, events):
 
 		try:
 			app_config = cli.getConfStanza('ep_general','settings')

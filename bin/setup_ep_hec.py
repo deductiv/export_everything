@@ -3,7 +3,7 @@
 # Copyright 2022 Deductiv Inc.
 # REST endpoint for configuration
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.0.6 (2022-12-02)
 
 import sys
 import os
@@ -20,7 +20,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 from splunksecrets import encrypt_new
 import splunklib.client as client
 
-options = ['stanza', 'default', 'alias', 'host', 'token', 'port', 'ssl']
+options = ['stanza', 'default', 'alias', 'host', 'token', 'port', 'ssl', 'ssl_verify']
 password_options = []
 
 app = 'export_everything'

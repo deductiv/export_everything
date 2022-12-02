@@ -5,7 +5,7 @@
 # Export Splunk events to Splunk HEC over JSON - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.0.6 (2022-12-02)
 
 import sys
 import os
@@ -75,7 +75,6 @@ class ephec(StreamingCommand):
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 
-	#define main function
 	def stream(self, events):
 		try:
 			app_config = cli.getConfStanza('ep_general','settings')
@@ -133,6 +132,7 @@ class ephec(StreamingCommand):
 			hec_host = target_config['host']
 			hec_port = target_config['port']
 			hec_ssl = str2bool(target_config['ssl'])
+			hec_ssl_verify = str2bool(target_config['ssl_verify'])
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
 
@@ -141,8 +141,13 @@ class ephec(StreamingCommand):
 
 		# Create HEC object
 		hec = http_event_collector(hec_token, hec_host, http_event_port=hec_port, http_event_server_ssl=hec_ssl)
+
 		try:
-			protocol = "https" if hec_ssl else "http"
+			if hec_ssl:
+				protocol = "https"
+				hec.SSL_verify = hec_ssl_verify
+			else:
+				protocol = "http"
 			test_url = "%s://%s:%s/services/collector/health" % (protocol, hec_host, hec_port)
 			test_response, test_response_code = request('GET', test_url, '', {})
 			if test_response_code == 200:
@@ -159,8 +164,6 @@ class ephec(StreamingCommand):
 			meta_keys = ['source', 'sourcetype', 'host', 'index']
 			event_count = 0
 			for event in events:
-
-				logger.debug("event")
 				# Get the fields list for the event
 				event_keys = list(event.keys())
 

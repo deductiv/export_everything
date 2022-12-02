@@ -3,7 +3,7 @@
 # Copyright 2022 Deductiv Inc.
 # REST endpoint for configuration
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.0.6 (2022-12-02)
 
 import sys
 import os
@@ -12,8 +12,6 @@ from deductiv_helpers import setup_logger
 import splunk.admin as admin
 import splunk.entity as en
 from splunk.clilib import cli_common as cli
-from splunk.rest import simpleRequest
-#from splunk import ResourceNotFound
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))

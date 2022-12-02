@@ -2,7 +2,8 @@
 
 # Copyright 2022 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.0.6 (2022-12-02)
+
 import random
 import sys
 import os
@@ -45,8 +46,30 @@ facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
 logger = setup_logger(config["log_level"], 'export_everything.log', facility)
 
-def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
-	
+def mask_obj_passwords(obj):
+	if isinstance(obj, dict):
+		r = {}
+		for key, value in list(obj.items()):
+			if isinstance(value, dict):
+				r[key] = mask_obj_passwords(value)
+			elif isinstance(key, str) and ('passphrase' in key or 'password' in key or 'private' in key):
+				r[key] = "********"
+			else:
+				r[key] = value
+		return r
+	else:
+		return obj
+'''
+def mask_obj_passwords(o):
+	no_passwords = {}
+	for k, v in list(o.items()):
+		if 'password' in k or '' in k:
+			no_passwords[k] = '********'
+		else:
+			no_passwords[k] = v
+	return no_passwords
+'''
+def get_config_from_alias(session_key, config_data, stanza_guid_alias=None, log=True):
 	credentials = {}
 	# Get all credentials for this app 
 	try:
@@ -95,8 +118,10 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
 		try:
 			if stanza_guid_alias is not None:
 				if re.match(r'[({]?[a-f0-9]{8}[-]?([a-f0-9]{4}[-]?){3}[a-f0-9]{12}[})]?', stanza_guid_alias, flags=re.IGNORECASE):
-					logger.debug("Using guid " + stanza_guid_alias)
-					return merge_two_dicts(default_target_config, config_data[stanza_guid_alias])
+					if log: logger.debug("Using guid: " + stanza_guid_alias)
+					active_config = merge_two_dicts(default_target_config, config_data[stanza_guid_alias])
+					if log: logger.debug("Active config: " + str(mask_obj_passwords(active_config)))
+					return active_config
 		except BaseException as e:
 			logger.exception("Exception caught: " + repr(e))
 
@@ -110,13 +135,14 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias = None):
 				if 'alias' in list(config_stanza_settings.keys()):
 					if config_stanza_settings['alias'] == stanza_guid_alias or (stanza_guid_alias is None and guid_is_default):
 						# Return the specified target configuration, or default if target not specified
-						logger.debug("Active configuration: %s", guid)
+						if log: logger.debug("Using guid: " + guid)
+						if log: logger.debug("Active config: " + str(mask_obj_passwords(config_stanza_settings)))
 						return config_stanza_settings
 		return None
 	except BaseException as e:
 		raise Exception("Unable to find target configuration: " + repr(e))
 
-def get_aws_connection(aws_config):
+def get_aws_connection(aws_config, log=True):
 	global boto3, Config
 	import boto3
 	from botocore.client import ClientError
@@ -145,7 +171,7 @@ def get_aws_connection(aws_config):
 
 	if use_arn:
 		# Use the current/caller identity ARN from the EC2 instance to connect to S3
-		logger.debug("Using ARN from STS to connect")
+		if log: logger.debug("Using ARN from STS to connect")
 		try:
 			account_arn_current = boto3.client('sts').get_caller_identity().get('Arn')
 			# arn:aws:sts::800000000000:assumed-role/SplunkInstance_ReadOnly/...
@@ -172,7 +198,7 @@ def get_aws_connection(aws_config):
 		except ClientError as ce:
 			# Try anyway 
 			try:
-				logger.debug("Could not assume STS role. Attempting to use implicit permissions.")
+				if log: logger.debug("Could not assume STS role. Attempting to use implicit permissions.")
 				return boto3.client('s3')
 			except BaseException as cee:
 				raise Exception("Could not connect to S3. Failed to assume role: " + repr(e))
@@ -182,7 +208,7 @@ def get_aws_connection(aws_config):
 	elif 'credential_username' in list(aws_config.keys()) and 'credential_password' in list(aws_config.keys()) and aws_config['credential_username'] is not None and aws_config['credential_password'] is not None:
 		# Use the credential to connect to S3
 		try:
-			logger.debug("Connecting using OAuth credential")
+			if log: logger.debug("Connecting using OAuth credential")
 			return boto3.client(
 				's3',
 				aws_access_key_id=aws_config['credential_username'],
@@ -299,7 +325,7 @@ def get_sftp_connection(target_config):
 				#logger.debug("l.strip() = [" + target_config[l].strip() + "]")
 				valid_settings.append(l) 
 	logger.debug("Valid settings: " + str(valid_settings))
-	logger.debug("Target config: " + str(target_config))
+	logger.debug("Target config: " + str(mask_obj_passwords(target_config)))
 	if 'host' in valid_settings and 'port' in valid_settings:
 		# A target has been configured. Check for credentials.
 		# Disable SSH host checking (fix later - set as an option? !!!)
@@ -552,7 +578,7 @@ def get_box_directory(target_config, folder_path):
 		
 		fields = ["id", "name", "owner", "content_modified_at", "item_collection", "owner", "size", "parent", "status"]
 		folder_data = box_folder_object.get_items(fields=fields)
-		logger.debug(folder_data.__dict__)
+		#logger.debug(folder_data.__dict__)
 		file_list = []
 		#if hasattr(folder_data.item_collection, "item_collection"):
 		#	if hasattr(folder_data.item_collection, "entries"):
@@ -589,13 +615,13 @@ def get_box_directory(target_config, folder_path):
 						entry["parentId"] = item.parent.id
 				# Folder -or- active file
 				#if not hasattr(item, "status") or (hasattr(item, "status") and item.status == "active"):
-				logger.debug(entry)
+				#logger.debug(entry)
 				file_list.append(entry)
 
 			except BaseException as e:
 				logger.debug("Exception: " + repr(e))
 
-		logger.debug("done")
+		#logger.debug("done")
 		return file_list
 
 

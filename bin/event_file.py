@@ -4,13 +4,29 @@
 #
 # Copyright 2022 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.0.6 (2022-12-02)
 
+import os
 import json
 import fnmatch
 import gzip
 import copy
 import deductiv_helpers as dhelp
+
+file_extensions = {
+	'raw':  '.log',
+	'kv':   '.log',
+	'pipe': '.log',
+	'csv':  '.csv',
+	'tsv':  '.tsv',
+	'json': '.json'
+}
+
+delimiters = {
+	'csv': ',',
+	'tsv': '\t',
+	'pipe': '|'
+}
 
 def flush_buffer(string_list, output_file):
 	with open(output_file, "ab") as f:
@@ -20,7 +36,17 @@ def flush_buffer_gzip(string_list, output_file):
 	with gzip.open(output_file, "ab") as f:
 		f.writelines(string_list)
 
-def write_events_to_file(events, fields, local_output, outputformat, compression):
+def delete_last_file_character(output_file):
+	with open(output_file, 'rb+') as filehandle:
+		filehandle.seek(-1, os.SEEK_END)
+		filehandle.truncate()
+
+def delete_last_file_character_gzip(output_file):
+	with gzip.open(output_file, 'rb+') as filehandle:
+		filehandle.seek(-1, os.SEEK_END)
+		filehandle.truncate()
+
+def write_events_to_file(events, fields, local_output, outputformat, compression, append=False):
 	logger = dhelp.setup_logging('export_everything')
 
 	# Buffer variables
@@ -30,7 +56,10 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 	first_field = None
 
 	if outputformat == 'json':
-		output_file_buf.append('['.encode('utf-8'))
+		if not append:
+			output_file_buf.append('['.encode('utf-8'))
+		else:
+			output_file_buf.append(','.encode('utf-8'))
 	
 	for event in events:
 		if first_field is None:
@@ -58,23 +87,19 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 
 			# Check event format setting and write a header if needed
 			if outputformat == "csv" or outputformat == "tsv" or outputformat == "pipe":
-				delimiters = {
-					'csv': ',',
-					'tsv': '\t',
-					'pipe': '|'
-				}
 				delimiter = delimiters[outputformat]
-				# Write header
-				header = ''
-				for field in event_keys:
-					# Quote the string if it has a space
-					if ' ' in field and outputformat == "csv":
-						field = '"' + field + '"'
-					# Concatenate the header field names
-					header += field + delimiter
-				# Strip off the last delimiter
-				header = header[:-1] + '\n'
-				output_file_buf.append(header.encode('utf-8'))
+				if not append:
+					# Write header
+					header = ''
+					for field in event_keys:
+						# Quote the string if it has a space
+						if ' ' in field and outputformat == "csv":
+							field = '"' + field + '"'
+						# Concatenate the header field names
+						header += field + delimiter
+					# Strip off the last delimiter
+					header = header[:-1] + '\n'
+					output_file_buf.append(header.encode('utf-8'))
 
 		output_text = ''
 		# Build the row of text
@@ -134,6 +159,11 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 		# Append entry to the lists
 		output_file_buf.append((output_text + '\n').encode('utf-8'))
 		event_counter += 1
+		if append and event_counter == 1 and outputformat == "json":
+			if compression: 
+				delete_last_file_character_gzip(local_output)
+			else:
+				delete_last_file_character(local_output)
 		#event_buf.append(event)
 
 		# Time to flush the buffers

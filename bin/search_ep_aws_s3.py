@@ -5,22 +5,28 @@
 # Export Splunk search results to AWS S3 - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.0.6 (2022-12-02)
 
 import sys
 import os
 import random
-from deductiv_helpers import setup_logger, replace_keywords, exit_error, replace_object_tokens, recover_parameters, str2bool, log_proxy_settings
+from deductiv_helpers import setup_logger, \
+	replace_keywords, \
+	exit_error, \
+	replace_object_tokens, \
+	recover_parameters, \
+	str2bool, \
+	log_proxy_settings
 from ep_helpers import get_config_from_alias, get_aws_connection
 import event_file
 from splunk.clilib import cli_common as cli
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
+from splunklib.searchcommands import EventingCommand, dispatch, Configuration, Option, validators
 
 # Define class and type for Splunk command
 @Configuration()
-class epawss3(ReportingCommand):
+class epawss3(EventingCommand):
 	'''
 	**Syntax:**
 	search | epawss3 target=<target alias> bucket=<bucket> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe]
@@ -76,12 +82,13 @@ class epawss3(ReportingCommand):
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 
 	@Configuration()
-	def map(self, events):
-		for e in events:
-			yield(e)
-
-	#define main function
-	def reduce(self, events):
+	def transform(self, events):
+		if getattr(self, 'first_chunk', True):
+			setattr(self, 'first_chunk', False)
+			first_chunk = True
+		else:
+			first_chunk = False
+		
 		try:
 			app_config = cli.getConfStanza('ep_general','settings')
 			cmd_config = cli.getConfStanzas('ep_aws_s3')
@@ -96,10 +103,10 @@ class epawss3(ReportingCommand):
 		except BaseException as e:
 			raise Exception("Could not create logger: " + repr(e))
 
-		logger.info('AWS S3 Export search command initiated')
-		logger.debug("Configuration: " + str(cmd_config))
-		logger.debug('search_ep_awss3 command: %s', self)  # logs command line
-		log_proxy_settings(logger)
+		if first_chunk:
+			logger.info('AWS S3 Export search command initiated')
+			logger.debug('search_ep_awss3 command: %s', self)  # logs command line
+			log_proxy_settings(logger)
 
 		# Enumerate settings
 		app = self._metadata.searchinfo.app
@@ -114,16 +121,15 @@ class epawss3(ReportingCommand):
 
 		# Build the configuration
 		try:
-			aws_config = get_config_from_alias(session_key, cmd_config, self.target)
-			if aws_config is None:
+			target_config = get_config_from_alias(session_key, cmd_config, stanza_guid_alias=self.target, log=first_chunk)
+			if target_config is None:
 				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
-			#logger.debug("Target configuration: " + str(aws_config)) # This logs the full credential and pass
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
 		
 		if self.bucket is None:
-			if 'default_s3_bucket' in list(aws_config.keys()):
-				t = aws_config['default_s3_bucket']
+			if 'default_s3_bucket' in list(target_config.keys()):
+				t = target_config['default_s3_bucket']
 				if t is not None and len(t) > 0:
 					self.bucket = t
 				else:
@@ -131,77 +137,80 @@ class epawss3(ReportingCommand):
 			else:
 				exit_error(logger, "No bucket specified", 5)
 		
-		file_extensions = {
-			'raw':  '.log',
-			'kv':   '.log',
-			'pipe': '.log',
-			'csv':  '.csv',
-			'tsv':  '.tsv',
-			'json': '.json'
-		}
-
 		# If the parameters are not supplied or blank (alert actions), supply defaults
-		if self.outputformat is None or self.outputformat == "":
-			self.outputformat = 'csv'
-		if self.fields is not None and self.fields == "":
-			self.fields = None # None = All
-		if self.outputfile is None or self.outputfile == "":
-			# Boto is special. We need repr to give it the encoding it expects to match the hashing.
-			self.outputfile = repr('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
-		
-		# Replace keywords from output filename
-		self.outputfile = replace_keywords(self.outputfile)
-		self.outputfile = self.outputfile.lstrip('/')
+		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
+		self.fields = None if (self.fields is not None and self.fields == "") else self.fields
 
-		if self.compress is not None:
-			logger.debug('Compression: %s', self.compress)
-		else:
+		# Read the compress value from the target config unless one was specified in the search
+		if self.compress is None:
 			try:
-				self.compress = str2bool(aws_config['compress'])
+				self.compress = str2bool(target_config['compress'])
 			except:
 				self.compress = False
-		
-		# Use the random number to support running multiple outputs in a single search
-		random_number = str(random.randint(10000, 100000))
-		staging_filename = 'export_everything_staging_' + random_number + '.txt'
-		local_output_file = os.path.join(dispatch, staging_filename)
 
-		# Append .gz to the output file if compress=true
-		if not self.compress and len(self.outputfile) > 3:
-			# We have a .gz extension when compression was not specified. Enable compression.
-			if self.outputfile[-3:] == '.gz':
+		# First run and no remote output file string has been assigned
+		if not hasattr(self, 'remote_output_file'):
+			if self.outputfile is None or self.outputfile == "":
+				# Boto is special. We need repr to give it the encoding it expects to match the hashing.
+				self.outputfile = repr('export_' + user + '___now__' + event_file.file_extensions[self.outputformat]).strip("'")
+			
+			# Replace keywords from output filename
+			self.outputfile = replace_keywords(self.outputfile)
+			self.outputfile = self.outputfile.lstrip('/')
+
+			# Append .gz to the output file if compress=true
+			if not self.compress and self.outputfile.endswith('.gz'):
+				# We have a .gz extension when compression was not specified. Enable compression.
 				self.compress = True
-		elif self.compress and len(self.outputfile) > 3:
-			if self.outputfile[-3:] != '.gz':
+			elif self.compress and not self.outputfile.endswith('.gz'):
+				# We have compression with no gz extension. Add .gz.
 				self.outputfile = self.outputfile + '.gz'
-
-		if self.compress:
-			local_output_file = local_output_file + '.gz'
+			
+			logger.debug('Compression: %s', self.compress)
+			setattr(self, 'remote_output_file', self.outputfile)
 		
-		logger.debug("Staging file: %s" % local_output_file)
+			# First run and no local output file string has been assigned
+			# Use the random number to support running multiple outputs in a single search
+			random_number = str(random.randint(10000, 100000))
+			staging_filename = 'export_everything_staging_aws_s3_' + random_number + '.txt'
+			setattr(self, 'local_output_file', os.path.join(dispatch, staging_filename))
+			append = False
+
+			if self.compress:
+				self.local_output_file = self.local_output_file + '.gz'
+			
+			logger.debug("Staging file: %s" % self.local_output_file)
+			append = False
+		else:
+			# Persistent variable is populated from a prior chunk/iteration.
+			# Use the previous local output file and append to it.
+			append = True
+		
 		try:
-			s3 = get_aws_connection(aws_config)
+			s3 = get_aws_connection(target_config, log=first_chunk)
 		except BaseException as e:
 			exit_error(logger, "Could not connect to AWS: " + repr(e), 741423)
 		
 		event_counter = 0
 		# Write the output file to disk in the dispatch folder
-		logger.debug("Writing events to file %s in %s format. Compress=%s\n\tfields=%s", local_output_file, self.outputformat, self.compress, self.fields)
-		for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress):
+		logger.debug("Writing events to file %s in %s format. Compress=%s fields=%s", self.local_output_file, self.outputformat, self.compress, self.fields)
+		for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append):
 			yield event
 			event_counter += 1
-
-		# Upload file to s3
-		try:
-			with open(local_output_file, "rb") as f:
-				s3.upload_fileobj(f, self.bucket, self.outputfile)
-			s3 = None
-			logger.info("Successfully exported events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, event_counter, self.bucket, self.outputfile, user))
-			os.remove(local_output_file)
-		except s3.exceptions.NoSuchBucket as e:
-			exit_error(logger, "Error: No such bucket", 123833)
-		except BaseException as e:
-			exit_error(logger, "Could not upload file to S3: " + repr(e), 9)
+		
+		# Write the data to S3 after the very last chunk has been processed
+		if self._finished:
+			# Upload file to s3
+			try:
+				with open(self.local_output_file, "rb") as f:
+					s3.upload_fileobj(f, self.bucket, self.remote_output_file)
+				s3 = None
+				logger.info("Successfully exported events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, event_counter, self.bucket, self.remote_output_file, user))
+				os.remove(self.local_output_file)
+			except s3.exceptions.NoSuchBucket as e:
+				exit_error(logger, "Error: No such bucket", 123833)
+			except BaseException as e:
+				exit_error(logger, "Could not upload file to S3: " + repr(e), 9)
 
 dispatch(epawss3, sys.argv, sys.stdin, sys.stdout, __name__)
 
