@@ -2,7 +2,7 @@
 
 # Copyright 2022 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.6 (2022-12-02)
+# Version: 2.1.0 (2022-12-02)
 
 import random
 import sys
@@ -52,7 +52,7 @@ def mask_obj_passwords(obj):
 		for key, value in list(obj.items()):
 			if isinstance(value, dict):
 				r[key] = mask_obj_passwords(value)
-			elif isinstance(key, str) and ('passphrase' in key or 'password' in key or 'private' in key):
+			elif isinstance(key, str) and ('passphrase' in key or 'password' in key or 'private' in key and not 'passphrase_credential' in key):
 				r[key] = "********"
 			else:
 				r[key] = value
@@ -171,7 +171,7 @@ def get_aws_connection(aws_config, log=True):
 
 	if use_arn:
 		# Use the current/caller identity ARN from the EC2 instance to connect to S3
-		if log: logger.debug("Using ARN from STS to connect")
+		logger.debug("Using ARN from STS to connect")
 		try:
 			account_arn_current = boto3.client('sts').get_caller_identity().get('Arn')
 			# arn:aws:sts::800000000000:assumed-role/SplunkInstance_ReadOnly/...
@@ -198,7 +198,7 @@ def get_aws_connection(aws_config, log=True):
 		except ClientError as ce:
 			# Try anyway 
 			try:
-				if log: logger.debug("Could not assume STS role. Attempting to use implicit permissions.")
+				logger.debug("Could not assume STS role. Attempting to use implicit permissions.")
 				return boto3.client('s3')
 			except BaseException as cee:
 				raise Exception("Could not connect to S3. Failed to assume role: " + repr(e))
@@ -208,7 +208,7 @@ def get_aws_connection(aws_config, log=True):
 	elif 'credential_username' in list(aws_config.keys()) and 'credential_password' in list(aws_config.keys()) and aws_config['credential_username'] is not None and aws_config['credential_password'] is not None:
 		# Use the credential to connect to S3
 		try:
-			if log: logger.debug("Connecting using OAuth credential")
+			logger.debug("Connecting using OAuth credential")
 			return boto3.client(
 				's3',
 				aws_access_key_id=aws_config['credential_username'],
@@ -324,8 +324,8 @@ def get_sftp_connection(target_config):
 			if len(target_config[l]) > 0:
 				#logger.debug("l.strip() = [" + target_config[l].strip() + "]")
 				valid_settings.append(l) 
-	logger.debug("Valid settings: " + str(valid_settings))
-	logger.debug("Target config: " + str(mask_obj_passwords(target_config)))
+	#logger.debug("Valid settings: " + str(valid_settings))
+	#logger.debug("Target config: " + str(mask_obj_passwords(target_config)))
 	if 'host' in valid_settings and 'port' in valid_settings:
 		# A target has been configured. Check for credentials.
 		# Disable SSH host checking (fix later - set as an option? !!!)

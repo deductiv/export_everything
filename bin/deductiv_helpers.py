@@ -2,7 +2,7 @@
 
 # Copyright 2022 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.6 (2022-12-02)
+# Version: 2.1.0 (2022-12-02)
 
 from __future__ import print_function
 from array import array
@@ -15,6 +15,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 import http.client as httplib
+import ssl
 import re
 import logging
 import configparser
@@ -23,6 +24,7 @@ import datetime
 import socket
 import json
 import random
+import splunk
 import splunk.entity as en
 from splunk.rest import simpleRequest
 
@@ -54,7 +56,7 @@ def get_credentials(app, session_key):
 		raise Exception("No credentials have been found")
 
 # HTTP request wrapper
-def request(method, url, data, headers, conn=None):
+def request(method, url, data, headers, conn=None, verify=True):
 	"""Helper function to fetch data from the given URL"""
 	# See if this is utf-8 encoded already
 	try:
@@ -68,9 +70,12 @@ def request(method, url, data, headers, conn=None):
 	if conn is None:
 		close_conn = True
 		if url_tuple.scheme == 'https':
-			conn = httplib.HTTPSConnection(url_tuple.netloc)
+			if verify:
+				conn = httplib.HTTPSConnection(url_tuple.netloc)
+			else:
+				conn = httplib.HTTPSConnection(url_tuple.netloc, context = ssl._create_unverified_context())
 		elif url_tuple.scheme == 'http':
-			conn = httplib.HTTPConnection(url_tuple.netloc)
+			conn = httplib.HTTPConnection(url_tuple.netloc, context = ssl._create_unverified_context())
 	else:
 		close_conn = False
 	try:
@@ -101,7 +106,10 @@ def setup_logger(level, filename, facility):
 	file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=25000000, backupCount=2)
 	formatter = logging.Formatter('%(asctime)s [{0}:%(process)d] %(levelname)s %(message)s'.format(facility))
 	file_handler.setFormatter(formatter)
+	stderr_handler = logging.StreamHandler(sys.stderr)
+	stderr_handler.setLevel(logging.ERROR)
 	logger.addHandler(file_handler)
+	logger.addHandler(stderr_handler)
 	
 	return logger
 
@@ -218,9 +226,13 @@ def get_tokens(searchinfo):
 			namespace=searchinfo.app, 
 			owner=searchinfo.owner
 		)
-		job_response = simpleRequest(job_uri, method='GET', getargs={'output_mode':'json'}, sessionKey=searchinfo.session_key)[1]
-		search_job = json.loads(job_response)
-		job_content = search_job['entry'][0]['content']
+		try:
+			job_response = simpleRequest(job_uri, method='GET', getargs={'output_mode':'json'}, sessionKey=searchinfo.session_key)[1]
+			search_job = json.loads(job_response)
+			job_content = search_job['entry'][0]['content']
+		except splunk.ResourceNotFound:
+			# This probably ran on the indexer and failed
+			job_content = {}
 	else:
 		job_content = {}
 

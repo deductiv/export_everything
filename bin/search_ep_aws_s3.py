@@ -5,7 +5,7 @@
 # Export Splunk search results to AWS S3 - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.6 (2022-12-02)
+# Version: 2.1.0 (2022-12-02)
 
 import sys
 import os
@@ -166,48 +166,51 @@ class epawss3(EventingCommand):
 				# We have compression with no gz extension. Add .gz.
 				self.outputfile = self.outputfile + '.gz'
 			
-			logger.debug('Compression: %s', self.compress)
 			setattr(self, 'remote_output_file', self.outputfile)
 		
 			# First run and no local output file string has been assigned
 			# Use the random number to support running multiple outputs in a single search
 			random_number = str(random.randint(10000, 100000))
-			staging_filename = 'export_everything_staging_aws_s3_' + random_number + '.txt'
+			staging_filename = f"export_everything_staging_aws_s3_{random_number}.txt"
 			setattr(self, 'local_output_file', os.path.join(dispatch, staging_filename))
-			append = False
-
 			if self.compress:
 				self.local_output_file = self.local_output_file + '.gz'
+
+			logger.debug(f"remote_file=\"{self.outputfile}\", " + \
+				f"compression={self.compress}, " + \
+				f"staging_file=\"{self.local_output_file}\"")
 			
-			logger.debug("Staging file: %s" % self.local_output_file)
+			setattr(self, 'event_counter', 0)
 			append = False
+
+			try:
+				setattr(self, 's3', get_aws_connection(target_config))
+			except BaseException as e:
+				exit_error(logger, "Could not connect to AWS: " + repr(e), 741423)
+				
 		else:
 			# Persistent variable is populated from a prior chunk/iteration.
 			# Use the previous local output file and append to it.
 			append = True
 		
-		try:
-			s3 = get_aws_connection(target_config, log=first_chunk)
-		except BaseException as e:
-			exit_error(logger, "Could not connect to AWS: " + repr(e), 741423)
-		
-		event_counter = 0
 		# Write the output file to disk in the dispatch folder
-		logger.debug("Writing events to file %s in %s format. Compress=%s fields=%s", self.local_output_file, self.outputformat, self.compress, self.fields)
-		for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append):
+		logger.debug("Writing events. file=\"%s\", format=%s, compress=%s, fields=\"%s\"", \
+			self.local_output_file, self.outputformat, self.compress, \
+			self.fields if self.fields is not None else "")
+		for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append=append, finish=self._finished):
 			yield event
-			event_counter += 1
+			self.event_counter += 1
 		
 		# Write the data to S3 after the very last chunk has been processed
-		if self._finished:
+		if self._finished or self._finished is None:
 			# Upload file to s3
 			try:
 				with open(self.local_output_file, "rb") as f:
-					s3.upload_fileobj(f, self.bucket, self.remote_output_file)
-				s3 = None
-				logger.info("Successfully exported events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, event_counter, self.bucket, self.remote_output_file, user))
+					self.s3.upload_fileobj(f, self.bucket, self.remote_output_file)
+				self.s3 = None
+				logger.info("Successfully exported events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, self.event_counter, self.bucket, self.remote_output_file, user))
 				os.remove(self.local_output_file)
-			except s3.exceptions.NoSuchBucket as e:
+			except self.s3.exceptions.NoSuchBucket as e:
 				exit_error(logger, "Error: No such bucket", 123833)
 			except BaseException as e:
 				exit_error(logger, "Could not upload file to S3: " + repr(e), 9)

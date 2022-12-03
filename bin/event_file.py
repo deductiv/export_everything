@@ -4,7 +4,7 @@
 #
 # Copyright 2022 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.6 (2022-12-02)
+# Version: 2.1.0 (2022-12-02)
 
 import os
 import json
@@ -46,7 +46,7 @@ def delete_last_file_character_gzip(output_file):
 		filehandle.seek(-1, os.SEEK_END)
 		filehandle.truncate()
 
-def write_events_to_file(events, fields, local_output, outputformat, compression, append=False):
+def write_events_to_file(events, fields, local_output, outputformat, compression, append=False, finish=True):
 	logger = dhelp.setup_logging('export_everything')
 
 	# Buffer variables
@@ -176,14 +176,16 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			
 		yield(event)
 	
+	# Make changes to the event for append=True or finish=True/None
 	if outputformat == 'json':
 		if isinstance(output_file_buf[-1], str):
-			dhelp.eprint(output_file_buf[-1])
+			#dhelp.eprint(output_file_buf[-1])
 			output_file_buf[-1] = output_file_buf[-1].replace(',\n', '\n').encode('utf-8')
 		elif isinstance(output_file_buf[-1], bytes):
-			dhelp.eprint(output_file_buf[-1])
+			#dhelp.eprint(output_file_buf[-1])
 			output_file_buf[-1] = output_file_buf[-1].decode('utf-8').replace(',\n', '\n').encode('utf-8')
-		output_file_buf.append(']'.encode('utf-8'))
+		if finish or finish is None:
+			output_file_buf.append(']'.encode('utf-8'))
 
 	if compression:
 		flush_buffer_gzip(output_file_buf, local_output)
