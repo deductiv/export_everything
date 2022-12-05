@@ -6,7 +6,6 @@
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.1.0 (2022-12-02)
 
-import os
 import json
 import fnmatch
 import gzip
