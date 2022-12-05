@@ -28,6 +28,13 @@ delimiters = {
 	'pipe': '|'
 }
 
+def annotate_last_item(gen):
+	prev_val = next(gen)
+	for val in gen:
+		yield False, prev_val
+		prev_val = val
+	yield True, prev_val
+
 def flush_buffer(string_list, output_file):
 	with open(output_file, "ab") as f:
 		f.writelines(string_list)
@@ -35,16 +42,6 @@ def flush_buffer(string_list, output_file):
 def flush_buffer_gzip(string_list, output_file):
 	with gzip.open(output_file, "ab") as f:
 		f.writelines(string_list)
-
-def delete_last_file_character(output_file):
-	with open(output_file, 'rb+') as filehandle:
-		filehandle.seek(-1, os.SEEK_END)
-		filehandle.truncate()
-
-def delete_last_file_character_gzip(output_file):
-	with gzip.open(output_file, 'rb+') as filehandle:
-		filehandle.seek(-1, os.SEEK_END)
-		filehandle.truncate()
 
 def write_events_to_file(events, fields, local_output, outputformat, compression, append=False, finish=True):
 	logger = dhelp.setup_logging('export_everything')
@@ -59,9 +56,9 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 		if not append:
 			output_file_buf.append('['.encode('utf-8'))
 		else:
-			output_file_buf.append(','.encode('utf-8'))
+			output_file_buf.append(',\n'.encode('utf-8'))
 	
-	for event in events:
+	for last_event, event in annotate_last_item(events):
 		if first_field is None:
 			first_field = list(event.keys())[0]
 			#dhelp.eprint('First field = ' + first_field)
@@ -152,19 +149,18 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			else:
 				json_event = copy.deepcopy(event)
 			try:
-				output_text = json.dumps(json_event) + ','
+				output_text = json.dumps(json_event)
+				if not last_event:
+					output_text +=  ','
 			except BaseException as e:
 				logger.debug("Exception writing event to output: %s\n\t%s", str(e), json_event)
 
 		# Append entry to the lists
-		output_file_buf.append((output_text + '\n').encode('utf-8'))
+		output_file_buf.append(output_text.encode('utf-8'))
+		if not last_event:
+			output_file_buf.append('\n'.encode('utf-8'))
+		
 		event_counter += 1
-		if append and event_counter == 1 and outputformat == "json":
-			if compression: 
-				delete_last_file_character_gzip(local_output)
-			else:
-				delete_last_file_character(local_output)
-		#event_buf.append(event)
 
 		# Time to flush the buffers
 		if len(output_file_buf) == buffer_flush_count:
