@@ -1,3 +1,7 @@
+# Export Everything App for Splunk
+# Handle directory listing requests for configured targets
+# Version: 2.1.0 (2022-12-02)
+
 import sys
 import os
 import re

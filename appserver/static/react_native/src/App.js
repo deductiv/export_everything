@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.0 (2021-04-26)
+# Version: 2.0.7 (2022-07-28)
 */
  
 const app = 'export_everything';
@@ -288,7 +288,9 @@ class App extends React.Component {
 				validate: rowData => (validators.number(rowData.port).isValid || rowData.port == null || rowData.port == "") },
 			{ title: "HEC Token", field: "token", width: "20%", 
 				validate: rowData => validators.uuid(rowData.token).isValid },
-			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles }
+			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles },
+			{ title: "Validate SSL", field: "ssl_validate", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles }
+
 		],
 		[`${app_abbr}_aws_s3`]: [
 			{ title: "Stanza", field: "stanza", hidden: true },

@@ -4,13 +4,35 @@
 #
 # Copyright 2022 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.1.0 (2022-12-02)
 
 import json
 import fnmatch
 import gzip
 import copy
 import deductiv_helpers as dhelp
+
+file_extensions = {
+	'raw':  '.log',
+	'kv':   '.log',
+	'pipe': '.log',
+	'csv':  '.csv',
+	'tsv':  '.tsv',
+	'json': '.json'
+}
+
+delimiters = {
+	'csv': ',',
+	'tsv': '\t',
+	'pipe': '|'
+}
+
+def annotate_last_item(gen):
+	prev_val = next(gen)
+	for val in gen:
+		yield False, prev_val
+		prev_val = val
+	yield True, prev_val
 
 def flush_buffer(string_list, output_file):
 	with open(output_file, "ab") as f:
@@ -20,7 +42,7 @@ def flush_buffer_gzip(string_list, output_file):
 	with gzip.open(output_file, "ab") as f:
 		f.writelines(string_list)
 
-def write_events_to_file(events, fields, local_output, outputformat, compression):
+def write_events_to_file(events, fields, local_output, outputformat, compression, append=False, finish=True):
 	logger = dhelp.setup_logging('export_everything')
 
 	# Buffer variables
@@ -30,9 +52,12 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 	first_field = None
 
 	if outputformat == 'json':
-		output_file_buf.append('['.encode('utf-8'))
+		if not append:
+			output_file_buf.append('['.encode('utf-8'))
+		else:
+			output_file_buf.append(',\n'.encode('utf-8'))
 	
-	for event in events:
+	for last_event, event in annotate_last_item(events):
 		if first_field is None:
 			first_field = list(event.keys())[0]
 			#dhelp.eprint('First field = ' + first_field)
@@ -58,23 +83,19 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 
 			# Check event format setting and write a header if needed
 			if outputformat == "csv" or outputformat == "tsv" or outputformat == "pipe":
-				delimiters = {
-					'csv': ',',
-					'tsv': '\t',
-					'pipe': '|'
-				}
 				delimiter = delimiters[outputformat]
-				# Write header
-				header = ''
-				for field in event_keys:
-					# Quote the string if it has a space
-					if ' ' in field and outputformat == "csv":
-						field = '"' + field + '"'
-					# Concatenate the header field names
-					header += field + delimiter
-				# Strip off the last delimiter
-				header = header[:-1] + '\n'
-				output_file_buf.append(header.encode('utf-8'))
+				if not append:
+					# Write header
+					header = ''
+					for field in event_keys:
+						# Quote the string if it has a space
+						if ' ' in field and outputformat == "csv":
+							field = '"' + field + '"'
+						# Concatenate the header field names
+						header += field + delimiter
+					# Strip off the last delimiter
+					header = header[:-1] + '\n'
+					output_file_buf.append(header.encode('utf-8'))
 
 		output_text = ''
 		# Build the row of text
@@ -127,14 +148,18 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			else:
 				json_event = copy.deepcopy(event)
 			try:
-				output_text = json.dumps(json_event) + ','
+				output_text = json.dumps(json_event)
+				if not last_event:
+					output_text +=  ','
 			except BaseException as e:
 				logger.debug("Exception writing event to output: %s\n\t%s", str(e), json_event)
 
 		# Append entry to the lists
-		output_file_buf.append((output_text + '\n').encode('utf-8'))
+		output_file_buf.append(output_text.encode('utf-8'))
+		if not last_event:
+			output_file_buf.append('\n'.encode('utf-8'))
+		
 		event_counter += 1
-		#event_buf.append(event)
 
 		# Time to flush the buffers
 		if len(output_file_buf) == buffer_flush_count:
@@ -146,14 +171,16 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			
 		yield(event)
 	
+	# Make changes to the event for append=True or finish=True/None
 	if outputformat == 'json':
 		if isinstance(output_file_buf[-1], str):
-			dhelp.eprint(output_file_buf[-1])
+			#dhelp.eprint(output_file_buf[-1])
 			output_file_buf[-1] = output_file_buf[-1].replace(',\n', '\n').encode('utf-8')
 		elif isinstance(output_file_buf[-1], bytes):
-			dhelp.eprint(output_file_buf[-1])
+			#dhelp.eprint(output_file_buf[-1])
 			output_file_buf[-1] = output_file_buf[-1].decode('utf-8').replace(',\n', '\n').encode('utf-8')
-		output_file_buf.append(']'.encode('utf-8'))
+		if finish or finish is None:
+			output_file_buf.append(']'.encode('utf-8'))
 
 	if compression:
 		flush_buffer_gzip(output_file_buf, local_output)

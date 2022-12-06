@@ -5,13 +5,18 @@
 # Export Splunk search results to a remote SFTP server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.0.5 (2022-04-25)
+# Version: 2.1.0 (2022-12-02)
 
 import sys
 import os
 import platform
 import random
-from deductiv_helpers import setup_logger, eprint, exit_error, replace_object_tokens, recover_parameters, log_proxy_settings
+from deductiv_helpers import setup_logger, \
+	exit_error, \
+	replace_object_tokens, \
+	recover_parameters, \
+	log_proxy_settings, \
+	str2bool
 from ep_helpers import get_sftp_connection, get_config_from_alias
 import event_file
 from splunk.clilib import cli_common as cli
@@ -19,7 +24,7 @@ from splunk.clilib import cli_common as cli
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-from splunklib.searchcommands import ReportingCommand, dispatch, Configuration, Option, validators
+from splunklib.searchcommands import EventingCommand, dispatch, Configuration, Option, validators
 
 # Import the correct version of cryptography
 # https://pypi.org/project/cryptography/
@@ -28,19 +33,16 @@ py_major_ver = sys.version_info[0]
 
 # Import the correct version of platform-specific libraries
 if os_platform == 'Linux':
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
-elif os_platform == 'Darwin': # Does not work with Splunk Python3 build. It requires code signing for libs.
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
+	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
+elif os_platform == 'Darwin': # Does not work with Splunk Python build. It requires code signing for libs.
+	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
 elif os_platform == 'Windows':
-	if py_major_ver == 3:
-		path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
+	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
 sys.path.append(path_prepend)
 
 # Define class and type for Splunk command
 @Configuration()
-class epsftp(ReportingCommand):
+class epsftp(EventingCommand):
 	'''
 	**Syntax:**
 	search | epsftp target=<target host alias> outputfile=<output path/filename> outputformat=[json|raw|kv|csv|tsv|pipe] fields="field1, field2, field3" compress=[true|false]
@@ -89,12 +91,12 @@ class epsftp(ReportingCommand):
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 	
 	@Configuration()
-	def map(self, events):
-		for e in events:
-			yield(e)
-
-	#define main function
-	def reduce(self, events):
+	def transform(self, events):
+		if getattr(self, 'first_chunk', True):
+			setattr(self, 'first_chunk', False)
+			first_chunk = True
+		else:
+			first_chunk = False
 
 		try:
 			app_config = cli.getConfStanza('ep_general','settings')
@@ -110,9 +112,10 @@ class epsftp(ReportingCommand):
 		except BaseException as e:
 			raise Exception("Could not create logger: " + repr(e))
 
-		logger.info('SFTP Export search command initiated')
-		logger.debug('search_ep_sftp command: %s', self)  # logs command line
-		log_proxy_settings(logger)
+		if first_chunk:
+			logger.info('SFTP Export search command initiated')
+			logger.debug('search_ep_sftp command: %s', self)  # logs command line
+			log_proxy_settings(logger)
 	
 		# Enumerate settings
 		app = self._metadata.searchinfo.app
@@ -126,157 +129,103 @@ class epsftp(ReportingCommand):
 		# Replace all tokenized parameter strings
 		replace_object_tokens(self)
 
-		# Use the random number to support running multiple outputs in a single search
-		random_number = str(random.randint(10000, 100000))
-
 		try:
-			target_config = get_config_from_alias(session_key, cmd_config, self.target)
+			target_config = get_config_from_alias(session_key, cmd_config, self.target, log=first_chunk)
 			if target_config is None:
 				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
-			#logger.debug("Target configuration: " + str(target_config)) # This logs the full credential and pass
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
 
-		try:
-			sftp = get_sftp_connection(target_config)
-		except BaseException as e:
-			exit_error(logger, repr(e), 912934)
-		
-		'''
-		# Check to see if we have credentials
-		valid_settings = []
-		for l in list(target_config.keys()):
-			if target_config[l][0] == '$':
-				target_config[l] = decrypt_with_secret(target_config[l]).strip()
-			if len(target_config[l]) > 0:
-				#logger.debug("l.strip() = [" + target_config[l].strip() + "]")
-				valid_settings.append(l) 
-		if 'host' in valid_settings and 'port' in valid_settings:
-			# A target has been configured. Check for credentials.
-			# Disable SSH host checking (fix later - set as an option? !!!)
-			cnopts = pysftp.CnOpts()
-			cnopts.hostkeys = None
-			try:
-				if 'username' in valid_settings and 'password' in valid_settings:
-					try:
-						sftp = pysftp.Connection(host=target_config['host'], username=target_config['username'], password=target_config['password'], cnopts=cnopts)
-					except BaseException as e:
-						exit_error(logger, "Unable to setup SFTP connection with password: " + repr(e), 921982)
-				elif 'username' in valid_settings and 'private_key' in valid_settings:
-					# Write the decrypted private key to a temporary file
-					key_file = os.path.join(dispatch, 'epsftp_private_key_' + random_number)
-					private_key = target_config['private_key'].replace('\\n', '\n')
-					with open(key_file, "w") as f:
-						f.write(private_key)
-						f.close()
-					try:
-						if 'passphrase' in valid_settings:
-							sftp = pysftp.Connection(host=target_config['host'], private_key=key_file, private_key_pass=target_config['passphrase'], cnopts=cnopts)
-						else:
-							sftp = pysftp.Connection(host=target_config['host'], username=target_config['username'], private_key=key_file, cnopts=cnopts)
-					except BaseException as e:
-						exit_error(logger, "Unable to setup SFTP connection with private key: " + repr(e), 921982)
-				else:
-					exit_error(logger, "Required settings not found", 101926)
-			except BaseException as e: 
-				exit_error(logger, "Could not find or decrypt the specified credential: " + repr(e), 230494)
-		else:
-			exit_error(logger, "Could not find required configuration settings", 2823874)
-		'''
-
-		file_extensions = {
-			'raw':  '.log',
-			'kv':   '.log',
-			'pipe': '.log',
-			'csv':  '.csv',
-			'tsv':  '.tsv',
-			'json': '.json'
-		}
-
 		# If the parameters are not supplied or blank (alert actions), supply defaults
-		if self.outputformat is None or self.outputformat == "":
-			self.outputformat = 'csv'
-		if self.fields is not None and self.fields == "":
-			self.fields = None # None = All
-		
-		# Create the default filename
-		#now = str(int(time.time()))
-		default_filename = ('export_' + user + '___now__' + file_extensions[self.outputformat]).strip("'")
+		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
+		self.fields = None if (self.fields is not None and self.fields == "") else self.fields
 
-		folder, filename = event_file.parse_outputfile(self.outputfile, default_filename, target_config)
-
-		if self.compress is not None:
-			logger.debug('Compression: %s', self.compress)
-		else:
+		# Read the compress value from the target config unless one was specified in the search
+		if self.compress is None:
 			try:
-				self.compress = target_config.get('compress')
+				self.compress = str2bool(target_config['compress'])
 			except:
 				self.compress = False
 		
-		staging_filename = 'export_everything_staging_' + random_number + '.txt'
-		local_output_file = os.path.join(dispatch, staging_filename)
-		if self.compress:
-			local_output_file = local_output_file + '.gz'
+		# First run and no remote output file string has been assigned
+		if not hasattr(self, 'remote_output_file'):
+			# Use the default filename if one was not specified. Parse either one into folder/file vars.
+			default_filename = ('export_' + user + '___now__' + event_file.file_extensions[self.outputformat]).strip("'")
+			folder, filename = event_file.parse_outputfile(self.outputfile, default_filename, target_config)
+			setattr(self, 'remote_output_file', filename)
 
-		# Append .gz to the output file if compress=true
-		if not self.compress and len(filename) > 3:
-			if filename[-3:] == '.gz':
+			# Append .gz to the output file if compress=true
+			if not self.compress and self.outputfile.endswith('.gz'):
 				# We have a .gz extension when compression was not specified. Enable compression.
 				self.compress = True
-		elif self.compress and len(filename) > 3:
-			if filename[-3:] != '.gz':
-				filename = filename + '.gz'
-		
-		if sftp is not None:
-			# Use the credential to connect to the SFTP server
-			try:
-				sftp.makedirs(folder)
-				sftp.chdir(folder)
-			except BaseException as e:
-				exit_error(logger, "Could not load remote SFTP directory: " + repr(e), 6)
-
-			contents = sftp.listdir()
-			if filename in contents:
-				file_exists = True
-			else:
-				file_exists = False
+			elif self.compress and not self.outputfile.endswith('.gz'):
+				# We have compression with no gz extension. Add .gz.
+				self.outputfile = self.outputfile + '.gz'
 			
+			# First run and no local output file string has been assigned
+			# Use the random number to support running multiple outputs in a single search
+			random_number = str(random.randint(10000, 100000))
+			staging_filename = f"export_everything_staging_sftp_{random_number}.txt"
+			setattr(self, 'local_output_file', os.path.join(dispatch, staging_filename))
+			if self.compress:
+				self.local_output_file = self.local_output_file + '.gz'
+
 			try:
-				event_counter = 0
-				# Write the output file to disk in the dispatch folder
-				logger.debug("Writing events to dispatch file. file=\"%s\" format=%s compress=%s fields=%s", local_output_file, self.outputformat, self.compress, self.fields)
-				for event in event_file.write_events_to_file(events, self.fields, local_output_file, self.outputformat, self.compress):
-					yield event
-					event_counter += 1
+				setattr(self, 'sftp', get_sftp_connection(target_config))
 			except BaseException as e:
-				exit_error(logger, "Error writing file to upload", 296733)
-		
+				exit_error(logger, repr(e), 912934)
+			
+			if self.sftp is not None:
+				# Use the credential to connect to the SFTP server
+				try:
+					self.sftp.makedirs(folder)
+					self.sftp.chdir(folder)
+				except BaseException as e:
+					exit_error(logger, "Could not load remote SFTP directory: " + repr(e), 6)
+			else:
+				exit_error(logger, "SFTP credential not configured.", 8)
+			
+			setattr(self, 'event_counter', 0)
+			append = False
+		else:
+			# Persistent variable is populated from a prior chunk/iteration.
+			# Use the previous local output file and append to it.
+			append = True
+
+		try:
+			# Write the output file to disk in the dispatch folder
+			logger.debug("Writing events. file=\"%s\", format=%s, compress=%s, fields=\"%s\"", self.local_output_file, self.outputformat, self.compress, self.fields)
+			for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append=append, finish=self._finished):
+				yield event
+				self.event_counter += 1
+		except BaseException as e:
+			exit_error(logger, "Error writing staging file to upload", 296733)
+	
+		if self._finished or self._finished is None:
 			try:
 				# Upload the file
-				sftp.put(local_output_file)
+				self.sftp.put(self.local_output_file)
 			except BaseException as e:
 				exit_error(logger, "Error uploading file to SFTP server: " + repr(e), 109693)
 
 			try:
+				contents = self.sftp.listdir()
+				if self.remote_output_file in contents:
+					file_exists = True
+				else:
+					file_exists = False
 				# Rename the file
 				if file_exists:
-					sftp.remove(filename)
-				remote_staging_filename = folder + '/' + local_output_file.split('/')[-1]
-				remote_target_filename = folder + '/' + filename
-				sftp.rename(remote_staging_filename, remote_target_filename)
+					self.sftp.remove(self.remote_output_file)
+				# Rename the file in the current remote working directory
+				self.sftp.rename(self.local_output_file.split('/')[-1], self.remote_output_file)
 
-				if filename in sftp.listdir():
-					message = "SFTP Export Status: Success. File name: %s" % (folder + '/' + filename)
-					eprint(message)
+				if self.remote_output_file in self.sftp.listdir():
+					message = "SFTP export_status=success, count=%s, file_name=\"%s\"" % (self.event_counter, self.sftp.getcwd() + '/' + self.remote_output_file)
 					logger.info(message)
 				else:
 					exit_error(logger, "Could not verify uploaded file exists", 771293)
 			except BaseException as e:
 				exit_error(logger, "Error renaming or replacing file on SFTP server. Does the file already exist?" + repr(e), 109693)
-		else:
-			exit_error(logger, "Credential not configured.", 8)
-		
 
 dispatch(epsftp, sys.argv, sys.stdin, sys.stdout, __name__)
-
-
