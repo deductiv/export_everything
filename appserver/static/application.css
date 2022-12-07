@@ -34,7 +34,7 @@ padding-bottom: 15px;
 padding-top: 15px;
 /*width: 275px;*/
 /*text-align: right;*/
-margin-left: 50px;
+/*margin-left: 50px;*/
 font-size: 18px !important;
 font-weight: bold !important;
 }
@@ -174,6 +174,9 @@ background-color: var(--white-color);
 .MuiSelect-root {
 width: 150px;
 }
+.MuiToolbar-root {
+  padding-left: 0 !important;
+}
 .MuiListItem-root, .MuiSelect-root, .MuiMenuItem-root, .MuiFormControl-root, label.MuiFormLabel-root, label.MuiFormLabel-root.Mui-focused, .MuiTableCell-root.MuiTableCell-body {
 font-family: "Splunk Platform Sans","Proxima Nova",Roboto,Droid,Helvetica Neue,Helvetica,Arial,sans-serif;
 font-size: 12px;
@@ -233,16 +236,17 @@ padding: 5px 3px;
 font-size: 12px;
 }
 /* Action column */
-td:first-child.MuiTableCell-root.MuiTableCell-body > div {
+td:last-child.MuiTableCell-root.MuiTableCell-body > div {
 margin-left: auto;
 margin-right: auto;
+display: block !important;
 }
 /* Action icons */
-.actionicons-2 > div > div > div > div > div > table > thead > tr > th:first-child.MuiTableCell-root.MuiTableCell-head, .actionicons-2 > div > div > div > div > div > table > tbody > tr > td:first-child.MuiTableCell-root.MuiTableCell-body > div {
+.actionicons-2 > div > div > div > div > div > table > thead > tr > th:last-child.MuiTableCell-root.MuiTableCell-head, .actionicons-2 > div > div > div > div > div > table > tbody > tr > td:last-child.MuiTableCell-root.MuiTableCell-body > div {
 width: 60px !important;
 min-width: 50px;
 }
-.actionicons-3 > div > div > div > div > div > table > thead > tr > th:first-child.MuiTableCell-root.MuiTableCell-head, .actionicons-3 > div > div > div > div > div > table > tbody > tr > td:first-child.MuiTableCell-root.MuiTableCell-body, .actionicons-3 > div > div > div > div > div > table > tbody > tr > td:first-child.MuiTableCell-root.MuiTableCell-body > div {
+.actionicons-3 > div > div > div > div > div > table > thead > tr > th:last-child.MuiTableCell-root.MuiTableCell-head, .actionicons-3 > div > div > div > div > div > table > tbody > tr > td:last-child.MuiTableCell-root.MuiTableCell-body, .actionicons-3 > div > div > div > div > div > table > tbody > tr > td:last-child.MuiTableCell-root.MuiTableCell-body > div {
 width: 90px !important;
 min-width: 60px;
 }

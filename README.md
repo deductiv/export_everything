@@ -25,6 +25,14 @@ Use the Credentials tab to manage usernames, passwords, and passphrases (used fo
 ## Authorization via Capabilities  
 Add read capabilities for each command to users who require access to use the search command or alert action. Add write capability to allow them to make changes to the configuration. By default, admin has full access and power has read-only access. Credential permissions must be granted separately, but are required to use each command that depends on them.  
 
+## Keywords for Output Filenames  
+All file-based destinations support keywords for the output filenames. The keywords have double underscores before and after.  The keyword replacements are based on Python expressions, so we can add more as they are requested. Those currently available are shown below:  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`__now__` = epoch  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`__nowms__` = epoch value in milliseconds  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`__nowft__` = timestamp in yyyy-mm-dd_hhmmss format  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`__today__` = date in yyyy-mm-dd format  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`__yesterday__` = yesterday's date in yyyy-mm-dd format  
+&nbsp;  
 ___
 ## AWS S3-Compatible Object Storage Export (epawss3)
 
@@ -55,9 +63,8 @@ Export Splunk search results to AWS S3-compatible object storage. Connections ca
     **Default:** Specified within the target configuration  
 - #### Output File
     **Syntax:** outputfile=&lt;[folder/]file name&gt;  
-    **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.  
-    **Default:** `app_username_epoch.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
-    **Keywords:** `__now__`=epoch, `__today__`=date in yyyy-mm-dd format, `__nowft__`=timestamp in yyyy-mm-dd_hhmmss format.  
+    **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied. **Keyword replacements** are supported (see above).
+    **Default:** `app_username___now__.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
 - #### Output Format
     **Syntax:** outputformat=[json|raw|kv|csv|tsv|pipe]  
     **Description:** The format for the exported search results  
@@ -97,9 +104,8 @@ Export Splunk search results to Box cloud storage. Box must be configured with a
     **Default:** The target specified as the default within the setup dashboard  
 - #### Output File
     **Syntax:** outputfile=&lt;[folder/]file name&gt;  
-    **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.  
-    **Default:** `app_username_epoch.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
-    **Keywords:** `__now__`=epoch, `__today__`=date in yyyy-mm-dd format, `__nowft__`=timestamp in yyyy-mm-dd_hhmmss format.  
+    **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied. **Keyword replacements** are supported (see above).
+    **Default:** `app_username___now__.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
 - #### Output Format
     **Syntax:** outputformat=[json|raw|kv|csv|tsv|pipe]  
     **Description:** The format for the exported search results  
@@ -139,9 +145,8 @@ Export Splunk search results to SMB file shares.
     **Default:** The target specified as the default within the setup dashboard  
 - #### Output File
     **Syntax:** outputfile=&lt;[folder/]file name&gt;  
-    **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.  
-    **Default:** `app_username_epoch.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
-    **Keywords:** `__now__`=epoch, `__today__`=date in yyyy-mm-dd format, `__nowft__`=timestamp in yyyy-mm-dd_hhmmss format.  
+    **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied. **Keyword replacements** are supported (see above).
+    **Default:** `app_username___now__.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
 - #### Output Format
     **Syntax:** outputformat=[json|raw|kv|csv|tsv|pipe]  
     **Description:** The format for the exported search results  
@@ -181,9 +186,8 @@ Export Splunk search results to SFTP servers.
     **Default:** The target specified as the default within the setup dashboard  
 - #### Output File
     **Syntax:** outputfile=&lt;[folder/]file name&gt;  
-    **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.  
-    **Default:** `app_username_epoch.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
-    **Keywords:** `__now__`=epoch, `__today__`=date in yyyy-mm-dd format, `__nowft__`=timestamp in yyyy-mm-dd_hhmmss format.  
+   **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied. **Keyword replacements** are supported (see above).
+    **Default:** `app_username___now__.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
 - #### Output Format
     **Syntax:** outputformat=[json|raw|kv|csv|tsv|pipe]  
     **Description:** The format for the exported search results  
@@ -246,11 +250,6 @@ We welcome your input on our app feature roadmap, which can be found on [Trello]
 # Binary File Declaration
 The following binaries are written in C and required by multiple python modules used within this app:
 <ul>
-<li>bin/lib/py2_linux_x86_64/_cffi_backend.so</li>
-<li>bin/lib/py2_linux_x86_64/_libs_cffi_backend/libffi-806b1a9d.so.6.0.4</li>
-<li>bin/lib/py2_linux_x86_64/cryptography/hazmat/bindings/_padding.so</li>
-<li>bin/lib/py2_linux_x86_64/cryptography/hazmat/bindings/_openssl.so</li>
-<li>bin/lib/py2_linux_x86_64/cryptography/hazmat/bindings/_constant_time.so</li>
 <li>bin/lib/py3_linux_x86_64/_cffi_backend.cpython-37m-x86_64-linux-gnu.so</li>
 <li>bin/lib/py3_linux_x86_64/_libs_cffi_backend/libffi-806b1a9d.so.6.0.4</li>
 <li>bin/lib/py3_linux_x86_64/cryptography/hazmat/bindings/_padding.abi3.so</li>
