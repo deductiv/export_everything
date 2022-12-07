@@ -243,9 +243,9 @@ ___
   
 Having trouble with the app? Feel free to [email us](mailto:contact@deductiv.net) and we’ll help you sort it out. You can also [reach the author](https://splunk-usergroups.slack.com/team/U30E9LS79) on the Splunk Community Slack.  
 
-## Roadmap  
+## Features  
 
-We welcome your input on our app feature roadmap, which can be found on [Trello](https://trello.com/b/YbFOsuKJ/event-push-add-on-for-splunk-by-deductiv).  
+We welcome your feature requests, which can be submitted as issues on <a href="https://github.com/deductiv/export_everything/issues">GitHub</a>.  
 
 # Binary File Declaration
 The following binaries are written in C and required by multiple python modules used within this app:
