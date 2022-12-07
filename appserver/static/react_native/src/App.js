@@ -160,14 +160,17 @@ const table_options = {
 	toolbar: true,
 	paging: false,
 	draggable: false,
-	headerStyle: {}, 
+	headerStyle: {},
 	rowStyle: { 
 		padding: '0',
 		fontSize: '12px', 
 		wordBreak: 'break-all' },
 	headerStyle: left_table_header_styles,
+	actionsColumnIndex: -1,
 	actionsCellStyle: {
-		padding: '0'}
+		padding: '0',
+		/*display:"flex", */
+		justifyContent: "center"}
 };
 
 const config_descriptions = {
@@ -591,14 +594,14 @@ class App extends React.Component {
 					</Select>
 					</FormControl>
 			},
-			{ title: "Read", field: "read", width: "10%",
+			{ title: "Read", field: "read", width: "20%",
 				render: rowData => <span>{rowData['read'].join(', ')}</span>,
 				editComponent: props => 
 					<FormControl>
 					<Select 
 						id="read" 
 						name="read"
-						style={{ width: "150px" }}
+						style={{ width: "180px" }}
 						defaultValue={(Array.isArray(props.value) && props.value) || props.value && [props.value] || ['*']}
 						multiple
 						onChange={e => {props.onChange(e.target.value)}}
@@ -610,14 +613,14 @@ class App extends React.Component {
 					</Select>
 					</FormControl>
 			},
-			{ title: "Write", field: "write", width: "10%", 
+			{ title: "Write", field: "write", width: "20%", 
 				render: rowData => <span>{rowData['write'].join(', ')}</span>,
 				editComponent: props => 
 					<FormControl>
 					<Select 
 						id="write" 
 						name="write"
-						style={{ width: "150px" }}
+						style={{ width: "180px" }}
 						defaultValue={(Array.isArray(props.value) && props.value) || props.value && [props.value] || ['*']}
 						multiple
 						onChange={e => {props.onChange(e.target.value)}}
@@ -1357,6 +1360,13 @@ class App extends React.Component {
 							</div>
 							<div className="panel-element-row">
 								<MaterialTable
+									components={{
+										Container: props => (
+											<div className={"actionicons-2"}>
+												<div {...props} />
+											</div>
+										)
+									}}
 									title={
 										<div className="form form-complex">
 											<h2 className="ep">Account Management</h2>
@@ -1381,7 +1391,9 @@ class App extends React.Component {
 							title={`Export to Splunk HTTP Event Collector (${app_abbr}hec)`}
 							heading="Splunk HTTP Event Collector Connections" 
 							action_columns="2" 
-							config={`${app_abbr}_hec`} />
+							config={`${app_abbr}_hec`} >
+								Setup connections to Splunk HTTP Event Collector endpoints, including Cribl Stream.
+					</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
@@ -1389,7 +1401,18 @@ class App extends React.Component {
 							heading="S3-Compatible Connections" 
 							action_columns="3"
 							browsable="true"
-							config={`${app_abbr}_aws_s3`} />
+							config={`${app_abbr}_aws_s3`} >
+							<p>Setup connections for AWS S3-compatible object storage repositories. These include, but are not limited to:</p>
+							<ul>
+								<li>S3</li>
+								<li>Google Cloud Storage</li>
+								<li>Oracle Cloud Infrastructure Object Storage</li>
+								<li>MinIO</li>
+								<li>Ceph</li>
+							</ul>
+							<p>For non-Amazon repositories, an endpoint URL must be specified and the region is generally "us-east-1" (unless the vendor documentation states otherwise).</p>
+							<p>To avoid IAM key issuance and rotation, we recommend assigning an IAM role to your Splunk search head EC2 instance(s) and granting AWS permissions to the IAM role. Then, select "[Use ARN]" to authenticate using the ARN credentials from AWS STS.</p>
+					</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
@@ -1398,7 +1421,8 @@ class App extends React.Component {
 							action_columns="3"
 							browsable="true"
 							config={`${app_abbr}_box`}>
-								In your <a href="https://app.box.com/developers/console/newapp">Box Admin Console</a>, create a new Custom App with Server Authentication (with JWT) and create a new key pair to get this information. Then, submit the new app for authorization.
+								<p>Setup connections to Box.com account(s).</p>
+								<p>In your <a href="https://app.box.com/developers/console/newapp">Box Admin Console</a>, create a new Custom App with Server Authentication (with JWT) and create a new key pair to get this information. Then, submit the new app for authorization.</p>
 						</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">
@@ -1408,7 +1432,14 @@ class App extends React.Component {
 							action_columns="3"
 							browsable="true"
 							config={`${app_abbr}_sftp`} >
-								If a password is present in your credential and a private key is also specified, the private key will be used for authentication (whether or not a credential to decrypt the private key is supplied).
+								<p>Setup connections to SFTP (FTP over SSH) endpoints.</p>
+								<p>Choose from one of the following. Note that the username will always be retrieved from the referenced "password" credential.</p>
+								<ul>
+									<li>Password authentication; no private key required.</li>
+									<li>Public key authentication with unencrypted private key (not recommended); no password required (specify a password credential to reference the username).</li>
+									<li>Public key authentication with encrypted private key; no password required (specify a password credential to reference the username), passphrase required</li>
+								</ul>
+								<p>If a password is present in your credential and a private key is also specified, the private key will be used for authentication.</p>
 							</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">
@@ -1417,7 +1448,9 @@ class App extends React.Component {
 							heading="SMB Connections" 
 							action_columns="3"
 							browsable="true"
-							config={`${app_abbr}_smb`} />
+							config={`${app_abbr}_smb`} >
+								Setup connections to Windows SMB/CIFS file shares.
+						</this.EPTabContent>
 					</TabPanel>
 				</Tabs>
 				<Suspense fallback={<div style={{width: "100%", margin: "25px auto", textAlign: "center"}}>Loading Script...</div>}>
