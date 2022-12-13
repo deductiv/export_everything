@@ -24,26 +24,19 @@
 #
 # --------------------------------------------------------------------------
 from json import loads
-from typing import cast, TYPE_CHECKING
-from six.moves.http_client import HTTPResponse as _HTTPResponse
+from typing import cast, Any, Optional, Iterator, MutableMapping, Callable
+from http.client import HTTPResponse as _HTTPResponse
 from ._helpers import (
     get_charset_encoding,
     decode_to_text,
 )
 from ..exceptions import HttpResponseError, ResponseNotReadError, StreamConsumedError, StreamClosedError
-try:
-    from ._rest_py3 import (
-        _HttpResponseBase,
-        HttpResponse as _HttpResponse,
-        HttpRequest as _HttpRequest
-    )
-except (SyntaxError, ImportError):
-    from ._rest import (  # type: ignore
-        _HttpResponseBase,
-        HttpResponse as _HttpResponse,
-        HttpRequest as _HttpRequest
-    )
-from ..utils._utils import _case_insensitive_dict
+from ._rest_py3 import (
+    _HttpResponseBase,
+    HttpResponse as _HttpResponse,
+    HttpRequest as _HttpRequest
+)
+from ..utils._utils import case_insensitive_dict
 from ..utils._pipeline_transport_rest_shared import (
     _pad_attr_name,
     BytesIOSocket,
@@ -51,9 +44,6 @@ from ..utils._pipeline_transport_rest_shared import (
     _get_raw_parts_helper,
     _parts_helper,
 )
-
-if TYPE_CHECKING:
-    from typing import Any, Optional, Iterator, MutableMapping, Callable
 
 class _HttpResponseBackcompatMixinBase(object):
     """Base Backcompat mixin for responses.
@@ -121,7 +111,7 @@ class _HttpResponseBackcompatMixinBase(object):
         Assuming this body is multipart, return the iterator or parts.
 
         If parts are application/http use http_response_type or HttpClientTransportResponse
-        as enveloppe.
+        as envelope.
         """
         return _get_raw_parts_helper(
             self, http_response_type or RestHttpClientTransportResponse
@@ -392,8 +382,8 @@ class HttpResponseImpl(_HttpResponseBaseImpl, _HttpResponse, HttpResponseBackcom
         self._set_read_checks()
         return self.content
 
-    def iter_bytes(self):
-        # type: () -> Iterator[bytes]
+    def iter_bytes(self, **kwargs):
+        # type: (Any) -> Iterator[bytes]
         """Iterates over the response's bytes. Will decompress in the process.
 
         :return: An iterator of bytes from the response
@@ -413,8 +403,8 @@ class HttpResponseImpl(_HttpResponseBaseImpl, _HttpResponse, HttpResponseBackcom
                 yield part
         self.close()
 
-    def iter_raw(self):
-        # type: () -> Iterator[bytes]
+    def iter_raw(self, **kwargs):
+        # type: (Any) -> Iterator[bytes]
         """Iterates over the response's bytes. Will not decompress in the process.
 
         :return: An iterator of bytes from the response
@@ -438,7 +428,7 @@ class _RestHttpClientTransportResponseBase(_HttpResponseBaseImpl, _RestHttpClien
 
     def __init__(self, **kwargs):
         internal_response = kwargs.pop("internal_response")
-        headers = _case_insensitive_dict(internal_response.getheaders())
+        headers = case_insensitive_dict(internal_response.getheaders())
         super(_RestHttpClientTransportResponseBase, self).__init__(
             internal_response=internal_response,
             status_code=internal_response.status,
@@ -453,10 +443,10 @@ class RestHttpClientTransportResponse(_RestHttpClientTransportResponseBase, Http
     """Create a Rest HTTPResponse from an http.client response.
     """
 
-    def iter_bytes(self):
+    def iter_bytes(self, **kwargs):
         raise TypeError("We do not support iter_bytes for this transport response")
 
-    def iter_raw(self):
+    def iter_raw(self, **kwargs):
         raise TypeError("We do not support iter_raw for this transport response")
 
     def read(self):

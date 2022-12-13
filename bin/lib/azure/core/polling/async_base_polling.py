@@ -76,7 +76,8 @@ class AsyncLROBasePolling(LROBasePolling):
         :raises: BadStatus if response status invalid.
         :raises: BadResponse if response invalid.
         """
-
+        if not self.finished():
+            await self.update_status()
         while not self.finished():
             await self._delay()
             await self.update_status()
@@ -131,7 +132,6 @@ class AsyncLROBasePolling(LROBasePolling):
         # if I am a azure.core.pipeline.transport.HttpResponse
         request = self._client.get(status_link)
 
-        # can't use send_request in this case, because send_request is still provisional
         return await self._client._pipeline.run(  # pylint: disable=protected-access
             request, stream=False, **self._operation_config
         )

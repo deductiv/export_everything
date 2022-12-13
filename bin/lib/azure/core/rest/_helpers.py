@@ -27,10 +27,6 @@ import copy
 import codecs
 import cgi
 from json import dumps
-try:
-    import collections.abc as collections
-except ImportError:
-    import collections  # type: ignore
 from typing import (
     Optional,
     Union,
@@ -42,15 +38,10 @@ from typing import (
     Dict,
     Iterable,
     MutableMapping,
+    AsyncIterable
 )
 import xml.etree.ElementTree as ET
-import six
-try:
-    binary_type = str
-    from urlparse import urlparse  # type: ignore
-except ImportError:
-    binary_type = bytes  # type: ignore
-    from urllib.parse import urlparse
+from urllib.parse import urlparse
 from azure.core.serialization import AzureJSONEncoder
 from ..utils._pipeline_transport_rest_shared import (
     _format_parameters_helper,
@@ -62,15 +53,13 @@ from ..utils._pipeline_transport_rest_shared import (
 
 ################################### TYPES SECTION #########################
 
+binary_type = str
 PrimitiveData = Optional[Union[str, int, float, bool]]
-
 
 ParamsType = Mapping[str, Union[PrimitiveData, Sequence[PrimitiveData]]]
 
 FileContent = Union[str, bytes, IO[str], IO[bytes]]
-FileType = Union[
-    Tuple[Optional[str], FileContent],
-]
+FileType = Tuple[Optional[str], FileContent]
 
 FilesType = Union[
     Mapping[str, FileType],
@@ -78,17 +67,18 @@ FilesType = Union[
 ]
 
 ContentTypeBase = Union[str, bytes, Iterable[bytes]]
+ContentType = Union[str, bytes, Iterable[bytes], AsyncIterable[bytes]]
 
 ########################### HELPER SECTION #################################
 
 def _verify_data_object(name, value):
-    if not isinstance(name, six.string_types):
+    if not isinstance(name, str):
         raise TypeError(
             "Invalid type for data name. Expected str, got {}: {}".format(
                 type(name), name
             )
         )
-    if value is not None and not isinstance(value, (six.string_types, bytes, int, float)):
+    if value is not None and not isinstance(value, (str, bytes, int, float)):
         raise TypeError(
             "Invalid type for data value. Expected primitive type, got {}: {}".format(
                 type(name), name
@@ -127,9 +117,8 @@ def set_xml_body(content):
         headers["Content-Length"] = str(len(body))
     return headers, body
 
-def _shared_set_content_body(content):
-    # type: (Any) -> Tuple[MutableMapping[str, str], Optional[ContentTypeBase]]
-    headers = {}  # type: MutableMapping[str, str]
+def set_content_body(content: Any) -> Tuple[MutableMapping[str, str], Optional[ContentTypeBase]]:
+    headers: MutableMapping[str, str] = {}
 
     if isinstance(content, ET.Element):
         # XML body
@@ -137,31 +126,28 @@ def _shared_set_content_body(content):
     if isinstance(content, (str, bytes)):
         headers = {}
         body = content
-        if isinstance(content, six.string_types):
+        if isinstance(content, str):
             headers["Content-Type"] = "text/plain"
         if body:
             headers["Content-Length"] = str(len(body))
         return headers, body
-    if isinstance(content, collections.Iterable):
-        return {}, content
-    return headers, None
-
-def set_content_body(content):
-    headers, body = _shared_set_content_body(content)
-    if body is not None:
-        return headers, body
+    if any(hasattr(content, attr) for attr in ["read", "__iter__", "__aiter__"]):
+        return headers, content
     raise TypeError(
         "Unexpected type for 'content': '{}'. ".format(type(content)) +
-        "We expect 'content' to either be str, bytes, or an Iterable"
+        "We expect 'content' to either be str, bytes, a open file-like object or an iterable/asynciterable."
     )
 
 def set_json_body(json):
     # type: (Any) -> Tuple[Dict[str, str], Any]
-    body = dumps(json, cls=AzureJSONEncoder)
-    return {
-        "Content-Type": "application/json",
-        "Content-Length": str(len(body))
-    }, body
+    headers = {"Content-Type": "application/json"}
+    if hasattr(json, "read"):
+        content_headers, body = set_content_body(json)
+        headers.update(content_headers)
+    else:
+        body = dumps(json, cls=AzureJSONEncoder)
+        headers.update({"Content-Length": str(len(body))})
+    return headers, body
 
 def lookup_encoding(encoding):
     # type: (str) -> bool

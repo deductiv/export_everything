@@ -4,19 +4,13 @@
 # license information.
 # -------------------------------------------------------------------------
 import time
-import six
+from typing import TYPE_CHECKING, Any, Dict, Optional  # pylint:disable=unused-import
 
 from . import HTTPPolicy, SansIOHTTPPolicy
 from ...exceptions import ServiceRequestError
 
-try:
-    from typing import TYPE_CHECKING  # pylint:disable=unused-import
-except ImportError:
-    TYPE_CHECKING = False
-
 if TYPE_CHECKING:
     # pylint:disable=unused-import
-    from typing import Any, Dict, Optional
     from azure.core.credentials import AccessToken, TokenCredential, AzureKeyCredential, AzureSasCredential
     from azure.core.pipeline import PipelineRequest, PipelineResponse
 
@@ -119,9 +113,8 @@ class BearerTokenCredentialPolicy(_BearerTokenCredentialPolicyBase, HTTPPolicy):
             response = self.next.send(request)
             self.on_response(request, response)
         except Exception:  # pylint:disable=broad-except
-            handled = self.on_exception(request)
-            if not handled:
-                raise
+            self.on_exception(request)
+            raise
         else:
             if response.http_response.status_code == 401:
                 self._token = None  # any cached token is invalid
@@ -132,9 +125,8 @@ class BearerTokenCredentialPolicy(_BearerTokenCredentialPolicyBase, HTTPPolicy):
                             response = self.next.send(request)
                             self.on_response(request, response)
                         except Exception:  # pylint:disable=broad-except
-                            handled = self.on_exception(request)
-                            if not handled:
-                                raise
+                            self.on_exception(request)
+                            raise
 
         return response
 
@@ -162,18 +154,16 @@ class BearerTokenCredentialPolicy(_BearerTokenCredentialPolicyBase, HTTPPolicy):
         """
 
     def on_exception(self, request):
-        # type: (PipelineRequest) -> bool
+        # type: (PipelineRequest) -> None
         """Executed when an exception is raised while executing the next policy.
 
         This method is executed inside the exception handler.
 
         :param request: The Pipeline request object
         :type request: ~azure.core.pipeline.PipelineRequest
-        :return: False by default, override with True to stop the exception.
-        :rtype: bool
         """
         # pylint: disable=no-self-use,unused-argument
-        return False
+        return
 
 
 class AzureKeyCredentialPolicy(SansIOHTTPPolicy):
@@ -190,7 +180,7 @@ class AzureKeyCredentialPolicy(SansIOHTTPPolicy):
         self._credential = credential
         if not name:
             raise ValueError("name can not be None or empty")
-        if not isinstance(name, six.string_types):
+        if not isinstance(name, str):
             raise TypeError("name must be a string.")
         self._name = name
 

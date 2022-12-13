@@ -28,7 +28,7 @@ from collections.abc import AsyncIterator
 import functools
 import logging
 from typing import (
-    Any, Union, Optional, AsyncIterator as AsyncIteratorType, TYPE_CHECKING, overload
+    Any, Optional, AsyncIterator as AsyncIteratorType, TYPE_CHECKING, overload
 )
 import urllib3 # type: ignore
 
@@ -36,7 +36,9 @@ import requests
 
 from azure.core.exceptions import (
     ServiceRequestError,
-    ServiceResponseError
+    ServiceResponseError,
+    IncompleteReadError,
+    HttpResponseError,
 )
 from azure.core.pipeline import Pipeline
 from ._base import HttpRequest
@@ -44,7 +46,7 @@ from ._base_async import (
     AsyncHttpResponse,
     _ResponseStopIteration,
     _iterate_response_content)
-from ._requests_basic import RequestsTransportResponse, _read_raw_stream
+from ._requests_basic import RequestsTransportResponse, _read_raw_stream, AzureErrorUnion
 from ._base_requests_async import RequestsAsyncTransportBase
 from .._tools import is_rest as _is_rest
 from .._tools_async import handle_no_stream_rest_response as _handle_no_stream_rest_response
@@ -59,13 +61,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _get_running_loop():
-    try:
-        return asyncio.get_running_loop()
-    except AttributeError:  # 3.5 / 3.6
-        loop = asyncio._get_running_loop()  # pylint: disable=protected-access, no-member
-        if loop is None:
-            raise RuntimeError('No running event loop')
-        return loop
+    return asyncio.get_running_loop()
 
 
 #pylint: disable=too-many-ancestors
@@ -134,7 +130,7 @@ class AsyncioRequestsTransport(RequestsAsyncTransportBase):
         self.open()
         loop = kwargs.get("loop", _get_running_loop())
         response = None
-        error = None # type: Optional[Union[ServiceRequestError, ServiceResponseError]]
+        error = None    # type: Optional[AzureErrorUnion]
         data_to_send = await self._retrieve_request_data(request)
         try:
             response = await loop.run_in_executor(
@@ -151,6 +147,7 @@ class AsyncioRequestsTransport(RequestsAsyncTransportBase):
                     cert=kwargs.pop('connection_cert', self.connection_config.cert),
                     allow_redirects=False,
                     **kwargs))
+            response.raw.enforce_content_length = True
 
         except urllib3.exceptions.NewConnectionError as err:
             error = ServiceRequestError(err, error=err)
@@ -161,6 +158,14 @@ class AsyncioRequestsTransport(RequestsAsyncTransportBase):
                 error = ServiceResponseError(err, error=err)
             else:
                 error = ServiceRequestError(err, error=err)
+        except requests.exceptions.ChunkedEncodingError as err:
+            msg = err.__str__()
+            if 'IncompleteRead' in msg:
+                _LOGGER.warning("Incomplete download: %s", err)
+                error = IncompleteReadError(err, error=err)
+            else:
+                _LOGGER.warning("Unable to stream download: %s", err)
+                error = HttpResponseError(err, error=err)
         except requests.RequestException as err:
             error = ServiceRequestError(err, error=err)
 
@@ -223,6 +228,15 @@ class AsyncioStreamDownloadGenerator(AsyncIterator):
             raise StopAsyncIteration()
         except requests.exceptions.StreamConsumedError:
             raise
+        except requests.exceptions.ChunkedEncodingError as err:
+            msg = err.__str__()
+            if 'IncompleteRead' in msg:
+                _LOGGER.warning("Incomplete download: %s", err)
+                internal_response.close()
+                raise IncompleteReadError(err, error=err)
+            _LOGGER.warning("Unable to stream download: %s", err)
+            internal_response.close()
+            raise HttpResponseError(err, error=err)
         except Exception as err:
             _LOGGER.warning("Unable to stream download: %s", err)
             internal_response.close()

@@ -23,20 +23,13 @@
 # IN THE SOFTWARE.
 #
 # --------------------------------------------------------------------------
-from __future__ import absolute_import
 import abc
 from email.message import Message
 import json
 import logging
 import time
 import copy
-
-try:
-    binary_type = str
-    from urlparse import urlparse  # type: ignore
-except ImportError:
-    binary_type = bytes  # type: ignore
-    from urllib.parse import urlparse
+from urllib.parse import urlparse  # type: ignore
 import xml.etree.ElementTree as ET
 
 from typing import (
@@ -55,14 +48,14 @@ from typing import (
     Type
 )
 
-from six.moves.http_client import HTTPResponse as _HTTPResponse
+from http.client import HTTPResponse as _HTTPResponse
 
 from azure.core.exceptions import HttpResponseError
 from azure.core.pipeline import (
     ABC,
     AbstractContextManager,
 )
-from ...utils._utils import _case_insensitive_dict
+from ...utils._utils import case_insensitive_dict
 from ...utils._pipeline_transport_rest_shared import (
     _format_parameters_helper,
     _prepare_multipart_body_helper,
@@ -84,6 +77,7 @@ PipelineType = TypeVar("PipelineType")
 
 _LOGGER = logging.getLogger(__name__)
 
+binary_type = str
 
 def _format_url_section(template, **kwargs):
     """String format the template with the kwargs, auto-skip sections of the template that are NOT in the kwargs.
@@ -170,7 +164,7 @@ class HttpRequest(object):
         # type: (str, str, Mapping[str, str], Any, Any) -> None
         self.method = method
         self.url = url
-        self.headers = _case_insensitive_dict(headers)
+        self.headers = case_insensitive_dict(headers)
         self.files = files
         self.data = data
         self.multipart_mixed_info = None  # type: Optional[Tuple]
@@ -417,7 +411,7 @@ class _HttpResponseBase(object):
         """Assuming this body is multipart, return the iterator or parts.
 
         If parts are application/http use http_response_type or HttpClientTransportResponse
-        as enveloppe.
+        as envelope.
         """
         return _get_raw_parts_helper(self, http_response_type or HttpClientTransportResponse)
 
@@ -472,7 +466,7 @@ class _HttpClientTransportResponse(_HttpResponseBase):
     def __init__(self, request, httpclient_response):
         super(_HttpClientTransportResponse, self).__init__(request, httpclient_response)
         self.status_code = httpclient_response.status
-        self.headers = _case_insensitive_dict(httpclient_response.getheaders())
+        self.headers = case_insensitive_dict(httpclient_response.getheaders())
         self.reason = httpclient_response.reason
         self.content_type = self.headers.get("Content-Type")
         self.data = None

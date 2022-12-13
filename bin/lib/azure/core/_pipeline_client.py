@@ -25,10 +25,12 @@
 # --------------------------------------------------------------------------
 
 import logging
-try:
-    from collections.abc import Iterable
-except ImportError:
-    from collections import Iterable
+from collections.abc import Iterable
+from typing import (
+    Any,
+    TypeVar,
+    TYPE_CHECKING,
+)
 from .configuration import Configuration
 from .pipeline import Pipeline
 from .pipeline.transport._base import PipelineClientBase
@@ -40,25 +42,7 @@ from .pipeline.policies import (
     RetryPolicy,
 )
 
-try:
-    from typing import TYPE_CHECKING
-except ImportError:
-    TYPE_CHECKING = False
-
 if TYPE_CHECKING:
-    from typing import (
-        List,
-        Any,
-        Dict,
-        Union,
-        IO,
-        Tuple,
-        Optional,
-        Callable,
-        Iterator,
-        cast,
-        TypeVar
-    )  # pylint: disable=unused-import
     HTTPResponseType = TypeVar("HTTPResponseType")
     HTTPRequestType = TypeVar("HTTPRequestType")
 
@@ -176,9 +160,7 @@ class PipelineClient(PipelineClientBase):
 
     def send_request(self, request, **kwargs):
         # type: (HTTPRequestType, Any) -> HTTPResponseType
-        """**Provisional** method that runs the network request through the client's chained policies.
-
-        This method is marked as **provisional**, meaning it may be changed in a future release.
+        """Method that runs the network request through the client's chained policies.
 
         >>> from azure.core.rest import HttpRequest
         >>> request = HttpRequest('GET', 'http://www.example.com')
