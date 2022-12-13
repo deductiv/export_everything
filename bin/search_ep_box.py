@@ -271,6 +271,7 @@ class epbox(EventingCommand):
 				new_file = self.box_folder_object.upload(self.local_output_file, file_name=self.remote_output_file)
 				message = "Box export_status=success, count=%s, file=\"%s\", file_id=%s" % (str(self.event_counter), new_file.name, new_file.id)
 				logger.info(message)
+				os.remove(self.local_output_file)
 			except BaseException as e:
 				exit_error(logger, "Error uploading file to Box: " + repr(e), 109693)
 

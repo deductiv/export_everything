@@ -339,6 +339,30 @@ class App extends React.Component {
 			{ title: "Default Bucket ID", field: "default_s3_bucket", width: "12%" },
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
+		[`${app_abbr}_azure_blob`]: [
+			{ title: "Stanza", field: "stanza", hidden: true },
+			// actions = 10%
+			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Name/Alias", field: "alias", width: "12%", 
+				validate: rowData => validators.string(rowData.alias) }, 
+			{ title: "Account Name/Account Key (Credential)", field: "credential", width: "30%", 
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="credential" 
+					name="credential"
+					style={{ width: "250px" }}
+					defaultValue={props.value}
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ this.state.passwords.map(credential =>
+						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>},
+			{ title: "Default Container", field: "default_container", width: "12%" },
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+		],
 		[`${app_abbr}_box`]: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
@@ -1312,6 +1336,7 @@ class App extends React.Component {
 						<Tab className="nav-item"><a href="#" className="toggle-tab">Credentials</a></Tab>
 						<Tab className="nav-item"><a href="#" className="toggle-tab">Splunk HEC</a></Tab>
 						<Tab className="nav-item"><a href="#" className="toggle-tab">AWS S3-Compatible</a></Tab>
+						<Tab className="nav-item"><a href="#" className="toggle-tab">Azure Blob</a></Tab>
 						<Tab className="nav-item"><a href="#" className="toggle-tab">Box</a></Tab>
 						<Tab className="nav-item"><a href="#" className="toggle-tab">SFTP</a></Tab>
 						<Tab className="nav-item"><a href="#" className="toggle-tab">SMB</a></Tab>
@@ -1393,7 +1418,7 @@ class App extends React.Component {
 							action_columns="2" 
 							config={`${app_abbr}_hec`} >
 								Setup connections to Splunk HTTP Event Collector endpoints, including Cribl Stream.
-					</this.EPTabContent>
+						</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
@@ -1412,7 +1437,18 @@ class App extends React.Component {
 							</ul>
 							<p>For non-Amazon repositories, an endpoint URL must be specified and the region is generally "us-east-1" (unless the vendor documentation states otherwise).</p>
 							<p>To avoid IAM key issuance and rotation, we recommend assigning an IAM role to your Splunk search head EC2 instance(s) and granting AWS permissions to the IAM role. Then, select "[Use ARN]" to authenticate using the ARN credentials from AWS STS.</p>
-					</this.EPTabContent>
+						</this.EPTabContent>
+					</TabPanel>
+					<TabPanel className="tab-pane">
+						<this.EPTabContent 
+							title={`Export to Azure Blob (${app_abbr}azureblob)`} 
+							heading="Azure Blob Connections" 
+							action_columns="3"
+							browsable="true"
+							config={`${app_abbr}_azure_blob`} >
+							<p>Setup connections for Azure Blob object storage repositories.</p>
+							<p>The Account Name will come from the Username field in the specified credential.</p>
+						</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 

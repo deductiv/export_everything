@@ -142,6 +142,107 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias=None, log=
 	except BaseException as e:
 		raise Exception("Unable to find target configuration: " + repr(e))
 
+def get_azureblob_container(blob_config, container_name):
+	global ContainerClient
+	from azure.storage.blob import ContainerClient
+	
+	#f"account_url={blob_config["account_url"]};" + \
+	connection_string = '"DefaultEndpointsProtocol=https;' + \
+		'EndpointSuffix=core.windows.net;' + \
+		f'AccountName={blob_config["credential_username"]};' + \
+		f'AccountKey={blob_config["credential_password"]}'
+	
+	return ContainerClient.from_connection_string(connection_string, container_name=container_name)
+
+def blob_folder_contents(client, container, prefix):
+	logger.debug("Blob container contents")
+	if len(prefix) > 0:
+		prefix = (prefix + '/').replace('//', '/')
+
+	blob_gen = client.walk_blobs(prefix, delimiter="/")#, include={permissions})
+	for blob in blob_gen:
+		content = yield yield_azure_blob(blob)
+		content["id"] = ('/' + container + '/' + content["id"]).replace('//', '/')
+		yield content
+
+def yield_azure_blob(blob):
+	blob_type = blob.blob_type
+	logger.debug(f'blob="{blob.name}" is type="{blob.blob_type}"')
+	if blob.last_modified is None:
+		timestamp = blob.last_modified.timestamp()
+	else:
+		timestamp = timestamp.timestamp()
+	try:
+		owner = blob.owner
+	except:
+		owner = None
+	# Set directory to true if it ends in /
+	is_directory = True if blob.name[-1] == "/" else False
+	return {
+		"id": blob.name,
+		"name": blob.name.strip('/').split('/')[-1],
+		"size": blob.size,
+		"modDate": timestamp,
+		"owner": owner,
+		"isDir": is_directory
+	}
+
+def get_azure_blob_directory(blob_config, container_folder_path):
+	global BaseBlobService
+	from azure.storage.blob.baseblobservice import BaseBlobService
+
+	logger.debug("Container folder path = " + container_folder_path)
+	folder_path = container_folder_path.strip('/').split('/')
+	container_name = folder_path[0]
+	if container_name is None or len(container_name) == 0:
+		logger.debug("No container specified")
+		folder_prefix = '/'
+		container_name = ''
+		#pass #container_name = blob_config['default_container'] 
+		#Default default_container code happens in rest_ep_dirlist
+	if len(folder_path) >= 1:
+		folder_prefix = '/'.join(folder_path[1:]).strip('/')
+	#elif len(folder_path) == 1:
+	#	folder = '/' + container_name
+	else:
+		folder_prefix = '/'
+	logger.debug("Folder Prefix = " + folder_prefix)
+
+	try:
+		connection_string = 'DefaultEndpointsProtocol=https;' + \
+		'EndpointSuffix=core.windows.net;' + \
+		f'AccountName={blob_config["credential_username"]};' + \
+		f'AccountKey={blob_config["credential_password"]}'
+
+		blob_service = BaseBlobService(connection_string=connection_string)
+	except BaseException as e:
+		raise Exception("Could not connect to Azure Blob: " + repr(e))
+
+	file_list = []
+	if len(container_name) > 0:
+		logger.debug("Getting container contents for " + container_name)
+		# Get the directory listing within the bucket
+		# List files and folders
+		# Use a new connection because BaseBlobService has no walk_blobs method
+		for e in blob_folder_contents(get_azureblob_container(blob_config, container_name), container_name, folder_prefix):
+			file_list.append( e )
+	else:
+		# Get the list of containers
+		logger.debug("Getting list of containers")
+		container_list = blob_service.list_containers()#include_metadata=True)
+		logger.debug("Container list: " + str(container_list))
+		for c in container_list:
+			logger.debug("Container=" + str(c))
+			timestamp = c.last_modified
+			timestamp = timestamp.timestamp() if timestamp is not None else None
+			file_list.append( {
+				"id": '/' + c.name,
+				"name": c.name,
+				"modDate": timestamp,
+				"isDir": True
+			} )
+	return file_list
+
 def get_aws_connection(aws_config, log=True):
 	global boto3, Config
 	import boto3

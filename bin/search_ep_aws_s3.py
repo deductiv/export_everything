@@ -105,7 +105,7 @@ class epawss3(EventingCommand):
 
 		if first_chunk:
 			logger.info('AWS S3 Export search command initiated')
-			logger.debug('search_ep_awss3 command: %s', self)  # logs command line
+			logger.debug('search_ep_aws_s3 command: %s', self)  # logs command line
 			log_proxy_settings(logger)
 
 		# Enumerate settings
@@ -127,7 +127,7 @@ class epawss3(EventingCommand):
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
 		
-		if self.bucket is None:
+		if self.bucket is None or len(self.bucket) == 0:
 			if 'default_s3_bucket' in list(target_config.keys()):
 				t = target_config['default_s3_bucket']
 				if t is not None and len(t) > 0:

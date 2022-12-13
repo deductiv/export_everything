@@ -12,6 +12,7 @@ This add-on exports your Splunk search results to remote destinations so you can
 
 ## File-Based Destinations  
 - Amazon Web Services (AWS) S3-Compatible Object Storage  
+- Azure Blob Storage  
 - Box.com Cloud Storage  
 - Windows/SMB File Shares  
 - SFTP Servers  
@@ -60,6 +61,51 @@ Export Splunk search results to AWS S3-compatible object storage. Connections ca
 - #### Bucket  
     **Syntax:** bucket=&lt;bucket name&gt;  
     **Description:** The name of the destination S3 bucket  
+    **Default:** Specified within the target configuration  
+- #### Output File
+    **Syntax:** outputfile=&lt;[folder/]file name&gt;  
+    **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied. **Keyword replacements** are supported (see above).
+    **Default:** `app_username___now__.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
+- #### Output Format
+    **Syntax:** outputformat=[json|raw|kv|csv|tsv|pipe]  
+    **Description:** The format for the exported search results  
+    **Default:** *csv*  
+- #### Fields
+    **Syntax:** fields="field1, field2, field3"  
+    **Description:** Limit the fields to be written to the exported file. Wildcards are supported.  
+    **Default:** All (*)  
+- #### Compression
+    **Syntax:** compress=[true|false]  
+    **Description:** Create the file as a .gz compressed archive  
+    **Default:** Specified within the target configuration  
+
+___
+## Azure Blob Storage Export (epazureblob)
+
+Export Splunk search results to Azure Blob object storage. Configure connections to authenticate using OAuth credentials.  
+
+### Capabilities  
+- configure_ep_azure_blob_read  
+- configure_ep_azure_blob_write  
+
+### Search Command Syntax  
+```
+<search> | epazureblob  
+        target=<target name/alias>  
+        bucket=<bucket>  
+        outputfile=<output path/filename>  
+        outputformat=[json|raw|kv|csv|tsv|pipe]  
+        fields="<comma-delimited fields list>"  
+        compress=[true|false]  
+```
+### Arguments  
+- #### Target  
+    **Syntax:** target=&lt;target name/alias&gt;  
+    **Description:** The name/alias of the destination connection  
+    **Default:** The target specified as the default within the setup dashboard  
+- #### Bucket  
+    **Syntax:** bucket=&lt;bucket name&gt;  
+    **Description:** The name of the destination bucket  
     **Default:** Specified within the target configuration  
 - #### Output File
     **Syntax:** outputfile=&lt;[folder/]file name&gt;  
@@ -245,7 +291,7 @@ Having trouble with the app? Feel free to [email us](mailto:contact@deductiv.net
 
 ## Features  
 
-We welcome your feature requests, which can be submitted as issues on <a href="https://github.com/deductiv/export_everything/issues">GitHub</a>.  
+We welcome your feature requests, which can be submitted as issues on [GitHub](https://github.com/deductiv/export_everything/issues).  
 
 # Binary File Declaration
 The following binaries are written in C and required by multiple python modules used within this app:

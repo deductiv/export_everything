@@ -205,6 +205,7 @@ class epsftp(EventingCommand):
 			try:
 				# Upload the file
 				self.sftp.put(self.local_output_file)
+				os.remove(self.local_output_file)
 			except BaseException as e:
 				exit_error(logger, "Error uploading file to SFTP server: " + repr(e), 109693)
 

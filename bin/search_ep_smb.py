@@ -248,6 +248,7 @@ class epsmb(EventingCommand):
 			try:
 				with open(self.local_output_file, 'rb', buffering=0) as local_file:
 					bytes_uploaded = self.conn.storeFile(target_config['share_name'], self.remote_output_file, local_file)
+				os.remove(self.local_output_file)
 			except BaseException as e:
 				exit_error(logger, "Error uploading file to SMB server: " + repr(e), 109693)
 
