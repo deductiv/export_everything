@@ -1234,7 +1234,7 @@ class App extends React.Component {
 											// console.log("Timestamp is " + file_list[f].modDate);
 											let printed_date = moment.unix(Number(file_list[f].modDate));
 											console.log("Timestamp = " + printed_date);
-											file_list[f].modDate = printed_date.format('YYYY-MM-DD hh:mm:ss A');
+											file_list[f].modDate = printed_date.toISOString();
 											console.log("Timestamp Formatted = " + file_list[f].modDate);
 										} else {
 											delete file_list[f].modDate
