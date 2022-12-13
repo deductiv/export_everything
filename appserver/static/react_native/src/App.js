@@ -1232,7 +1232,10 @@ class App extends React.Component {
 									if ( file_list[f].modDate !== undefined ) {
 										if ( file_list[f].modDate != 0 ) {
 											// console.log("Timestamp is " + file_list[f].modDate);
-											file_list[f].modDate = moment.unix(Number(file_list[f].modDate)).format('YYYY-MM-DD hh:mm:ss A');
+											let printed_date = moment.unix(Number(file_list[f].modDate));
+											console.log("Timestamp = " + printed_date);
+											file_list[f].modDate = printed_date.format('YYYY-MM-DD hh:mm:ss A');
+											console.log("Timestamp Formatted = " + file_list[f].modDate);
 										} else {
 											delete file_list[f].modDate
 										}
