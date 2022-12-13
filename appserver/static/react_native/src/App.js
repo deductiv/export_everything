@@ -1230,12 +1230,10 @@ class App extends React.Component {
 								//console.log("File list = " + JSON.stringify(file_list));
 								for (var f=0; f<file_list.length; f++) {
 									if ( file_list[f].modDate !== undefined ) {
-										if ( file_list[f].modDate != 0 ) {
-											// console.log("Timestamp is " + file_list[f].modDate);
+										if ( Number(file_list[f].modDate) !== 0 ) {
+											// Firefox only works with the ISO string
 											let printed_date = moment.unix(Number(file_list[f].modDate));
-											console.log("Timestamp = " + printed_date);
 											file_list[f].modDate = printed_date.toISOString();
-											console.log("Timestamp Formatted = " + file_list[f].modDate);
 										} else {
 											delete file_list[f].modDate
 										}

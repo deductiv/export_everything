@@ -17,7 +17,8 @@ from splunk.clilib import cli_common as cli
 import splunk.entity as en
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
+# Resolve conflicts with old Splunk libs
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 import splunklib.client as client
 
 os_platform = platform.system()
@@ -158,38 +159,31 @@ def blob_folder_contents(client, container, prefix):
 	logger.debug("Blob container contents")
 	if len(prefix) > 0:
 		prefix = (prefix + '/').replace('//', '/')
-
-	blob_gen = client.walk_blobs(prefix, delimiter="/")#, include={permissions})
+	blob_gen = client.walk_blobs(prefix, delimiter="/")
 	for blob in blob_gen:
-		content = yield yield_azure_blob(blob)
-		content["id"] = ('/' + container + '/' + content["id"]).replace('//', '/')
-		yield content
+		yield yield_azure_blob(blob)
 
 def yield_azure_blob(blob):
-	blob_type = blob.blob_type
-	logger.debug(f'blob="{blob.name}" is type="{blob.blob_type}"')
-	if blob.last_modified is None:
-		timestamp = blob.last_modified.timestamp()
+	from azure.storage.blob import BlobPrefix
+	if isinstance(blob, BlobPrefix):
+		return {
+			"id": ('/' + blob.container + '/' + blob.prefix).replace('//', '/'),
+			"name": blob.name.strip('/').split('/')[-1],
+			"size": 0,
+			"isDir": True
+		}
 	else:
-		timestamp = timestamp.timestamp()
-	try:
-		owner = blob.owner
-	except:
-		owner = None
-	# Set directory to true if it ends in /
-	is_directory = True if blob.name[-1] == "/" else False
-	return {
-		"id": blob.name,
-		"name": blob.name.strip('/').split('/')[-1],
-		"size": blob.size,
-		"modDate": timestamp,
-		"owner": owner,
-		"isDir": is_directory
-	}
-
+		return {
+			"id": ('/' + blob.container + '/' + blob.name).replace('//', '/'),
+			"name": blob.name.strip('/').split('/')[-1],
+			"size": blob.size,
+			"modDate": round(blob.last_modified.timestamp(), 0) if hasattr(blob, "last_modified") and blob.last_modified is not None else None,
+			"isDir": False
+		}
+	
 def get_azure_blob_directory(blob_config, container_folder_path):
-	global BaseBlobService
-	from azure.storage.blob.baseblobservice import BaseBlobService
+	global BlobServiceClient
+	from azure.storage.blob import BlobServiceClient
 
 	logger.debug("Container folder path = " + container_folder_path)
 	folder_path = container_folder_path.strip('/').split('/')
@@ -214,7 +208,7 @@ def get_azure_blob_directory(blob_config, container_folder_path):
 		f'AccountName={blob_config["credential_username"]};' + \
 		f'AccountKey={blob_config["credential_password"]}'
 
-		blob_service = BaseBlobService(connection_string=connection_string)
+		blob_service = BlobServiceClient.from_connection_string(connection_string)
 	except BaseException as e:
 		raise Exception("Could not connect to Azure Blob: " + repr(e))
 
@@ -223,18 +217,19 @@ def get_azure_blob_directory(blob_config, container_folder_path):
 		logger.debug("Getting container contents for " + container_name)
 		# Get the directory listing within the bucket
 		# List files and folders
-		# Use a new connection because BaseBlobService has no walk_blobs method
+		# Use a new connection because BlobServiceClient has no walk_blobs method
 		for e in blob_folder_contents(get_azureblob_container(blob_config, container_name), container_name, folder_prefix):
 			file_list.append( e )
+		logger.debug("Finished processing file list. count=", len(file_list))
 	else:
 		# Get the list of containers
 		logger.debug("Getting list of containers")
-		container_list = blob_service.list_containers()#include_metadata=True)
+		container_list = blob_service.list_containers() #include_metadata=True)
 		logger.debug("Container list: " + str(container_list))
 		for c in container_list:
-			logger.debug("Container=" + str(c))
+			#logger.debug("Container=" + str(c))
 			timestamp = c.last_modified
-			timestamp = timestamp.timestamp() if timestamp is not None else None
+			timestamp = round(timestamp.timestamp(), 0) if timestamp is not None else None
 			file_list.append( {
 				"id": '/' + c.name,
 				"name": c.name,
@@ -730,4 +725,3 @@ def get_box_directory(target_config, folder_path):
 		raise Exception("Could not retrieve folder contents: " + be.message)
 	except BaseException as e:
 		raise Exception("Could not retrieve folder contents: " + repr(e))
-

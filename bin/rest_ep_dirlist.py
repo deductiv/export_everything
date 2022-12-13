@@ -155,12 +155,15 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 					# AWS specific - set the default bucket
 					if 'default_s3_bucket' in list(datasource_config.keys()):
 						query['folder'] = '/' + datasource_config['default_s3_bucket']
+					elif 'default_container' in list(datasource_config.keys()):
+						query['folder'] = '/' + datasource_config['default_container']
 					else:
 						query['folder'] = ''
 					if 'default_folder' in list(datasource_config.keys()):
 						query['folder'] = (query['folder'] + '/' + datasource_config['default_folder']).replace('//', '/')
 				try:
 					payload = get_directory_contents(config_file, datasource_config, query)
+					logger.debug("Directory contents: ", str(payload))
 					try:
 						payload = json.dumps(payload)
 					except BaseException as e:
@@ -175,4 +178,3 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 				return return_error("Cannot find the specified configuration")
 		else:
 			return return_error("No query supplied")
-

@@ -56,7 +56,10 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			output_file_buf.append('['.encode('utf-8'))
 		else:
 			output_file_buf.append(',\n'.encode('utf-8'))
-	
+	else:
+		if append:
+			output_file_buf.append('\n'.encode('utf-8'))
+
 	for last_event, event in annotate_last_item(events):
 		if first_field is None:
 			first_field = list(event.keys())[0]
