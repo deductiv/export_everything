@@ -174,11 +174,12 @@ const table_options = {
 };
 
 const config_descriptions = {
-	[`${app_abbr}_hec`]: 	'HTTP Event Collector',
-	[`${app_abbr}_aws_s3`]: 'S3-Compatible',
-	[`${app_abbr}_box`]: 	'Box.com',
-	[`${app_abbr}_sftp`]: 	'SFTP',
-	[`${app_abbr}_smb`]: 	'SMB',
+	[`${app_abbr}_hec`]: 		'HTTP Event Collector',
+	[`${app_abbr}_aws_s3`]: 	'S3-Compatible',
+	[`${app_abbr}_azure_blob`]: 'Azure Blob',
+	[`${app_abbr}_box`]: 		'Box.com',
+	[`${app_abbr}_sftp`]: 		'SFTP',
+	[`${app_abbr}_smb`]: 		'SMB',
 }
 
 const LoadingOverlay = (props) => { 
@@ -1229,7 +1230,12 @@ class App extends React.Component {
 								//console.log("File list = " + JSON.stringify(file_list));
 								for (var f=0; f<file_list.length; f++) {
 									if ( file_list[f].modDate !== undefined ) {
-										file_list[f].modDate = moment.unix(file_list[f].modDate).format('YYYY-MM-DD hh:mm:ss A');
+										if ( file_list[f].modDate != 0 ) {
+											// console.log("Timestamp is " + file_list[f].modDate);
+											file_list[f].modDate = moment.unix(Number(file_list[f].modDate)).format('YYYY-MM-DD hh:mm:ss A');
+										} else {
+											delete file_list[f].modDate
+										}
 									}
 								}
 								this.setState({"file_list": file_list}, () => {
@@ -1307,7 +1313,7 @@ class App extends React.Component {
 						actions={ (browsable && [{
 							  icon: tableIcons.Open,
 							  tooltip: 'Browse',
-							  onClick: (event,rowData) => { this.show_folder_contents(config, rowData.alias, rowData.share_name || rowData.default_s3_bucket, rowData.default_folder) }
+							  onClick: (event,rowData) => { this.show_folder_contents(config, rowData.alias, rowData.share_name || rowData.default_s3_bucket || rowData.default_container, rowData.default_folder) }
 						}])}
 						options={table_options}
 						className={"actionicons-" + action_columns}
