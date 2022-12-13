@@ -3,76 +3,25 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
+
 import os
 
-from typing import Union, Iterable, AnyStr, IO, Any, Dict  # pylint: disable=unused-import
-from ._version import VERSION
-from ._blob_client import BlobClient
-from ._container_client import ContainerClient
-from ._blob_service_client import BlobServiceClient
-from ._lease import BlobLeaseClient
-from ._download import StorageStreamDownloader
-from ._quick_query_helper import BlobQueryReader
-from ._shared_access_signature import generate_account_sas, generate_container_sas, generate_blob_sas
-from ._shared.policies import ExponentialRetry, LinearRetry
-from ._shared.response_handlers import PartialBatchErrorException
-from ._shared.models import(
-    LocationMode,
-    ResourceTypes,
-    AccountSasPermissions,
-    StorageErrorCode,
-    UserDelegationKey
-)
-from ._generated.models import (
-    RehydratePriority,
-)
-from ._models import (
-    BlobType,
-    BlockState,
-    StandardBlobTier,
-    PremiumPageBlobTier,
-    BlobImmutabilityPolicyMode,
-    SequenceNumberAction,
-    PublicAccess,
-    BlobAnalyticsLogging,
-    Metrics,
-    RetentionPolicy,
-    StaticWebsite,
-    CorsRule,
-    ContainerProperties,
-    BlobProperties,
-    FilteredBlob,
-    LeaseProperties,
-    ContentSettings,
-    CopyProperties,
-    BlobBlock,
-    PageRange,
-    AccessPolicy,
-    ContainerSasPermissions,
-    BlobSasPermissions,
-    CustomerProvidedEncryptionKey,
-    ContainerEncryptionScope,
-    BlobQueryError,
-    DelimitedJsonDialect,
-    DelimitedTextDialect,
-    QuickQueryDialect,
-    ArrowDialect,
-    ArrowType,
-    ObjectReplicationPolicy,
-    ObjectReplicationRule,
-    ImmutabilityPolicy
-)
 from ._list_blobs_helper import BlobPrefix
+from .._models import BlobType
+from .._shared.policies_async import ExponentialRetry, LinearRetry
+from ._blob_client_async import BlobClient
+from ._container_client_async import ContainerClient
+from ._blob_service_client_async import BlobServiceClient
+from ._lease_async import BlobLeaseClient
+from ._download_async import StorageStreamDownloader
 
-__version__ = VERSION
 
-
-def upload_blob_to_url(
+async def upload_blob_to_url(
         blob_url,  # type: str
         data,  # type: Union[Iterable[AnyStr], IO[AnyStr]]
         credential=None,  # type: Any
         **kwargs):
-    # type: (...) -> Dict[str, Any]
+    # type: (...) -> dict[str, Any]
     """Upload data to a given URL
 
     The data will be uploaded as a block blob.
@@ -114,17 +63,17 @@ def upload_blob_to_url(
     :returns: Blob-updated property dict (Etag and last modified)
     :rtype: dict(str, Any)
     """
-    with BlobClient.from_blob_url(blob_url, credential=credential) as client:
-        return client.upload_blob(data=data, blob_type=BlobType.BlockBlob, **kwargs)
+    async with BlobClient.from_blob_url(blob_url, credential=credential) as client:
+        return await client.upload_blob(data=data, blob_type=BlobType.BlockBlob, **kwargs)
 
 
-def _download_to_stream(client, handle, **kwargs):
+async def _download_to_stream(client, handle, **kwargs):
     """Download data to specified open file-handle."""
-    stream = client.download_blob(**kwargs)
-    stream.readinto(handle)
+    stream = await client.download_blob(**kwargs)
+    await stream.readinto(handle)
 
 
-def download_blob_from_url(
+async def download_blob_from_url(
         blob_url,  # type: str
         output,  # type: str
         credential=None,  # type: Any
@@ -137,7 +86,7 @@ def download_blob_from_url(
     :param output:
         Where the data should be downloaded to. This could be either a file path to write to,
         or an open IO handle to write to.
-    :type output: str or writable stream.
+    :type output: str or writable stream
     :param credential:
         The credentials with which to authenticate. This is optional if the
         blob URL already has a SAS token or the blob is public. The value can be a SAS token string,
@@ -170,70 +119,25 @@ def download_blob_from_url(
     :rtype: None
     """
     overwrite = kwargs.pop('overwrite', False)
-    with BlobClient.from_blob_url(blob_url, credential=credential) as client:
+    async with BlobClient.from_blob_url(blob_url, credential=credential) as client:
         if hasattr(output, 'write'):
-            _download_to_stream(client, output, **kwargs)
+            await _download_to_stream(client, output, **kwargs)
         else:
             if not overwrite and os.path.isfile(output):
                 raise ValueError("The file '{}' already exists.".format(output))
             with open(output, 'wb') as file_handle:
-                _download_to_stream(client, file_handle, **kwargs)
+                await _download_to_stream(client, file_handle, **kwargs)
 
 
 __all__ = [
     'upload_blob_to_url',
     'download_blob_from_url',
     'BlobServiceClient',
+    'BlobPrefix',
     'ContainerClient',
     'BlobClient',
-    'BlobType',
     'BlobLeaseClient',
-    'StorageErrorCode',
-    'UserDelegationKey',
     'ExponentialRetry',
     'LinearRetry',
-    'LocationMode',
-    'BlockState',
-    'StandardBlobTier',
-    'PremiumPageBlobTier',
-    'SequenceNumberAction',
-    'BlobImmutabilityPolicyMode',
-    'ImmutabilityPolicy',
-    'PublicAccess',
-    'BlobAnalyticsLogging',
-    'Metrics',
-    'RetentionPolicy',
-    'StaticWebsite',
-    'CorsRule',
-    'ContainerProperties',
-    'BlobProperties',
-    'BlobPrefix',
-    'FilteredBlob',
-    'LeaseProperties',
-    'ContentSettings',
-    'CopyProperties',
-    'BlobBlock',
-    'PageRange',
-    'AccessPolicy',
-    'QuickQueryDialect',
-    'ContainerSasPermissions',
-    'BlobSasPermissions',
-    'ResourceTypes',
-    'AccountSasPermissions',
-    'StorageStreamDownloader',
-    'CustomerProvidedEncryptionKey',
-    'RehydratePriority',
-    'generate_account_sas',
-    'generate_container_sas',
-    'generate_blob_sas',
-    'PartialBatchErrorException',
-    'ContainerEncryptionScope',
-    'BlobQueryError',
-    'DelimitedJsonDialect',
-    'DelimitedTextDialect',
-    'ArrowDialect',
-    'ArrowType',
-    'BlobQueryReader',
-    'ObjectReplicationPolicy',
-    'ObjectReplicationRule'
+    'StorageStreamDownloader'
 ]
