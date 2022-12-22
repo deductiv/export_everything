@@ -20,7 +20,8 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 from splunksecrets import encrypt_new
 import splunklib.client as client
 
-options = ['stanza', 'default', 'alias', 'default_container', 'credential', 'compress']
+options = ['stanza', 'default', 'alias', 'default_container', 'credential', 'compress', 
+	'storage_account', 'azure_ad', 'azure_ad_authority', 'type']
 password_options = []
 
 app = 'export_everything'

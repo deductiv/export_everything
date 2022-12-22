@@ -295,17 +295,15 @@ We welcome your feature requests, which can be submitted as issues on [GitHub](h
 
 # Binary File Declaration
 The following binaries are written in C and required by multiple python modules used within this app:
-<ul>
-<li>bin/lib/py3_linux_x86_64/_cffi_backend.cpython-37m-x86_64-linux-gnu.so</li>
-<li>bin/lib/py3_linux_x86_64/_libs_cffi_backend/libffi-806b1a9d.so.6.0.4</li>
-<li>bin/lib/py3_linux_x86_64/cryptography/hazmat/bindings/_padding.abi3.so</li>
-<li>bin/lib/py3_linux_x86_64/cryptography/hazmat/bindings/_constant_time.abi3.so</li>
-<li>bin/lib/py3_linux_x86_64/cryptography/hazmat/bindings/_openssl.abi3.so</li>
-<li>bin/lib/py3_linux_x86_64/bcrypt/_bcrypt.abi3.so</li>
-<li>bin/lib/py3_linux_x86_64/nacl/_sodium.abi3.so</li>
-<li>bin/lib/py3_win_amd64/_cffi_backend.cp37-win_amd64.pyd</li>
-<li>bin/lib/py3_win_amd64/cryptography/hazmat/bindings/_padding.cp37-win_amd64.pyd</li>
-<li>bin/lib/py3_win_amd64/cryptography/hazmat/bindings/_openssl.cp37-win_amd64.pyd</li>
-<li>bin/lib/py3_win_amd64/cryptography/hazmat/bindings/_constant_time.cp37-win_amd64.pyd</li>
-<li>bin/lib/py3_win_amd64/nacl/_sodium.cp37-win_amd64.pyd</li>
-</ul>
+- bin/lib/py3_linux_x86_64/_cffi_backend.cpython-37m-x86_64-linux-gnu.so
+- bin/lib/py3_linux_x86_64/_libs_cffi_backend/libffi-806b1a9d.so.6.0.4
+- bin/lib/py3_linux_x86_64/cryptography/hazmat/bindings/_padding.abi3.so
+- bin/lib/py3_linux_x86_64/cryptography/hazmat/bindings/_constant_time.abi3.so
+- bin/lib/py3_linux_x86_64/cryptography/hazmat/bindings/_openssl.abi3.so
+- bin/lib/py3_linux_x86_64/bcrypt/_bcrypt.abi3.so
+- bin/lib/py3_linux_x86_64/nacl/_sodium.abi3.so
+- bin/lib/py3_win_amd64/_cffi_backend.cp37-win_amd64.pyd
+- bin/lib/py3_win_amd64/cryptography/hazmat/bindings/_padding.cp37-win_amd64.pyd
+- bin/lib/py3_win_amd64/cryptography/hazmat/bindings/_openssl.cp37-win_amd64.pyd
+- bin/lib/py3_win_amd64/cryptography/hazmat/bindings/_constant_time.cp37-win_amd64.pyd
+- bin/lib/py3_win_amd64/nacl/_sodium.cp37-win_amd64.pyd

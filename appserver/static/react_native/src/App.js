@@ -153,6 +153,18 @@ const center_table_header_styles = {
 	paddingBottom: '5px'
 }
 
+const azure_ad_authorities = {
+	AZURE_PUBLIC_CLOUD: "Azure Public Cloud",
+	AZURE_CHINA: "Azure China",
+	AZURE_GERMANY: "Azure Germany",
+	AZURE_GOVERNMENT: "Azure US Government"
+}
+
+const azure_blob_types = {
+	blob: "Blob",
+	datalake: "Data Lake"
+}
+
 const table_options = {
 	grouping: false,
 	search: false,
@@ -318,22 +330,7 @@ class App extends React.Component {
 					)}
 				</Select> 
 				</FormControl>
-				/*title: "Use ARN", field: "use_arn", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
-			{ title: "Access Key ID", field: "access_key_id", width: "12%", 
-				validate: rowData => ((validators.bool(rowData.use_arn).isValid && rowData.use_arn) || validators.string(rowData.access_key_id).isValid)
 			},
-			{ title: "Secret Access Key", field: "secret_key", width: "12%", cellStyle: cell_format,
-				render: rowData => <span className="password_field">{ ((rowData.secret_key === undefined || rowData.secret_key == '') ? '' : '*'.repeat(8))}</span>,
-				editComponent: props => (
-					<TextField
-						type="password"
-						value={props.value}
-						error={ (props.value == null || !validators.string(props.value).isValid) && !(validators.bool(props.rowData.use_arn).isValid && props.rowData.use_arn) }
-						inputProps={{ "placeholder": "Secret Access Key" }}
-						onChange={e => {props.onChange(e.target.value)}}
-					/>), 
-					validate: rowData => (validators.string(rowData.secret_key).isValid ||  (validators.bool(rowData.use_arn).isValid && rowData.use_arn))
-				*/},
 			{ title: "Region", field: "region", width: "10%", 
 				validate: rowData => validators.string(rowData.region).isValid }, 
 			{ title: "Endpoint URL\n(Blank for AWS S3)", field: "endpoint_url", width: "12%" },
@@ -344,24 +341,64 @@ class App extends React.Component {
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
 			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
-			{ title: "Name/Alias", field: "alias", width: "12%", 
+			{ title: "Name/Alias", field: "alias", width: "15%", 
 				validate: rowData => validators.string(rowData.alias) }, 
-			{ title: "Account Name/Account Key (Credential)", field: "credential", width: "30%", 
+			{ title: "Storage Account Name", field: "storage_account", width: "25%", 
+			validate: rowData => validators.string(rowData.storage_account) }, 
+			{ title: "Account Key (Credential)", field: "credential", width: "15%", 
 				editComponent: props => 
 				<FormControl>
 				<Select 
 					id="credential" 
 					name="credential"
-					style={{ width: "250px" }}
-					defaultValue={props.value}
+					style={{ width: "200px" }}
+					defaultValue={props.value === undefined ? '' : props.value}
 					onChange={e => {props.onChange(e.target.value)}}
 					>
 					{ this.state.passwords.map(credential =>
 						<MenuItem value={credential.stanza}>{credential.stanza}</MenuItem>
 					)}
 				</Select> 
-				</FormControl>},
-			{ title: "Default Container", field: "default_container", width: "12%" },
+				</FormControl>
+			},
+			{ title: "Azure AD", field: "azure_ad", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Azure AD Authority", field: "azure_ad_authority", width: "15%", 
+				render: rowData => <span>{ azure_ad_authorities[rowData.azure_ad_authority] }</span>,
+				editComponent: props =>
+					<FormControl>
+					<Select 
+						id="azure_ad_authority" 
+						name="azure_ad_authority"
+						disabled={ !props.rowData.azure_ad }
+						style={{ width: "80px" }}
+						defaultValue={props.value === undefined ? '' : props.value}
+						onChange={e => {props.onChange(e.target.value)}}
+						>
+						<MenuItem key='' value=''>N/A</MenuItem>
+						{ Object.entries(azure_ad_authorities)
+						  .map( ([key, value]) => <MenuItem value={key}>{value}</MenuItem>
+						)}
+					</Select> 
+					</FormControl>
+			},
+			{ title: "Type", field: "type", width: "10%", 
+				render: rowData => <span>{ azure_blob_types[rowData.type] }</span>,
+				editComponent: props => 
+				<FormControl>
+				<Select 
+					id="type" 
+					name="type"
+					style={{ width: "80px" }}
+					defaultValue='blob'
+					onChange={e => {props.onChange(e.target.value)}}
+					>
+					{ Object.entries(azure_blob_types)
+					  .map( ([key, value]) => <MenuItem value={key}>{value}</MenuItem>
+					)}
+				</Select> 
+				</FormControl>
+			},
+			{ title: "Default Container", field: "default_container", width: "20%" }, 
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
 		[`${app_abbr}_box`]: [
@@ -388,19 +425,6 @@ class App extends React.Component {
 				</Select> 
 				</FormControl>
 			},
-			/*{ title: "Client ID", field: "client_id", width: "9%", 
-				validate: rowData => validators.string(rowData.client_id).isValid },
-			{ title: "Client Secret", field: "client_secret", width: "9%", 
-				validate: rowData => validators.string(rowData.client_secret).isValid,
-				render: rowData => <span className="password_field">{((rowData.client_secret === undefined || rowData.client_secret == '') ? '' : '*'.repeat(8))}</span>,
-				editComponent: props => (
-					<TextField
-						error={ (props.value == null || !validators.string(props.value).isValid) }
-						type="password"
-						value={props.value}
-						inputProps={{"placeholder": "Client Secret"}}
-						onChange={e => {props.onChange(e.target.value)}}
-					/>) },*/
 			{ title: "Public Key ID", field: "public_key_id", width: "9%", 
 				validate: rowData => validators.string(rowData.public_key_id) },
 			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, 
@@ -431,18 +455,7 @@ class App extends React.Component {
 					)}
 				</Select> 
 				</FormControl>
-			},/*
-			{ title: "Passphrase", field: "passphrase", width: "8%", 
-				validate: rowData => validators.string(rowData.passphrase).isValid,
-				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(8))}</span>,
-				editComponent: props => (
-					<TextField
-						error={ (props.value == null || !validators.string(props.value).isValid) }
-						type="password"
-						value={props.value}
-						inputProps={{"placeholder": "Passphrase"}}
-						onChange={e => {props.onChange(e.target.value)}}
-					/>) },*/
+			},
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
@@ -471,20 +484,7 @@ class App extends React.Component {
 					)}
 				</Select> 
 				</FormControl>
-			},/*
-			{ title: "Username", field: "username", width: "15%", 
-				validate: rowData => validators.string(rowData.username).isValid },
-			{ title: "Password", field: "password", width: "15%", 
-				validate: rowData => (validators.string(rowData.private_key).isValid || validators.string(rowData.password).isValid),
-				render: rowData => <span className="password_field">{((rowData.password === undefined || rowData.password == '') ? '' : '*'.repeat(8))}</span>,
-				editComponent: props => (
-					<TextField
-						error={ (props.value == null || !validators.string(props.value).isValid) && !(validators.string(props.rowData.private_key).isValid) }
-						type="password"
-						value={props.value}
-						inputProps={{"placeholder": "Password"}}
-						onChange={e => {props.onChange(e.target.value)}}
-					/>) },*/
+			},
 			{ title: "Private Key", field: "private_key", width: "36%", cellStyle: { wordBreak: 'keep-all'}, 
 				//validate: rowData => (validators.string(rowData.private_key).isValid || validators.string(rowData.password).isValid),
 				render: rowData => <span className="password_field">{((rowData.private_key === undefined || rowData.private_key == '') ? '' : '[configured]')}</span>,
@@ -513,16 +513,7 @@ class App extends React.Component {
 					)}
 				</Select> 
 				</FormControl>
-			},/*
-			{ title: "Passphrase", field: "passphrase", width: "8%", 
-				render: rowData => <span className="password_field">{((rowData.passphrase === undefined || rowData.passphrase == '') ? '' : '*'.repeat(8))}</span>,
-				editComponent: props => (
-					<TextField
-						type="password"
-						value={props.value}
-						inputProps={{"placeholder": "Passphrase"}}
-						onChange={e => {props.onChange(e.target.value)}}
-					/>) },*/
+			},
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
 		],
@@ -549,22 +540,7 @@ class App extends React.Component {
 					)}
 				</Select> 
 				</FormControl>
-			},/*
-			{ title: "Domain", field: "domain", width: "15%", 
-				validate: rowData => validators.string(rowData.domain) },
-			{ title: "Username", field: "username", width: "15%", 
-				validate: rowData => validators.string(rowData.username) },
-			{ title: "Password", field: "clear_password", width: "15%", 
-				validate: rowData => validators.string(rowData.password).isValid,
-				render: rowData => <span className="password_field">{((rowData.password === undefined || rowData.password == '') ? '' : '*'.repeat(8))}</span>,
-				editComponent: props => (
-					<TextField
-						error={ (props.value == null || !validators.string(props.value).isValid) }
-						type="password"
-						value={props.value}
-						inputProps={{"placeholder": "Password"}}
-						onChange={e => {props.onChange(e.target.value)}}
-					/>) },*/
+			},
 			{ title: "Share Name", field: "share_name", width: "15%", 
 				validate: rowData => validators.string(rowData.share_name).isValid },
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
@@ -662,16 +638,19 @@ class App extends React.Component {
 	
 	// Download the data and push it into the corresponding state entry
 	refresh_tables = () => {
+		//this.state.loading = true;
 		let tables = Object.keys(this.columns);
-		for (let table of tables) {
-			this.get_config(table).then((d) => {
+
+		return Promise.all(tables.map(async (table) => {
+			await this.get_config(table).then((d) => {
 				if (table != 'passwords') {
 					// Convert the REST response data into a usable row format
 					d = this.rest_to_rows(table, d);
 					this.setState({[table]: d});
 				}
 			})
-		}
+			
+		}))//.then( this.state.loading = false )
 	}
 
 	// Convert an object to an HTTP query string (for Splunk configuration POST requests)
@@ -1449,12 +1428,12 @@ class App extends React.Component {
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
 							title={`Export to Azure Blob (${app_abbr}azureblob)`} 
-							heading="Azure Blob Connections" 
+							heading="Azure Blob & Data Lake Connections" 
 							action_columns="3"
 							browsable="true"
 							config={`${app_abbr}_azure_blob`} >
-							<p>Setup connections for Azure Blob object storage repositories.</p>
-							<p>The Account Name will come from the Username field in the specified credential.</p>
+							<p>Setup connections for Azure Blob object storage or Data Lake repositories.</p>
+							<p>If Azure AD is selected, the Tenant will be the the value of the Realm field from the credential.</p>
 						</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">

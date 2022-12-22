@@ -17,7 +17,7 @@ from deductiv_helpers import setup_logger, \
 	recover_parameters, \
 	str2bool, \
 	log_proxy_settings
-from ep_helpers import get_config_from_alias, get_azureblob_container
+from ep_helpers import get_config_from_alias, get_azureblob_client, upload_azureblob_file
 import event_file
 from splunk.clilib import cli_common as cli
 
@@ -67,6 +67,15 @@ class epazureblob(EventingCommand):
 		**Default:** *csv*''',
 		require=False) 
 
+	append = Option(
+		doc='''
+		**Syntax:** **append=***[true|false]*
+		**Description:** Option to append the output file to the existing blob. 
+			The destination blob must already be of type AppendBlob (not the default BlockBlob).
+			Does not work with gzip compression.
+		**Default:** False ''',
+		require=False, validate=validators.Boolean())
+	
 	fields = Option(
 		doc='''
 		**Syntax:** **fields=***"field1, field2, field3"*
@@ -136,15 +145,14 @@ class epazureblob(EventingCommand):
 					self.container = t
 					#target_config["container"] = t
 				else:
-					exit_error(logger, "No container specified", 4)
+					exit_error(logger, "No container specified (status=error)", 4)
 			else:
-				exit_error(logger, "No container specified", 5)
-		#else:
-		#	target_config["container"] = self.container
-		
+				exit_error(logger, "No container specified (status=error)", 5)
+
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
 		self.fields = None if (self.fields is not None and self.fields == "") else self.fields
+		self.append = False if (self.append is not None and self.append == "") else self.append
 
 		# Read the compress value from the target config unless one was specified in the search
 		if self.compress is None:
@@ -171,6 +179,9 @@ class epazureblob(EventingCommand):
 				# We have compression with no gz extension. Add .gz.
 				self.outputfile = self.outputfile + '.gz'
 			
+			if self.append and self.compress:
+				exit_error(logger, "Cannot append to gzip blob. (status=error)")
+
 			setattr(self, 'remote_output_file', self.outputfile)
 		
 			# First run and no local output file string has been assigned
@@ -186,40 +197,33 @@ class epazureblob(EventingCommand):
 				f"staging_file=\"{self.local_output_file}\"")
 			
 			setattr(self, 'event_counter', 0)
-			append = False
+			append_chunk = False
 
 			try:
-				self.blob_container_client =  get_azureblob_container(target_config, self.container)
+				self.azure_client = get_azureblob_client(target_config)
 			except BaseException as e:
 				exit_error(logger, "Could not connect to Azure Blob: " + repr(e), 741423)
 				
 		else:
 			# Persistent variable is populated from a prior chunk/iteration.
 			# Use the previous local output file and append to it.
-			append = True
+			append_chunk = True
 		
 		# Write the output file to disk in the dispatch folder
 		logger.debug("Writing events. file=\"%s\", format=%s, compress=%s, fields=\"%s\"", \
 			self.local_output_file, self.outputformat, self.compress, \
 			self.fields if self.fields is not None else "")
-		for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append=append, finish=self._finished):
+		for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, 
+			append_chunk=append_chunk, finish=self._finished, append_data=self.append):
 			yield event
 			self.event_counter += 1
 		
-		# Write the data to S3 after the very last chunk has been processed
+		# Upload the data after the very last chunk has been processed
 		if self._finished or self._finished is None:
-			# Upload file to s3
 			try:
-				with open(self.local_output_file, "rb") as f:
-					blob_client = self.blob_container_client.get_blob_client(self.remote_output_file)
-					blob_client.upload_blob(f, blob_type="BlockBlob", overwrite=True)
-				self.blob_container_client.close()
-				logger.info("Successfully exported events to Azure Blob. app=%s count=%s container=%s file=%s user=%s" % (app, self.event_counter, self.container, self.remote_output_file, user))
-				os.remove(self.local_output_file)
-			except self.blob_client.exceptions.NoSuchcontainer as e:
-				exit_error(logger, "Error: No such container", 123833)
+				upload_azureblob_file(self.azure_client, self.container, self.local_output_file, self.remote_output_file, self.append)
 			except BaseException as e:
-				exit_error(logger, "Could not upload file to Azure Blob: " + repr(e), 9)
+				exit_error(logger, "Could not upload file to Azure Blob (status=failure): " + repr(e), 9)
 
 dispatch(epazureblob, sys.argv, sys.stdin, sys.stdout, __name__)
 

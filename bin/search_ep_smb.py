@@ -228,16 +228,16 @@ class epsmb(EventingCommand):
 						exit_error(logger, "Could not access the remote directory: " + repr(e), 184772)
 			
 			setattr(self, 'event_counter', 0)
-			append = False
+			append_chunk = False
 		else:
 			# Persistent variable is populated from a prior chunk/iteration.
 			# Use the previous local output file and append to it.
-			append = True
+			append_chunk = True
 
 		try:
 			# Write the output file to disk in the dispatch folder
 			logger.debug("Writing events. file=\"%s\", format=%s, compress=%s, fields=\"%s\"", self.local_output_file, self.outputformat, self.compress, self.fields)
-			for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append=append, finish=self._finished):
+			for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append_chunk=append_chunk, finish=self._finished):
 				yield event
 				self.event_counter += 1
 		except BaseException as e:

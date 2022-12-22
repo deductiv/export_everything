@@ -18,6 +18,7 @@ action.alert_ep_aws_s3.param.compress = <string>
 action.alert_ep_azure_blob = [0|1]
 action.alert_ep_azure_blob.param.dest_guid = <string>
 action.alert_ep_azure_blob.param.container = <string>
+action.alert_ep_azure_blob.param.append = [0|1]
 action.alert_ep_azure_blob.param.outputfile = <string>
 action.alert_ep_azure_blob.param.outputformat = <string>
 action.alert_ep_azure_blob.param.fields = <string>

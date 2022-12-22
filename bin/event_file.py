@@ -42,7 +42,7 @@ def flush_buffer_gzip(string_list, output_file):
 	with gzip.open(output_file, "ab") as f:
 		f.writelines(string_list)
 
-def write_events_to_file(events, fields, local_output, outputformat, compression, append=False, finish=True):
+def write_events_to_file(events, fields, local_output, outputformat, compression, append_chunk=False, finish=True, append_data=False):
 	logger = dhelp.setup_logging('export_everything')
 
 	# Buffer variables
@@ -52,12 +52,12 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 	first_field = None
 
 	if outputformat == 'json':
-		if not append:
+		if not append_chunk:
 			output_file_buf.append('['.encode('utf-8'))
 		else:
 			output_file_buf.append(',\n'.encode('utf-8'))
 	else:
-		if append:
+		if append_chunk:
 			output_file_buf.append('\n'.encode('utf-8'))
 
 	for last_event, event in annotate_last_item(events):
@@ -87,7 +87,7 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			# Check event format setting and write a header if needed
 			if outputformat == "csv" or outputformat == "tsv" or outputformat == "pipe":
 				delimiter = delimiters[outputformat]
-				if not append:
+				if not append_chunk and not append_data:
 					# Write header
 					header = ''
 					for field in event_keys:
@@ -174,7 +174,7 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			
 		yield(event)
 	
-	# Make changes to the event for append=True or finish=True/None
+	# Make changes to the event for append_chunk=True or finish=True/None
 	if outputformat == 'json':
 		if isinstance(output_file_buf[-1], str):
 			#dhelp.eprint(output_file_buf[-1])
