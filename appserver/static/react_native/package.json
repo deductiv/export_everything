@@ -16,7 +16,7 @@
     "@material-table/core": "^2.3.29",
     "@material-ui/core": "^4.11.3",
     "@material-ui/icons": "4.11.2",
-    "babel-loader": "8.1.0",
+    "babel-loader": "8.3.0",
     "babel-plugin-syntax-dynamic-import": "^6.18.0",
     "chonky": "^2.1.0",
     "chonky-icon-fontawesome": "^2.1.0",
