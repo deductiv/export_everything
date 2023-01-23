@@ -596,7 +596,7 @@ def get_sftp_connection(target_config):
 					f.close()
 				try:
 					if 'passphrase_credential' in valid_settings:
-						sftp = pysftp.Connection(host=target_config['host'], private_key=key_file, private_key_pass=target_config['passphrase_credential_password'], cnopts=cnopts)
+						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], private_key=key_file, private_key_pass=target_config['passphrase_credential_password'], cnopts=cnopts)
 					else:
 						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], private_key=key_file, cnopts=cnopts)
 					return sftp
