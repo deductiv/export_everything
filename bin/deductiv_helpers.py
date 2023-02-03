@@ -350,3 +350,16 @@ def log_proxy_settings(logger):
 		logger.debug("HTTPS proxy: %s" % https_proxy)
 	if proxy_exceptions is not None:
 		logger.debug("Proxy Exceptions: %s" % proxy_exceptions)
+
+def is_cloud(session_key):
+	uri = en.buildEndpoint(["server", "info", "server-info"], namespace='-', owner='nobody')
+	server_content = simpleRequest(uri, getargs={"output_mode": "json"}, sessionKey=session_key, raiseAllErrors=True)[1]
+	try:
+		# Test for non-cloud environment
+		#return json.loads(server_content)['entry'][0]['content']['federated_search_enabled'] # true
+		# See if instance_type is set to "cloud"
+		instance_type = json.loads(server_content)['entry'][0]['content']['instance_type']
+		return instance_type == "cloud"
+	except KeyError:
+		return False
+

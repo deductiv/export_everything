@@ -305,8 +305,7 @@ class App extends React.Component {
 			{ title: "HEC Token", field: "token", width: "20%", 
 				validate: rowData => validators.uuid(rowData.token).isValid },
 			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles },
-			{ title: "Validate SSL", field: "ssl_validate", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles }
-
+			{ title: "Verify SSL", field: "ssl_verify", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles }
 		],
 		[`${app_abbr}_aws_s3`]: [
 			{ title: "Stanza", field: "stanza", hidden: true },
@@ -1403,7 +1402,8 @@ class App extends React.Component {
 							heading="Splunk HTTP Event Collector Connections" 
 							action_columns="2" 
 							config={`${app_abbr}_hec`} >
-								Setup connections to Splunk HTTP Event Collector endpoints, including Cribl Stream.
+								<p>Setup connections to Splunk HTTP Event Collector endpoints, including Cribl Stream.</p>
+								<p>For Splunk Cloud, SSL will always be enabled and validation forced, per Splunk policy.</p>
 						</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">
