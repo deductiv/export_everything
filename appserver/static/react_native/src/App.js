@@ -383,19 +383,19 @@ class App extends React.Component {
 			{ title: "Type", field: "type", width: "10%", 
 				render: rowData => <span>{ azure_blob_types[rowData.type] }</span>,
 				editComponent: props => 
-				<FormControl>
-				<Select 
-					id="type" 
-					name="type"
-					style={{ width: "80px" }}
-					defaultValue='blob'
-					onChange={e => {props.onChange(e.target.value)}}
-					>
-					{ Object.entries(azure_blob_types)
-					  .map( ([key, value]) => <MenuItem value={key}>{value}</MenuItem>
-					)}
-				</Select> 
-				</FormControl>
+					<FormControl>
+					<Select 
+						id="type" 
+						name="type"
+						style={{ width: "80px" }}
+						defaultValue={props.value === undefined ? '' : props.value}
+						onChange={e => {props.onChange(e.target.value)}}
+						>
+						{ Object.entries(azure_blob_types)
+						.map( ([key, value]) => <MenuItem value={key}>{value}</MenuItem>
+						)}
+					</Select> 
+					</FormControl>
 			},
 			{ title: "Default Container", field: "default_container", width: "20%" }, 
 			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
@@ -1428,12 +1428,16 @@ class App extends React.Component {
 					<TabPanel className="tab-pane">
 						<this.EPTabContent 
 							title={`Export to Azure Blob (${app_abbr}azureblob)`} 
-							heading="Azure Blob & Data Lake Connections" 
+							heading="Azure Blob & Data Lake v2 Connections" 
 							action_columns="3"
 							browsable="true"
 							config={`${app_abbr}_azure_blob`} >
-							<p>Setup connections for Azure Blob object storage or Data Lake repositories.</p>
-							<p>If Azure AD is selected, the Tenant will be the the value of the Realm field from the credential.</p>
+							<p>Setup connections for Azure Blob object storage or Data Lake repositories.  Please note:</p>
+							<ul>
+								<li>If Azure AD is selected, the credential's Username must be the application ID and the Realm must be the the Tenant ID.</li>
+								<li>Storage accounts with hierarchical namespace enabled must have the Type set to Data Lake.</li>
+								<li>Browse functionality requires the "Storage Blob Data Contributor" role assignment on storage accounts, in addition to the "Storage Queue Data Contributor" role on Data Lake storage accounts.</li>
+							</ul>
 						</this.EPTabContent>
 					</TabPanel>
 					<TabPanel className="tab-pane">

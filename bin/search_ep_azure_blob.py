@@ -223,6 +223,7 @@ class epazureblob(EventingCommand):
 			try:
 				upload_azureblob_file(self.azure_client, self.container, self.local_output_file, self.remote_output_file, self.append)
 			except BaseException as e:
+				#logger.exception(e)
 				exit_error(logger, "Could not upload file to Azure Blob (status=failure): " + repr(e), 9)
 
 dispatch(epazureblob, sys.argv, sys.stdin, sys.stdout, __name__)
