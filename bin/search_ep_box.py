@@ -134,9 +134,9 @@ class epbox(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
+			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
@@ -221,7 +221,7 @@ class epbox(EventingCommand):
 			try:
 				client = get_box_connection(target_config)
 			except BaseException as e:
-				exit_error(logger, "Could not connect to box: " + repr(e))
+				exit_error(logger, "Could not connect to box: " + repr(e), 918723, self)
 
 			subfolders = folder.strip('/').split('/')
 			if '' in subfolders:
@@ -262,9 +262,9 @@ class epbox(EventingCommand):
 				self.event_counter += 1
 
 		except BoxAPIException as be:
-			exit_error(logger, be.message, 833928)
+			exit_error(logger, be.message, 833928, self)
 		except BaseException as e:
-			exit_error(logger, "Error writing staging file to upload", 398372)
+			exit_error(logger, "Error writing staging file to upload", 398372, self)
 
 		if self._finished or self._finished is None:
 			try:
@@ -273,6 +273,6 @@ class epbox(EventingCommand):
 				logger.info(message)
 				os.remove(self.local_output_file)
 			except BaseException as e:
-				exit_error(logger, "Error uploading file to Box: " + repr(e), 109693)
+				exit_error(logger, "Error uploading file to Box: " + repr(e), 109693, self)
 
 dispatch(epbox, sys.argv, sys.stdin, sys.stdout, __name__)

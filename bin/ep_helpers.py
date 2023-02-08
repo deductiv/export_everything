@@ -12,13 +12,8 @@ import re
 import socket
 import stat
 from datetime import datetime
-from functools import partial
 
-# Stuff for file byte reader
-from pathlib import Path
-from functools import partial
-
-from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret, exit_error, merge_two_dicts
+from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret, merge_two_dicts
 from splunk.clilib import cli_common as cli
 import splunk.entity as en
 
@@ -66,37 +61,10 @@ def mask_obj_passwords(obj):
 		return r
 	else:
 		return obj
-'''
-def mask_obj_passwords(o):
-	no_passwords = {}
-	for k, v in list(o.items()):
-		if 'password' in k or '' in k:
-			no_passwords[k] = '********'
-		else:
-			no_passwords[k] = v
-	return no_passwords
-'''
-'''
-def file_byte_iterator(filename, chunksize=10485760):
-	with open(filename, "rb") as f:
-		for chunk in iter(partial(f.read, chunksize), b''):
-			#yield from chunk
-			for b in chunk:
-				yield b
 
-def file_byte_iterator(file_path):
-	# Return an iterator over a file that lazily loads the file
-	path = Path(file_path)
-	buffer_size = 10485760 # 10 MB
-	with path.open('rb') as file:
-		reader = partial(file.read1, buffer_size)
-		file_iterator = iter(reader, bytes())
-		for chunk in file_iterator:
-			yield from chunk
-'''
 def read_in_chunks(file_object, chunk_size=10485760): # 10 MB for uploads
-	"""Lazy function (generator) to read a file piece by piece.
-	Default chunk size: 1k."""
+	# Lazy function (generator) to read a file piece by piece.
+	# Default chunk size: 10M.
 	while True:
 		data = file_object.read(chunk_size)
 		if not data:
@@ -309,26 +277,12 @@ def get_azureblob_client(blob_config): #, container_name):
 		elif blob_config["type"] == "blob":
 			# Blob container with account key
 			return BlobServiceClient.from_connection_string(connection_string)
-'''
-def blob_folder_contents(client, container, prefix):
-	if len(prefix) > 0:
-		prefix = (prefix + '/').replace('//', '/')
-	if isinstance(client, DataLakeServiceClient):
-		if prefix == "/":
-			file_systems = client.list_file_systems
-		filesystem_client = 
-	elif isinstance(client, BlobServiceClient):
-		container_client = client.get_container_client(container)
-		logger.debug(f'action=list_contents container={container} folder="{prefix}"')
-		blob_gen = container_client.walk_blobs(prefix, delimiter="/")
-		for blob in blob_gen:
-			yield chonkyize_azure_blob(blob)
-'''
+
 def chonkyize_azure_blob(blob):
 	from azure.storage.filedatalake import PathProperties
 
 	if isinstance(blob, BlobPrefix):
-		logger.debug("BlobPrefix")
+		# Blob folder
 		return {
 			"id": ('/' + blob.container + '/' + blob.prefix).replace('//', '/'),
 			"name": blob.name.strip('/').split('/')[-1],
@@ -336,7 +290,7 @@ def chonkyize_azure_blob(blob):
 			"isDir": True
 		}
 	elif isinstance(blob, PathProperties):
-		logger.debug("PathProperties")
+		# Data Lake folder
 		return {
 			"id": ('/' + blob.container + '/' + blob.name).replace('//', '/'),
 			#"id": blob.name,
@@ -346,7 +300,7 @@ def chonkyize_azure_blob(blob):
 			"isDir": blob.is_directory
 		}
 	else:
-		logger.debug("else")
+		# Blob or Data Lake file objects
 		return {
 			"id": ('/' + blob.container + '/' + blob.name).replace('//', '/'),
 			"name": blob.name.strip('/').split('/')[-1],
@@ -356,9 +310,6 @@ def chonkyize_azure_blob(blob):
 		}
 	
 def get_azure_blob_directory(blob_config, container_folder_path):
-	#global BlobServiceClient
-	#from azure.identity import DefaultAzureCredential
-	#from azure.storage.blob import BlobServiceClient
 
 	logger.debug("Container folder path = " + container_folder_path)
 	folder_path = container_folder_path.strip('/').split('/')
@@ -367,22 +318,14 @@ def get_azure_blob_directory(blob_config, container_folder_path):
 		logger.debug("No container specified")
 		folder_prefix = '/'
 		container_name = ''
-		#pass #container_name = blob_config['default_container'] 
 		#Default default_container code happens in rest_ep_dirlist
 	if len(folder_path) >= 1:
 		folder_prefix = '/'.join(folder_path[1:]).strip('/')
-	#elif len(folder_path) == 1:
-	#	folder = '/' + container_name
 	else:
 		folder_prefix = '/'
 	logger.debug("Folder Prefix = " + folder_prefix)
 
 	try:
-		#connection_string = 'DefaultEndpointsProtocol=https;' + \
-		#'EndpointSuffix=core.windows.net;' + \
-		#f'AccountName={blob_config["credential_username"]};' + \
-		#f'AccountKey={blob_config["credential_password"]}'
-
 		azure_client = get_azureblob_client(blob_config)
 	except BaseException as e:
 		raise Exception("Could not connect to Azure Blob: " + repr(e))
@@ -400,21 +343,15 @@ def get_azure_blob_directory(blob_config, container_folder_path):
 			container_client = azure_client.get_container_client(container_name)
 			blob_gen = container_client.walk_blobs(folder_prefix, delimiter="/")
 		for blob in blob_gen:
+			# PathProperties (Data Lake path) has no container awareness
 			if not hasattr(blob, 'container'): 
 				setattr(blob, 'container', container_name)
 			file_list.append(chonkyize_azure_blob(blob))
-		# Get the directory listing within the bucket
-		# List files and folders
-		# Use a new connection because BlobServiceClient has no walk_blobs method
-		#for e in blob_folder_contents(blob_service, container_name, folder_prefix):
-		#	file_list.append( e )
 		logger.debug("Finished processing file list. count=", len(file_list))
 	else:
 		# No container specified. Get the list of containers (or DataLake file systems).
 		if isinstance(azure_client, DataLakeServiceClient):
-			#if hasattr(azure_client, 'list_file_systems'):
 			container_list = azure_client.list_file_systems()
-			#elif hasattr(azure_client, 'list_containers'):
 		elif isinstance(azure_client, BlobServiceClient):
 			logger.debug("Getting list of containers")
 			container_list = azure_client.list_containers() #include_metadata=True)
@@ -558,7 +495,6 @@ def yield_s3_object(content, is_directory=False):
 
 def get_aws_s3_directory(aws_config, bucket_folder_path):
 
-	#logger.debug("Default bucket = " + aws_config['default_s3_bucket'])
 	logger.debug("Bucket folder path = " + bucket_folder_path)
 	folder_path = bucket_folder_path.strip('/').split('/')
 	bucket_name = folder_path[0]
@@ -566,11 +502,9 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 		logger.debug("No bucket specified")
 		folder_prefix = '/'
 		bucket_name = ''
-		#pass #bucket_name = aws_config['default_s3_bucket'] Default bucket code happens in rest_ep_dirlist
+		# Default bucket code happens in rest_ep_dirlist
 	if len(folder_path) >= 1:
 		folder_prefix = '/'.join(folder_path[1:]).strip('/')
-	#elif len(folder_path) == 1:
-	#	folder = '/' + bucket_name
 	else:
 		folder_prefix = '/'
 	logger.debug("Folder Prefix = " + folder_prefix)
@@ -603,7 +537,6 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 			} )
 	return file_list
 
-
 def get_sftp_connection(target_config):
 	global pysftp
 	import pysftp
@@ -630,7 +563,7 @@ def get_sftp_connection(target_config):
 					sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], password=target_config['credential_password'], cnopts=cnopts)
 					return sftp
 				except BaseException as e:
-					exit_error(logger, "Unable to setup SFTP connection with password: " + repr(e), 921982)
+					raise Exception("Unable to setup SFTP connection with password: " + repr(e))
 			elif 'credential_username' in valid_settings and 'private_key' in valid_settings:
 				# Write the decrypted private key to a temporary file
 				temp_dir = os.getcwd()
@@ -650,7 +583,7 @@ def get_sftp_connection(target_config):
 			else:
 				raise Exception("Required SFTP settings not found")
 		except BaseException as e: 
-			raise Exception("Could not find or decrypt the specified SFTP credential: " + repr(e))
+			raise Exception("Could not login with the specified SFTP credential: " + repr(e))
 	else:
 		raise Exception("Could not find required SFTP configuration settings")
 		

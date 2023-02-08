@@ -132,9 +132,9 @@ class epsftp(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
+			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
@@ -173,7 +173,7 @@ class epsftp(EventingCommand):
 			try:
 				setattr(self, 'sftp', get_sftp_connection(target_config))
 			except BaseException as e:
-				exit_error(logger, repr(e), 912934)
+				exit_error(logger, repr(e), 912934, self)
 			
 			if self.sftp is not None:
 				# Use the credential to connect to the SFTP server
@@ -181,9 +181,9 @@ class epsftp(EventingCommand):
 					self.sftp.makedirs(folder)
 					self.sftp.chdir(folder)
 				except BaseException as e:
-					exit_error(logger, "Could not load remote SFTP directory: " + repr(e), 6)
+					exit_error(logger, "Could not load remote SFTP directory: " + repr(e), 6, self)
 			else:
-				exit_error(logger, "SFTP credential not configured.", 8)
+				exit_error(logger, "SFTP credential not configured.", 8, self)
 			
 			setattr(self, 'event_counter', 0)
 			append_chunk = False
@@ -199,7 +199,7 @@ class epsftp(EventingCommand):
 				yield event
 				self.event_counter += 1
 		except BaseException as e:
-			exit_error(logger, "Error writing staging file to upload", 296733)
+			exit_error(logger, "Error writing staging file to upload", 296733, self)
 	
 		if self._finished or self._finished is None:
 			try:
@@ -207,7 +207,7 @@ class epsftp(EventingCommand):
 				self.sftp.put(self.local_output_file)
 				os.remove(self.local_output_file)
 			except BaseException as e:
-				exit_error(logger, "Error uploading file to SFTP server: " + repr(e), 109693)
+				exit_error(logger, "Error uploading file to SFTP server: " + repr(e), 109693, self)
 
 			try:
 				contents = self.sftp.listdir()
@@ -225,8 +225,8 @@ class epsftp(EventingCommand):
 					message = "SFTP export_status=success, count=%s, file_name=\"%s\"" % (self.event_counter, self.sftp.getcwd() + '/' + self.remote_output_file)
 					logger.info(message)
 				else:
-					exit_error(logger, "Could not verify uploaded file exists", 771293)
+					exit_error(logger, "Could not verify uploaded file exists", 771293, self)
 			except BaseException as e:
-				exit_error(logger, "Error renaming or replacing file on SFTP server. Does the file already exist?" + repr(e), 109693)
+				exit_error(logger, "Error renaming or replacing file on SFTP server. Does the file already exist?" + repr(e), 109693, self)
 
 dispatch(epsftp, sys.argv, sys.stdin, sys.stdout, __name__)

@@ -131,7 +131,7 @@ class ephec(StreamingCommand):
 			try:
 				setattr(self, 'target_config', get_config_from_alias(session_key, cmd_config, self.target, log=first_chunk))
 				if self.target_config is None:
-					exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
+					exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
 
 				logger.debug("Target configuration: " + str(self.target_config))
 				hec_token = self.target_config['token']
@@ -140,10 +140,10 @@ class ephec(StreamingCommand):
 				hec_ssl = str2bool(self.target_config['ssl'])
 				hec_ssl_verify = str2bool(self.target_config['ssl_verify'])
 			except BaseException as e:
-				exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
+				exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 
 			if len(hec_host) == 0:
-				exit_error(logger, "No host specified", 119371)
+				exit_error(logger, "No host specified", 119371, self)
 
 			# Create HEC object
 			setattr(self, 'hec', http_event_collector(hec_token, hec_host, http_event_port=hec_port, http_event_server_ssl=hec_ssl))
@@ -162,9 +162,9 @@ class ephec(StreamingCommand):
 					logger.debug("Connectivity check passed")
 				else:
 					test_response = test_response.decode('utf-8')
-					exit_error(logger, "HEC health endpoint error: %s" % test_response, 100253)
+					exit_error(logger, "HEC health endpoint error: %s" % test_response, 100253, self)
 			except BaseException as e:
-				exit_error(logger, "Could not connect to HEC server: %s" % str(e), 1384185)
+				exit_error(logger, "Could not connect to HEC server: %s" % str(e), 1384185, self)
 
 			setattr(self, 'event_counter', 0)
 		

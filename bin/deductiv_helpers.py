@@ -172,10 +172,16 @@ def replace_keywords(s):
 		s = s.replace(x, strings_to_replace[x])
 	return s
 
-def exit_error(logger, message, error_code=1):
-	logger.critical(message)
+def exit_error(source_logger, message, error_code=1, source_obj=None):
+	if source_obj is not None:
+		if hasattr(source_obj, '_configuration'):
+			command = str(source_obj._configuration.command).split(' ')[0]
+		else:
+			command = ''
+		if hasattr(source_obj, 'write_error'):
+			source_obj.write_error(f'{command}: {message}')
+	source_logger.critical(message)
 	eprint(message)
-	print(message)
 	exit(error_code)
 
 def decrypt_with_secret(encrypted_text):

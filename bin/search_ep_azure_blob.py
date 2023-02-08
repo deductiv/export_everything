@@ -134,9 +134,9 @@ class epazureblob(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, stanza_guid_alias=self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
+			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 		
 		if self.container is None or len(self.container) == 0:
 			if 'default_container' in list(target_config.keys()):
@@ -145,9 +145,9 @@ class epazureblob(EventingCommand):
 					self.container = t
 					#target_config["container"] = t
 				else:
-					exit_error(logger, "No container specified (status=error)", 4)
+					exit_error(logger, "No container specified (status=error)", 4, self)
 			else:
-				exit_error(logger, "No container specified (status=error)", 5)
+				exit_error(logger, "No container specified (status=error)", 5, self)
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
@@ -180,7 +180,7 @@ class epazureblob(EventingCommand):
 				self.outputfile = self.outputfile + '.gz'
 			
 			if self.append and self.compress:
-				exit_error(logger, "Cannot append to gzip blob. (status=error)")
+				exit_error(logger, "Cannot append to gzip blob. (status=error)", 192928, self)
 
 			setattr(self, 'remote_output_file', self.outputfile)
 		
@@ -202,7 +202,7 @@ class epazureblob(EventingCommand):
 			try:
 				self.azure_client = get_azureblob_client(target_config)
 			except BaseException as e:
-				exit_error(logger, "Could not connect to Azure Blob: " + repr(e), 741423)
+				exit_error(logger, "Could not connect to Azure Blob: " + repr(e), 741423, self)
 				
 		else:
 			# Persistent variable is populated from a prior chunk/iteration.
@@ -224,7 +224,7 @@ class epazureblob(EventingCommand):
 				upload_azureblob_file(self.azure_client, self.container, self.local_output_file, self.remote_output_file, self.append)
 			except BaseException as e:
 				#logger.exception(e)
-				exit_error(logger, "Could not upload file to Azure Blob (status=failure): " + repr(e), 9)
+				exit_error(logger, "Could not upload file to Azure Blob (status=failure): " + repr(e), 9, self)
 
 dispatch(epazureblob, sys.argv, sys.stdin, sys.stdout, __name__)
 

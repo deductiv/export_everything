@@ -123,9 +123,9 @@ class epsmb(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
+			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
@@ -187,16 +187,16 @@ class epsmb(EventingCommand):
 							self.conn.connect(target_config['host'], 445, timeout=5)
 
 							if target_config['share_name'] not in (s.name for s in self.conn.listShares(timeout=10)):
-								exit_error(logger, "Unable to find the specified share name on the server", 553952)
+								exit_error(logger, "Unable to find the specified share name on the server", 553952, self)
 							
 						except BaseException as e:
-							exit_error(logger, "Unable to setup SMB connection: " + repr(e), 921982)
+							exit_error(logger, "Unable to setup SMB connection: " + repr(e), 921982, self)
 					else:
-						exit_error(logger, "Required settings not found", 101926)
+						exit_error(logger, "Required settings not found", 101926, self)
 				except BaseException as e: 
-					exit_error(logger, "Error reading the configuration: " + repr(e), 230494)
+					exit_error(logger, "Error reading the configuration: " + repr(e), 230494, self)
 			else:
-				exit_error(logger, "Could not find required configuration settings", 2823874)
+				exit_error(logger, "Could not find required configuration settings", 2823874, self)
 
 			if self.conn is not None:
 				# Use the credential to connect to the SMB server
@@ -222,10 +222,10 @@ class epsmb(EventingCommand):
 						# Check the attributes of the newly created directory
 						folder_attrs = self.conn.getAttributes(target_config['share_name'], folder, timeout=10)
 					except BaseException as e:
-						exit_error(logger, "Could not load or create remote directory: " + repr(e), 377890)
+						exit_error(logger, "Could not load or create remote directory: " + repr(e), 377890, self)
 				
 					if folder_attrs.isReadOnly or not folder_attrs.isDirectory:
-						exit_error(logger, "Could not access the remote directory: " + repr(e), 184772)
+						exit_error(logger, "Could not access the remote directory: " + repr(e), 184772, self)
 			
 			setattr(self, 'event_counter', 0)
 			append_chunk = False
@@ -241,7 +241,7 @@ class epsmb(EventingCommand):
 				yield event
 				self.event_counter += 1
 		except BaseException as e:
-			exit_error(logger, "Error writing file to upload: " + repr(e), 296733)
+			exit_error(logger, "Error writing file to upload: " + repr(e), 296733, self)
 		
 		if self._finished or self._finished is None:
 			# Write the file to the remote location
@@ -250,13 +250,13 @@ class epsmb(EventingCommand):
 					bytes_uploaded = self.conn.storeFile(target_config['share_name'], self.remote_output_file, local_file)
 				os.remove(self.local_output_file)
 			except BaseException as e:
-				exit_error(logger, "Error uploading file to SMB server: " + repr(e), 109693)
+				exit_error(logger, "Error uploading file to SMB server: " + repr(e), 109693, self)
 
 			if bytes_uploaded > 0:
 				message = "SMB export_status=success, count=%s, file=\"%s\"" % (self.event_counter, self.remote_output_file)
 				logger.info(message)
 			else:
-				exit_error(logger, "Zero bytes uploaded", 771293)
+				exit_error(logger, "Zero bytes uploaded", 771293, self)
 		
 dispatch(epsmb, sys.argv, sys.stdin, sys.stdout, __name__)
 

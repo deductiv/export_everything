@@ -123,9 +123,9 @@ class epawss3(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, stanza_guid_alias=self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
+			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 		
 		if self.bucket is None or len(self.bucket) == 0:
 			if 'default_s3_bucket' in list(target_config.keys()):
@@ -133,9 +133,9 @@ class epawss3(EventingCommand):
 				if t is not None and len(t) > 0:
 					self.bucket = t
 				else:
-					exit_error(logger, "No bucket specified", 4)
+					exit_error(logger, "No bucket specified", 4, self)
 			else:
-				exit_error(logger, "No bucket specified", 5)
+				exit_error(logger, "No bucket specified", 5, self)
 		
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
@@ -186,7 +186,7 @@ class epawss3(EventingCommand):
 			try:
 				setattr(self, 's3', get_aws_connection(target_config))
 			except BaseException as e:
-				exit_error(logger, "Could not connect to AWS: " + repr(e), 741423)
+				exit_error(logger, "Could not connect to AWS: " + repr(e), 741423, self)
 				
 		else:
 			# Persistent variable is populated from a prior chunk/iteration.
@@ -211,9 +211,9 @@ class epawss3(EventingCommand):
 				logger.info("Successfully exported events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, self.event_counter, self.bucket, self.remote_output_file, user))
 				os.remove(self.local_output_file)
 			except self.s3.exceptions.NoSuchBucket as e:
-				exit_error(logger, "Error: No such bucket", 123833)
+				exit_error(logger, "Error: No such bucket", 123833, self)
 			except BaseException as e:
-				exit_error(logger, "Could not upload file to S3: " + repr(e), 9)
+				exit_error(logger, "Could not upload file to S3: " + repr(e), 9, self)
 
 dispatch(epawss3, sys.argv, sys.stdin, sys.stdout, __name__)
 
