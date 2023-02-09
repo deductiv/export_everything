@@ -12,10 +12,10 @@ This add-on exports your Splunk search results to remote destinations so you can
 
 ## File-Based Destinations  
 - Amazon Web Services (AWS) S3-Compatible Object Storage  
-- Azure Blob Storage  
+- Azure Blob & Data Lake v2 Storage  
 - Box.com Cloud Storage  
-- Windows/SMB File Shares  
 - SFTP Servers  
+- Windows/SMB File Shares  
 
 ## Streaming Destinations  
 - Splunk HTTP Event Collector  
@@ -24,7 +24,7 @@ This add-on exports your Splunk search results to remote destinations so you can
 Use the Credentials tab to manage usernames, passwords, and passphrases (used for private keys) within the Splunk secret store. Certain use cases (such as private key logins) may not require a password, but Splunk requires one to be entered anyway. For passphrases, type any description into the username field. OAuth credentials such as those for AWS use the username field for the access key and the password field for the secret access key. Due to the way Splunk manages credentials, the username field cannot be changed once it is saved.  
 
 ## Authorization via Capabilities  
-Add read capabilities for each command to users who require access to use the search command or alert action. Add write capability to allow them to make changes to the configuration. By default, admin has full access and power has read-only access. Credential permissions must be granted separately, but are required to use each command that depends on them.  
+Add read capabilities for each command to users who require access to use the search command or alert action. Add write capability to allow them to make changes to the configuration. By default, admin/sc_admin has full access and power has read-only access. Credential permissions must be granted separately, but are required to use each command that depends on them.  
 
 ## Keywords for Output Filenames  
 All file-based destinations support keywords for the output filenames. The keywords have double underscores before and after.  The keyword replacements are based on Python expressions, so we can add more as they are requested. Those currently available are shown below:  
@@ -82,7 +82,7 @@ Export Splunk search results to AWS S3-compatible object storage. Connections ca
 ___
 ## Azure Blob Storage Export (epazureblob)
 
-Export Splunk search results to Azure Blob object storage. Configure connections to authenticate using OAuth credentials.  
+Export Splunk search results to Azure Blob or Data Lake v2 object storage. Configure connections to authenticate using storage account keys or Azure Active Directory app credentials.  
 
 ### Capabilities  
 - configure_ep_azure_blob_read  
@@ -92,20 +92,21 @@ Export Splunk search results to Azure Blob object storage. Configure connections
 ```
 <search> | epazureblob  
         target=<target name/alias>  
-        bucket=<bucket>  
+        container=<container name>  
         outputfile=<output path/filename>  
         outputformat=[json|raw|kv|csv|tsv|pipe]  
         fields="<comma-delimited fields list>"  
         compress=[true|false]  
+        append=[true|false]  
 ```
 ### Arguments  
 - #### Target  
     **Syntax:** target=&lt;target name/alias&gt;  
     **Description:** The name/alias of the destination connection  
     **Default:** The target specified as the default within the setup dashboard  
-- #### Bucket  
-    **Syntax:** bucket=&lt;bucket name&gt;  
-    **Description:** The name of the destination bucket  
+- #### Container  
+    **Syntax:** container=&lt;container name&gt;  
+    **Description:** The name of the destination container  
     **Default:** Specified within the target configuration  
 - #### Output File
     **Syntax:** outputfile=&lt;[folder/]file name&gt;  
@@ -123,6 +124,10 @@ Export Splunk search results to Azure Blob object storage. Configure connections
     **Syntax:** compress=[true|false]  
     **Description:** Create the file as a .gz compressed archive  
     **Default:** Specified within the target configuration  
+- #### Append
+    **Syntax:** append=[true|false]  
+    **Description:** Append the search results to an existing AppendBlob object. This setting will omit output headers for CSV, TSV, and Pipe-delimited output formats. Does not support JSON or compressed (gz) file types.  
+    **Default:** false (overwrite)
 
 ___
 ## Box Export (epbox)  
@@ -136,47 +141,6 @@ Export Splunk search results to Box cloud storage. Box must be configured with a
 ### Search Command Syntax  
 ```
 <search> | epbox  
-        target=<target name/alias>  
-        outputfile=<output path/filename>  
-        outputformat=[json|raw|kv|csv|tsv|pipe]  
-        fields="<comma-delimited fields list>"  
-        compress=[true|false]  
-```
-
-### Arguments  
-- #### Target  
-    **Syntax:** target=&lt;target name/alias&gt;  
-    **Description:** The name/alias of the destination connection  
-    **Default:** The target specified as the default within the setup dashboard  
-- #### Output File
-    **Syntax:** outputfile=&lt;[folder/]file name&gt;  
-    **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied. **Keyword replacements** are supported (see above).
-    **Default:** `app_username___now__.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
-- #### Output Format
-    **Syntax:** outputformat=[json|raw|kv|csv|tsv|pipe]  
-    **Description:** The format for the exported search results  
-    **Default:** *csv*  
-- #### Fields
-    **Syntax:** fields="field1, field2, field3"  
-    **Description:** Limit the fields to be written to the exported file. Wildcards are supported.  
-    **Default:** All (*)  
-- #### Compression
-    **Syntax:** compress=[true|false]  
-    **Description:** Create the file as a .gz compressed archive  
-    **Default:** Specified within the target configuration  
-
-___
-## Windows/SMB Export (epsmb)  
-
-Export Splunk search results to SMB file shares.  
-
-### Capabilities  
-- configure_ep_smb_read  
-- configure_ep_smb_write  
-
-### Search Command Syntax  
-```
-<search> | epsmb  
         target=<target name/alias>  
         outputfile=<output path/filename>  
         outputformat=[json|raw|kv|csv|tsv|pipe]  
@@ -233,6 +197,47 @@ Export Splunk search results to SFTP servers.
 - #### Output File
     **Syntax:** outputfile=&lt;[folder/]file name&gt;  
    **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied. **Keyword replacements** are supported (see above).
+    **Default:** `app_username___now__.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
+- #### Output Format
+    **Syntax:** outputformat=[json|raw|kv|csv|tsv|pipe]  
+    **Description:** The format for the exported search results  
+    **Default:** *csv*  
+- #### Fields
+    **Syntax:** fields="field1, field2, field3"  
+    **Description:** Limit the fields to be written to the exported file. Wildcards are supported.  
+    **Default:** All (*)  
+- #### Compression
+    **Syntax:** compress=[true|false]  
+    **Description:** Create the file as a .gz compressed archive  
+    **Default:** Specified within the target configuration  
+
+___
+## Windows/SMB Export (epsmb)  
+
+Export Splunk search results to SMB file shares.  
+
+### Capabilities  
+- configure_ep_smb_read  
+- configure_ep_smb_write  
+
+### Search Command Syntax  
+```
+<search> | epsmb  
+        target=<target name/alias>  
+        outputfile=<output path/filename>  
+        outputformat=[json|raw|kv|csv|tsv|pipe]  
+        fields="<comma-delimited fields list>"  
+        compress=[true|false]  
+```
+
+### Arguments  
+- #### Target  
+    **Syntax:** target=&lt;target name/alias&gt;  
+    **Description:** The name/alias of the destination connection  
+    **Default:** The target specified as the default within the setup dashboard  
+- #### Output File
+    **Syntax:** outputfile=&lt;[folder/]file name&gt;  
+    **Description:** The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied. **Keyword replacements** are supported (see above).
     **Default:** `app_username___now__.ext` (e.g. `search_admin_1588000000.log`).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log  
 - #### Output Format
     **Syntax:** outputformat=[json|raw|kv|csv|tsv|pipe]  

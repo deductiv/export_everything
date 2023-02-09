@@ -1,6 +1,7 @@
 # Export Everything App for Splunk
 # Handle directory listing requests for configured targets
-# Version: 2.1.0 (2022-12-02)
+# Copyright 2023 Deductiv Inc.
+# Version: 2.2.0 (2023-02-09)
 
 import sys
 import os

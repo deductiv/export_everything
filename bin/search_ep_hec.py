@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright 2022 Deductiv Inc.
+# Copyright 2023 Deductiv Inc.
 # search_ep_hec.py
 # Export Splunk events to Splunk HEC over JSON - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.1.0 (2022-12-02)
+# Version: 2.2.0 (2023-02-09)
 
 import sys
 import os
