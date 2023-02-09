@@ -451,7 +451,6 @@ def get_aws_connection(aws_config, log=True):
 	else:
 		raise Exception("ARN not configured and credential not specified.")
 
-
 def s3_folder_contents(client, bucket, prefix):
 	# Can't use list_objects_v2 - no owner returned
 	#logger.debug("Folder contents")
@@ -462,14 +461,18 @@ def s3_folder_contents(client, bucket, prefix):
 		# Submit a separate request for each folder to get its attributes. 
 		# head_object doesn't work here, not specific enough.
 		for cp in result.get('CommonPrefixes', []):
-			folder_name = cp.get('Prefix')
-			folder_result = client.list_objects(Bucket=bucket, Prefix=folder_name, MaxKeys=1)
-			for content in folder_result.get('Contents'):
-				content = yield_s3_object(content, is_directory=True)
-				content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
-				yield content
+			content = { 
+				"Key": cp.get('Prefix'), 
+				"Size": 0,
+				"Owner": None,
+				"LastModified": None 
+			}
+			content = yield_s3_object(content, is_directory=True)
+			content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
+			yield content
 
 		for content in result.get('Contents', []):
+			logger.debug(f"content = {content}")
 			content = yield_s3_object(content)
 			content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
 			# We already retrieved the folders in the for-loop above.

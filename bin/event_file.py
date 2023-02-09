@@ -49,21 +49,14 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 	output_file_buf = []
 	buffer_flush_count = 1000
 	event_counter = 0
-	first_field = None
 
 	if outputformat == 'json':
 		if not append_chunk:
 			output_file_buf.append('['.encode('utf-8'))
 		else:
 			output_file_buf.append(',\n'.encode('utf-8'))
-	else:
-		if append_chunk:
-			output_file_buf.append('\n'.encode('utf-8'))
-
+	
 	for last_event, event in annotate_last_item(events):
-		if first_field is None:
-			first_field = list(event.keys())[0]
-			#dhelp.eprint('First field = ' + first_field)
 		# Get the fields list for the event
 		# Filter the fields if fields= is supplied
 		if fields is not None:
@@ -159,7 +152,9 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 
 		# Append entry to the lists
 		output_file_buf.append(output_text.encode('utf-8'))
-		if not last_event:
+		# Append a newline for each record, except the last json record
+		# This helps for appending to non-json files later, if needed
+		if outputformat in ['pipe', 'csv', 'tsv', 'kv', 'raw'] or (outputformat == 'json' and not last_event):
 			output_file_buf.append('\n'.encode('utf-8'))
 		
 		event_counter += 1
@@ -191,10 +186,7 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 		flush_buffer(output_file_buf, local_output)
 	output_file_buf = None
 	logger.debug("Wrote temp output file " + local_output)
-	
-	#for x in sorted(event_buf, key=lambda k: k[first_field], reverse=True):
-	#	yield x
-	
+		
 def parse_outputfile(outputfile, default_filename, target_config):
 
 	# PSEUDO CODE
