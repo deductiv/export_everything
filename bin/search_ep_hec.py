@@ -25,7 +25,8 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 from CsvResultParser import *
 from splunklib.searchcommands import StreamingCommand, dispatch, Configuration, Option
-from splunk_http_event_collector.http_event_collector import http_event_collector   # https://github.com/georgestarcher/Splunk-Class-httpevent
+# https://github.com/georgestarcher/Splunk-Class-httpevent
+from splunk_http_event_collector.http_event_collector import http_event_collector   
 
 # Define class and type for Splunk command
 @Configuration()
@@ -159,7 +160,7 @@ class ephec(StreamingCommand):
 				test_url = "%s://%s:%s/services/collector/health" % (protocol, hec_host, hec_port)
 				test_response, test_response_code = request('GET', test_url, '', {}, verify=hec_ssl_verify)
 				if test_response_code == 200:
-					logger.debug("Connectivity check passed")
+					logger.debug(f"Connectivity check passed to host={hec_host}:{hec_port} with ssl_verify={hec_ssl_verify}")
 				else:
 					test_response = test_response.decode('utf-8')
 					exit_error(logger, "HEC health endpoint error: %s" % test_response, 100253, self)
@@ -173,6 +174,7 @@ class ephec(StreamingCommand):
 
 		# Special event key fields that can be specified/overridden in the alert action
 		meta_keys = ['source', 'sourcetype', 'host', 'index']
+
 		for event in events:
 			# Get the fields list for the event
 			event_keys = list(event.keys())
@@ -192,14 +194,8 @@ class ephec(StreamingCommand):
 			for k in meta_keys: # host, source, sourcetype, index
 				# self.host, etc starts and ends with $
 				meta_value = getattr(self, k)
-				#logger.debug("Meta value(1) = %s", meta_value)
-				#if len(getattr(self, k))>0 and getattr(self, k)[0] == "$" and getattr(self, k)[-1] == "$":
 				if meta_value is not None and '$' in meta_value:
 					meta_value = meta_value.replace("$result.", "$")
-					#logger.debug("Meta value(2) = %s", meta_value)
-					#extracted_tokens = re.findall(r'(\$(?:result.)?([^$]+)\$)', meta_value)
-					#referenced_field = getattr(self, k)[1:-1]
-					#referenced_field = re.sub("^result.", "", referenced_field)
 					for event_field, event_field_value in list(payload_event_src.items()):
 						token_string = '$'+event_field+'$'
 						if token_string in meta_value:
@@ -209,10 +205,7 @@ class ephec(StreamingCommand):
 								#  so it's not included when we dump the rest of the fields later.
 								del(payload_event_src[event_field])
 					payload.update({ k: meta_value })
-					#if referenced_field in event_keys:
-					#substituted_token_value = payload_event_src[referenced_field]
 					# If the key field is in the event and its output argument is set to a variable
-					#if k in event_keys:
 					if k == "host" and self.host == "$host$":
 						# "host" field not found in event, but has the default value. Use the one from inputs.conf.
 						payload.update({ k: inputs_host })
@@ -223,18 +216,24 @@ class ephec(StreamingCommand):
 			# Only send _raw (no other fields) if the _raw field was included in the search result.
 			# (Don't include other fields/values)
 			if '_raw' in list(payload_event_src.keys()):
-				#logger.debug("Using _raw from search result")
+				# Use _raw from search result
 				payload.update({ "event": payload_event_src['_raw'] })
 			else:
 				payload.update({ "event": payload_event_src })
 
 			self.event_counter += 1
-			#logger.debug("Payload = " + str(payload))
-			self.hec.batchEvent(payload)
-			yield(event)
+			
+			try:
+				self.hec.batchEvent(payload)
+				yield(event)
+			except BaseException as e:
+				exit_error(logger, str(e), 954322, self)
 
-		self.hec.flushBatch()
-		logger.info("Successfully exported events. count=%s target=%s app=%s user=%s" % (self.event_counter, self.target, app, user))
-		self.event_counter = 0
+		try:
+			result = self.hec.flushBatch()
+			logger.info("Successfully exported events to HEC. count=%s target=%s app=%s user=%s" % (self.event_counter, self.target, app, user))
+			self.event_counter = 0
+		except BaseException as e:
+			exit_error(logger, str(e), 954323, self)
 
 dispatch(ephec, sys.argv, sys.stdin, sys.stdout, __name__)

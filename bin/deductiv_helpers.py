@@ -71,11 +71,11 @@ def request(method, url, data, headers, conn=None, verify=True):
 		close_conn = True
 		if url_tuple.scheme == 'https':
 			if verify:
-				conn = httplib.HTTPSConnection(url_tuple.netloc)
+				conn = httplib.HTTPSConnection(url_tuple.netloc, context=ssl.create_default_context())
 			else:
-				conn = httplib.HTTPSConnection(url_tuple.netloc, context = ssl._create_unverified_context())
+				conn = httplib.HTTPSConnection(url_tuple.netloc, context=ssl._create_unverified_context())
 		elif url_tuple.scheme == 'http':
-			conn = httplib.HTTPConnection(url_tuple.netloc, context = ssl._create_unverified_context())
+			conn = httplib.HTTPConnection(url_tuple.netloc, context=ssl._create_unverified_context())
 	else:
 		close_conn = False
 	try:
@@ -87,8 +87,7 @@ def request(method, url, data, headers, conn=None, verify=True):
 			conn.close()
 		return response_data, response_status
 	except BaseException as e:
-		eprint("URL Request Error: " + str(e))
-		sys.exit(1)
+		raise Exception("URL Request Error: " + str(e))
 
 def setup_logging(logger_name):
 	logger = logging.getLogger(logger_name)
@@ -173,6 +172,7 @@ def replace_keywords(s):
 	return s
 
 def exit_error(source_logger, message, error_code=1, source_obj=None):
+	eprint(message)
 	if source_obj is not None:
 		if hasattr(source_obj, '_configuration'):
 			command = str(source_obj._configuration.command).split(' ')[0]
@@ -181,7 +181,6 @@ def exit_error(source_logger, message, error_code=1, source_obj=None):
 		if hasattr(source_obj, 'write_error'):
 			source_obj.write_error(f'{command}: {message}')
 	source_logger.critical(message)
-	eprint(message)
 	exit(error_code)
 
 def decrypt_with_secret(encrypted_text):
