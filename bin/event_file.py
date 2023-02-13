@@ -197,7 +197,7 @@ def parse_outputfile(outputfile, default_filename, target_config):
 
 	folder_list = []
 	# Split the output into folder and filename
-	if outputfile is not None:
+	if outputfile is not None and outputfile != '__default__' and outputfile != '':
 		outputfile = outputfile.replace('\\', '/')
 		if len(outputfile) > 0 and outputfile[0] == '/':
 			# Length > 1, outputfile points to the root folder (leading /)

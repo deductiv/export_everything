@@ -110,18 +110,19 @@ class ephec(StreamingCommand):
 			logger.debug('search_ep_hec command: %s', self)  # logs command line
 			log_proxy_settings(logger)
 
+			default_values = [None, '', '__default__']
 			# Set defaults
-			if self.host is None or self.host == '':
+			if self.host in default_values:
 				self.host = "$host$"
 		
 			# If the parameters are not supplied or blank (alert actions), supply defaults
-			if self.source is None or self.source == '':
+			if self.source in default_values:
 				self.source = "$source$"
 
-			if self.sourcetype is None or self.sourcetype == '':
+			if self.sourcetype in default_values:
 				self.sourcetype = "$sourcetype$"
 
-			if self.index is None or self.index == '':
+			if self.index in default_values:
 				self.index = "$index$"
 
 			if self.target is None and 'target=' in str(self):

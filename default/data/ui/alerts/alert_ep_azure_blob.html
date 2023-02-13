@@ -10,18 +10,29 @@
         width: 230px;
     }
     </style>
-
-    <splunk-control-group label="SFTP Destination" style="width: 150px; padding-right: 10px">
-            <splunk-search-dropdown name="action.alert_ep_sftp.param.dest_guid"
-                    search="| rest splunk_server=local /servicesNS/-/export_everything/export_everything/ep_sftp | table title alias" 
+    
+    <splunk-control-group label="Azure Blob Destination" style="width: 150px; padding-right: 10px">
+            <splunk-search-dropdown name="action.alert_ep_azure_blob.param.dest_guid"
+                    search="| rest splunk_server=local /servicesNS/-/export_everything/export_everything/ep_azure_blob | table title alias" 
                     label-field="alias" value-field="title" />
           </splunk-control-group>
     </splunk-control-group>
 
     <div class="control-group">
+        <label class="control-label" style="width: 150px;" for="bucket">Container</label>
+        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
+            <input type="text" name="action.alert_ep_azure_blob.param.container" id="container"/>
+            <span class="help-block">
+                <p>The name of the destination storage container</p>
+                <p><strong>Default:</strong> Specified within the target configuration</p>
+            </span>
+        </div>
+    </div>
+
+    <div class="control-group">
         <label class="control-label" style="width: 150px;" for="outputfile">Output Folder/File</label>
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <input type="text" name="action.alert_ep_sftp.param.outputfile" id="outputfile" />
+            <input type="text" name="action.alert_ep_azure_blob.param.outputfile" id="outputfile" />
             <span class="help-block">
                 <p>The name of the file to be written to the destination. If compression is enabled, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p>
                 <p><strong>Syntax:</strong> <code>&lt;[folder/]file name&gt;</code></p>
@@ -38,7 +49,7 @@
     <div class="control-group">
         <label class="control-label" style="width: 150px;" for="outputformat">Output Format</label>
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <select id="outputformat" name="action.alert_ep_sftp.param.outputformat"> 
+            <select id="outputformat" name="action.alert_ep_azure_blob.param.outputformat"> 
                 <option value="raw">Raw Text (_raw contents)</option>
                 <option value="json">JSON</option>
                 <option value="kv">Key-Value Pairs</option>
@@ -52,7 +63,7 @@
     <div class="control-group">
         <label class="control-label" style="width: 150px;" for="fields">Fields List</label>
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <input type="text" name="action.alert_ep_sftp.param.fields" id="fields" />
+            <input type="text" name="action.alert_ep_azure_blob.param.fields" id="fields" />
             <span class="help-block">
                 <p>Limit the fields to be written to the exported file. Wildcards are supported.</p>
                 <p><strong>Syntax:</strong> <code>"field1, field2, field3"</code></p>
@@ -62,9 +73,19 @@
     </div>
 
     <div class="control-group">
+        <label class="control-label" style="width: 150px;" for="compress">Append</label>
+        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
+            <input type="checkbox" name="action.alert_ep_azure_blob.param.append" id="append" />
+            <span class="help-block">
+                <p>Append the search results to an existing AppendBlob object. Omit output headers for CSV, TSV, and Pipe-delimited output formats. Does not support JSON or compressed (gz) file types.</p>
+            </span>
+        </div>
+    </div>
+
+    <div class="control-group">
         <label class="control-label" style="width: 150px;" for="compress">Compression</label>
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <input type="checkbox" name="action.alert_ep_sftp.param.compress" id="compress" />
+            <input type="checkbox" name="action.alert_ep_azure_blob.param.compress" id="compress" />
             <span class="help-block">
                 <p>Create the file as a .gz compressed archive.</p>
             </span>

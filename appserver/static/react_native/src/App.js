@@ -1458,7 +1458,7 @@ class App extends React.Component {
 							action_columns="3"
 							browsable="true"
 							config={`${app_abbr}_sftp`} >
-								<p>Setup connections to SFTP (FTP over SSH) endpoints.</p>
+								<p>Setup connections to SFTP (SSH File Transfer Protocol) endpoints.</p>
 								<p>Choose from one of the following. Note that the username will always be retrieved from the referenced "password" credential.</p>
 								<ul>
 									<li>Password authentication; no private key required.</li>

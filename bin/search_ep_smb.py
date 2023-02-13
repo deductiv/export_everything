@@ -75,7 +75,7 @@ class epsmb(EventingCommand):
 		**Syntax:** **compress=***[true|false]*
 		**Description:** Option to compress the output file into .gz format before uploading
 		**Default:** The setting from the target configuration, or True if .gz is in the filename ''',
-		require=False, validate=validators.Boolean())
+		require=False)
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 	
@@ -128,11 +128,12 @@ class epsmb(EventingCommand):
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
-		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
-		self.fields = None if (self.fields is not None and self.fields == "") else self.fields
+		default_values = [None, '', '__default__', '*', ['*']]
+		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
+		self.fields = None if self.fields in default_values else self.fields
 
 		# Read the compress value from the target config unless one was specified in the search
-		if self.compress is None:
+		if self.compress is None or self.compress == '__default__':
 			try:
 				self.compress = str2bool(target_config['compress'])
 			except:

@@ -11,7 +11,7 @@
     }
     </style>
 
-    <splunk-control-group label="S3 Account" style="width: 150px; padding-right: 10px">
+    <splunk-control-group label="AWS S3-Compatible Destination" style="width: 150px; padding-right: 10px">
             <splunk-search-dropdown name="action.alert_ep_aws_s3.param.dest_guid"
                     search="| rest splunk_server=local /servicesNS/-/export_everything/export_everything/ep_aws_s3 | table title alias" 
                     label-field="alias" value-field="title" />
@@ -23,8 +23,7 @@
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_aws_s3.param.bucket" id="bucket"/>
             <span class="help-block">
-                <p><strong>Syntax:</strong> bucket=&lt;bucket name&gt;</p>
-                <p><strong>Description:</strong> The name of the destination S3 bucket</p>
+                <p>The name of the destination S3 bucket</p>
                 <p><strong>Default:</strong> Specified within the target configuration</p>
             </span>
         </div>
@@ -32,14 +31,17 @@
 
     <div class="control-group">
         <label class="control-label" style="width: 150px;" for="outputfile">Output Folder/File</label>
-
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_aws_s3.param.outputfile" id="outputfile" />
             <span class="help-block">
-                <p><strong>Syntax:</strong>outputfile=&lt;[folder/]file name&gt;</p>
-                <p><strong>Description:</strong> The name of the file to be written to the destination. If compression=true, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p>
+                <p>The name of the file to be written to the destination. If compression is enabled, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p>
+                <p><strong>Syntax:</strong>&lt;[folder/]file name&gt;</p>
                 <p><strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log</p>
-                <p><strong>Keywords:</strong> <code>__now__</code>=epoch, <code>__today__</code>=date in yyyy-mm-dd format, <code>__nowft__</code>=timestamp in yyyy-mm-dd_hhmmss format.</p>
+                <p><strong>Keywords:</strong> <br style="display: none"/>
+                    <code>__now__</code> = epoch <br style="display: none"/>
+                    <code>__nowft__</code> = timestamp in yyyy-mm-dd_hhmmss format <br style="display: none"/>
+                    <code>__today__</code> = date in yyyy-mm-dd format <br style="display: none"/>
+                    <code>__yesterday__</code> = yesterday's date in yyyy-mm-dd format</p>
             </span>
         </div>
     </div>
@@ -63,8 +65,8 @@
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_aws_s3.param.fields" id="fields" />
             <span class="help-block">
-                <p><strong>Syntax:</strong> fields="field1, field2, field3"</p>
-                <p><strong>Description:</strong> Limit the fields to be written to the exported file. Wildcards are supported.</p>
+                <p>Limit the fields to be written to the exported file. Wildcards are supported.</p>
+                <p><strong>Syntax:</strong> <code>"field1, field2, field3"</code></p>
                 <p><strong>Default:</strong> All (*)</p>
             </span>
         </div>
@@ -75,8 +77,7 @@
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="checkbox" name="action.alert_ep_aws_s3.param.compress" id="compress" value="1" />
             <span class="help-block">
-                <p><strong>Syntax:</strong> compress=[true|false]</p>
-                <p><strong>Description:</strong> Create the file as a .gz compressed archive</p>
+                <p>Create the file as a .gz compressed archive.</p>
             </span>
         </div>
     </div>

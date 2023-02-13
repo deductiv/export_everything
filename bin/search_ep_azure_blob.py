@@ -74,7 +74,7 @@ class epazureblob(EventingCommand):
 			The destination blob must already be of type AppendBlob (not the default BlockBlob).
 			Does not work with gzip compression.
 		**Default:** False ''',
-		require=False, validate=validators.Boolean())
+		require=False)
 	
 	fields = Option(
 		doc='''
@@ -88,7 +88,7 @@ class epazureblob(EventingCommand):
 		**Syntax:** **compress=***[true|false]*
 		**Description:** Option to compress the output file into .gz format before uploading
 		**Default:** The setting from the target configuration, or True if .gz is in the filename ''',
-		require=False, validate=validators.Boolean())
+		require=False)
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 
@@ -138,7 +138,7 @@ class epazureblob(EventingCommand):
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 		
-		if self.container is None or len(self.container) == 0:
+		if self.container is None or len(self.container) == 0 or self.container == '__default__':
 			if 'default_container' in list(target_config.keys()):
 				t = target_config['default_container']
 				if t is not None and len(t) > 0:
@@ -150,12 +150,13 @@ class epazureblob(EventingCommand):
 				exit_error(logger, "No container specified (status=error)", 5, self)
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
-		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
-		self.fields = None if (self.fields is not None and self.fields == "") else self.fields
-		self.append = False if (self.append is not None and self.append == "") else self.append
+		default_values = [None, '', '__default__', '*', ['*']]
+		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
+		self.fields = None if self.fields in default_values else self.fields
+		self.append = False if self.append in default_values else self.append
 
 		# Read the compress value from the target config unless one was specified in the search
-		if self.compress is None:
+		if self.compress is None or self.compress == '__default__':
 			try:
 				self.compress = str2bool(target_config['compress'])
 			except:
@@ -163,7 +164,7 @@ class epazureblob(EventingCommand):
 
 		# First run and no remote output file string has been assigned
 		if not hasattr(self, 'remote_output_file'):
-			if self.outputfile is None or self.outputfile == "":
+			if self.outputfile in default_values:
 				# Boto is special. We need repr to give it the encoding it expects to match the hashing.
 				self.outputfile = repr('export_' + user + '___now__' + event_file.file_extensions[self.outputformat]).strip("'")
 			
