@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright 2022 Deductiv Inc.
+# Copyright 2023 Deductiv Inc.
 # search_ep_box.py
 # Export Splunk search results to Box - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.1.0 (2022-12-02)
+# Version: 2.2.0 (2023-02-09)
 
 import sys
 import os
@@ -89,7 +89,7 @@ class epbox(EventingCommand):
 		**Syntax:** **compress=***[true|false]*
 		**Description:** Option to compress the output file into .gz format before uploading
 		**Default:** The setting from the target configuration, or True if .gz is in the filename ''',
-		require=False, validate=validators.Boolean())
+		require=False)
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 	
@@ -134,16 +134,17 @@ class epbox(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
+			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
-		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
-		self.fields = None if (self.fields is not None and self.fields == "") else self.fields
+		default_values = [None, '', '__default__', '*', ['*']]
+		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
+		self.fields = None if self.fields in default_values else self.fields
 
 		# Read the compress value from the target config unless one was specified in the search
-		if self.compress is None:
+		if self.compress is None or self.compress == '__default__':
 			try:
 				self.compress = str2bool(target_config['compress'])
 			except:
@@ -154,7 +155,7 @@ class epbox(EventingCommand):
 
 		# First run and no remote output file string has been assigned
 		if not hasattr(self, 'remote_output_file'):
-			if self.outputfile is not None and len(self.outputfile) > 0:
+			if self.outputfile not in default_values:
 				# Split the output into folder and filename
 				folder_list = self.outputfile.split('/')
 				if len(folder_list) == 1:
@@ -181,7 +182,7 @@ class epbox(EventingCommand):
 				use_default_folder = True
 				folder_list = []
 				# Boto is special. We need repr to give it the encoding it expects to match the hashing.
-				self.outputfile = default_filename
+				filename = default_filename
 
 			if use_default_folder:
 				if 'default_folder' in list(target_config.keys()):
@@ -221,7 +222,7 @@ class epbox(EventingCommand):
 			try:
 				client = get_box_connection(target_config)
 			except BaseException as e:
-				exit_error(logger, "Could not connect to box: " + repr(e))
+				exit_error(logger, "Could not connect to box: " + repr(e), 918723, self)
 
 			subfolders = folder.strip('/').split('/')
 			if '' in subfolders:
@@ -246,32 +247,33 @@ class epbox(EventingCommand):
 					self.box_folder_object = self.box_folder_object.create_subfolder(subfolder_name)
 			
 			setattr(self, 'event_counter', 0)
-			append = False
+			append_chunk = False
 		else:
 			# Persistent variable is populated from a prior chunk/iteration.
 			# Use the previous local output file and append to it.
-			append = True
+			append_chunk = True
 
 		try:
 			# Write the output file to disk in the dispatch folder
 			logger.debug("Writing events. file=\"%s\", format=%s, compress=%s, fields=\"%s\"", \
 				self.local_output_file, self.outputformat, self.compress, \
 				self.fields if self.fields is not None else "")
-			for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append=append, finish=self._finished):
+			for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append_chunk=append_chunk, finish=self._finished):
 				yield event
 				self.event_counter += 1
 
 		except BoxAPIException as be:
-			exit_error(logger, be.message, 833928)
+			exit_error(logger, be.message, 833928, self)
 		except BaseException as e:
-			exit_error(logger, "Error writing staging file to upload", 398372)
+			exit_error(logger, "Error writing staging file to upload", 398372, self)
 
 		if self._finished or self._finished is None:
 			try:
 				new_file = self.box_folder_object.upload(self.local_output_file, file_name=self.remote_output_file)
 				message = "Box export_status=success, count=%s, file=\"%s\", file_id=%s" % (str(self.event_counter), new_file.name, new_file.id)
 				logger.info(message)
+				os.remove(self.local_output_file)
 			except BaseException as e:
-				exit_error(logger, "Error uploading file to Box: " + repr(e), 109693)
+				exit_error(logger, "Error uploading file to Box: " + repr(e), 109693, self)
 
 dispatch(epbox, sys.argv, sys.stdin, sys.stdout, __name__)

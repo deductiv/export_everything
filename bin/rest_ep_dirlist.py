@@ -1,6 +1,7 @@
 # Export Everything App for Splunk
 # Handle directory listing requests for configured targets
-# Version: 2.1.0 (2022-12-02)
+# Copyright 2023 Deductiv Inc.
+# Version: 2.2.0 (2023-02-09)
 
 import sys
 import os
@@ -15,7 +16,12 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__))) # Special for REST e
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 from deductiv_helpers import setup_logger
-from ep_helpers import get_config_from_alias, get_aws_s3_directory, get_box_directory, get_sftp_directory, get_smb_directory
+from ep_helpers import get_config_from_alias, \
+	get_aws_s3_directory, \
+	get_azure_blob_directory, \
+	get_box_directory, \
+	get_sftp_directory, \
+	get_smb_directory
 import splunklib.client as client
 
 
@@ -43,6 +49,8 @@ def get_directory_contents(config_file, config, query):
 	try:
 		if config_file == 'ep_aws_s3':
 			return get_aws_s3_directory(config, query['folder'])
+		if config_file == 'ep_azure_blob':
+			return get_azure_blob_directory(config, query['folder'])
 		elif config_file == 'ep_box':
 			return get_box_directory(config, query['folder'])
 		elif config_file == 'ep_sftp':
@@ -102,7 +110,7 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 			config = {
 				"general": cli.getConfStanza('ep_general','settings')
 			}
-			configurations = ["ep_aws_s3", "ep_box", "ep_sftp", "ep_smb"]
+			configurations = ["ep_aws_s3", "ep_azure_blob", "ep_box", "ep_sftp", "ep_smb"]
 			for c in configurations:
 				config[c] = cli.getConfStanzas(c)
 				for stanza in list(config[c].keys()):
@@ -148,12 +156,15 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 					# AWS specific - set the default bucket
 					if 'default_s3_bucket' in list(datasource_config.keys()):
 						query['folder'] = '/' + datasource_config['default_s3_bucket']
+					elif 'default_container' in list(datasource_config.keys()):
+						query['folder'] = '/' + datasource_config['default_container']
 					else:
 						query['folder'] = ''
 					if 'default_folder' in list(datasource_config.keys()):
 						query['folder'] = (query['folder'] + '/' + datasource_config['default_folder']).replace('//', '/')
 				try:
 					payload = get_directory_contents(config_file, datasource_config, query)
+					logger.debug("Directory contents: ", str(payload))
 					try:
 						payload = json.dumps(payload)
 					except BaseException as e:
@@ -168,4 +179,3 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 				return return_error("Cannot find the specified configuration")
 		else:
 			return return_error("No query supplied")
-

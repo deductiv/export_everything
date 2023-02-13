@@ -2,9 +2,9 @@
 # event_file.py
 # Write Splunk search results to a custom formatted file
 #
-# Copyright 2022 Deductiv Inc.
+# Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.1.0 (2022-12-02)
+# Version: 2.2.0 (2023-02-09)
 
 import json
 import fnmatch
@@ -42,25 +42,21 @@ def flush_buffer_gzip(string_list, output_file):
 	with gzip.open(output_file, "ab") as f:
 		f.writelines(string_list)
 
-def write_events_to_file(events, fields, local_output, outputformat, compression, append=False, finish=True):
+def write_events_to_file(events, fields, local_output, outputformat, compression, append_chunk=False, finish=True, append_data=False):
 	logger = dhelp.setup_logging('export_everything')
 
 	# Buffer variables
 	output_file_buf = []
 	buffer_flush_count = 1000
 	event_counter = 0
-	first_field = None
 
 	if outputformat == 'json':
-		if not append:
+		if not append_chunk:
 			output_file_buf.append('['.encode('utf-8'))
 		else:
 			output_file_buf.append(',\n'.encode('utf-8'))
 	
 	for last_event, event in annotate_last_item(events):
-		if first_field is None:
-			first_field = list(event.keys())[0]
-			#dhelp.eprint('First field = ' + first_field)
 		# Get the fields list for the event
 		# Filter the fields if fields= is supplied
 		if fields is not None:
@@ -84,7 +80,7 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			# Check event format setting and write a header if needed
 			if outputformat == "csv" or outputformat == "tsv" or outputformat == "pipe":
 				delimiter = delimiters[outputformat]
-				if not append:
+				if not append_chunk and not append_data:
 					# Write header
 					header = ''
 					for field in event_keys:
@@ -156,7 +152,9 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 
 		# Append entry to the lists
 		output_file_buf.append(output_text.encode('utf-8'))
-		if not last_event:
+		# Append a newline for each record, except the last json record
+		# This helps for appending to non-json files later, if needed
+		if outputformat in ['pipe', 'csv', 'tsv', 'kv', 'raw'] or (outputformat == 'json' and not last_event):
 			output_file_buf.append('\n'.encode('utf-8'))
 		
 		event_counter += 1
@@ -171,7 +169,7 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			
 		yield(event)
 	
-	# Make changes to the event for append=True or finish=True/None
+	# Make changes to the event for append_chunk=True or finish=True/None
 	if outputformat == 'json':
 		if isinstance(output_file_buf[-1], str):
 			#dhelp.eprint(output_file_buf[-1])
@@ -188,10 +186,7 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 		flush_buffer(output_file_buf, local_output)
 	output_file_buf = None
 	logger.debug("Wrote temp output file " + local_output)
-	
-	#for x in sorted(event_buf, key=lambda k: k[first_field], reverse=True):
-	#	yield x
-	
+		
 def parse_outputfile(outputfile, default_filename, target_config):
 
 	# PSEUDO CODE
@@ -202,7 +197,7 @@ def parse_outputfile(outputfile, default_filename, target_config):
 
 	folder_list = []
 	# Split the output into folder and filename
-	if outputfile is not None:
+	if outputfile is not None and outputfile != '__default__' and outputfile != '':
 		outputfile = outputfile.replace('\\', '/')
 		if len(outputfile) > 0 and outputfile[0] == '/':
 			# Length > 1, outputfile points to the root folder (leading /)

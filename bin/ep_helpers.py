@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-# Copyright 2022 Deductiv Inc.
+# Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.1.0 (2022-12-02)
+# Version: 2.2.0 (2023-02-09)
 
 import random
 import sys
@@ -12,12 +12,14 @@ import re
 import socket
 import stat
 from datetime import datetime
-from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret, exit_error, merge_two_dicts
+
+from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret, merge_two_dicts
 from splunk.clilib import cli_common as cli
 import splunk.entity as en
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
+# Resolve conflicts with old Splunk libs
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 import splunklib.client as client
 
 os_platform = platform.system()
@@ -59,16 +61,16 @@ def mask_obj_passwords(obj):
 		return r
 	else:
 		return obj
-'''
-def mask_obj_passwords(o):
-	no_passwords = {}
-	for k, v in list(o.items()):
-		if 'password' in k or '' in k:
-			no_passwords[k] = '********'
-		else:
-			no_passwords[k] = v
-	return no_passwords
-'''
+
+def read_in_chunks(file_object, chunk_size=10485760): # 10 MB for uploads
+	# Lazy function (generator) to read a file piece by piece.
+	# Default chunk size: 10M.
+	while True:
+		data = file_object.read(chunk_size)
+		if not data:
+			break
+		yield data
+
 def get_config_from_alias(session_key, config_data, stanza_guid_alias=None, log=True):
 	credentials = {}
 	# Get all credentials for this app 
@@ -141,6 +143,234 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias=None, log=
 		return None
 	except BaseException as e:
 		raise Exception("Unable to find target configuration: " + repr(e))
+	
+def upload_azureblob_file(azure_client, container, local_file, full_remote_path, append_file):
+	from azure.storage.filedatalake import DataLakeServiceClient
+	from azure.storage.blob import BlobServiceClient
+	
+	# Split out the file path from the file name
+	remote_file_parts = full_remote_path.strip('/').replace('//', '/').split('/')
+	remote_filename = remote_file_parts[-1]
+	if len(remote_file_parts) > 1:
+		remote_file_parts.pop()
+		remote_prefix = '/'.join(remote_file_parts)
+	else:
+		remote_prefix = ''
+	#full_remote_path = full_remote_path.strip('/').replace('//', '/')
+
+	if isinstance(azure_client, DataLakeServiceClient):
+		# Connect to the file system
+		file_system_client = azure_client.get_file_system_client(file_system=container)
+		try:
+			# Create the directory if it does not exist
+			file_system_client.create_directory(directory=remote_prefix)
+		except:
+			# Don't worry if it exists already
+			pass
+		if append_file:
+			logger.debug(f'action=append_file, filesystem={container}, folder="{remote_prefix}", file="{remote_filename}"')
+			try:
+				file_client = file_system_client.get_file_client(file_path=full_remote_path)
+				filesize_previous = file_client.get_file_properties().size
+			except:
+				# Fallback in case we are trying to append to a nonexistent file
+				file_client = file_system_client.create_file(file=full_remote_path)
+				filesize_previous = 0
+			finally:
+				# Read the data in chunks
+				with open(local_file) as lf:
+					for d in read_in_chunks(lf):
+						data_size = len(d)
+						# Append the data to the blob
+						file_client.append_data(d, offset=filesize_previous, length=data_size)
+						filesize_previous += data_size
+						file_client.flush_data(filesize_previous)
+		else:
+			logger.debug(f'action=upload_file, filesystem={container}, folder="{remote_prefix}", file="{remote_filename}"')
+			first = True
+			uploaded_bytes = 0
+			file_client = file_system_client.get_file_client(file_path=full_remote_path)
+			with open(local_file) as lf:
+				for d in read_in_chunks(lf):
+					#for d in file_byte_iterator(local_file):
+					batch_size = len(d)
+					if first:
+						file_client.upload_data(d, length=batch_size, overwrite=True)
+						first = False
+					else:
+						file_client.append_data(d, offset=uploaded_bytes, length=batch_size)
+					uploaded_bytes += batch_size
+					file_client.flush_data(uploaded_bytes)
+		logger.debug(f'Exported events to Azure Data Lake. status=success, filesystem={container}, folder="{remote_prefix}", file="{remote_filename}"')
+	
+	elif isinstance(azure_client, BlobServiceClient):
+		container_client = azure_client.get_container_client(container)
+		if append_file:
+			logger.debug(f'action=append_file, container={container}, folder="{remote_prefix}", file="{remote_filename}"')
+			# Upload content to append blob
+			with open(local_file, "rb") as data:
+				#blob_client.upload_blob(data, blob_type="AppendBlob")
+				container_client.upload_blob(name=full_remote_path, data=data, blob_type="AppendBlob", overwrite=False)
+			logger.debug(f'Exported events to Azure Blob. status=success, container={container}, folder="{remote_prefix}", file="{remote_filename}"')
+		else:
+			logger.debug(f'action=upload_file, container={container}, folder="{remote_prefix}", file="{remote_filename}"')
+			# Upload content to block blob
+			with open(local_file, "rb") as data:
+				#blob_client.upload_blob(data, blob_type="BlockBlob")
+				container_client.upload_blob(name=full_remote_path, data=data, blob_type="BlockBlob", overwrite=True)
+			logger.debug(f'Exported events to Azure Blob. status=success, container={container}, folder="{remote_prefix}", file="{remote_filename}"')
+	
+	return True
+
+# Build the client object for Data Lake or Azure Blob
+def get_azureblob_client(blob_config): #, container_name):
+	global BlobServiceClient
+	global DataLakeServiceClient
+	global BlobPrefix
+	global BlobProperties
+	global FileSystemProperties
+	from azure.identity import ClientSecretCredential, AzureAuthorityHosts
+	from azure.storage.filedatalake import DataLakeServiceClient
+	from azure.storage.blob import BlobServiceClient
+	from azure.storage.blob import BlobPrefix
+	from azure.storage.blob import BlobProperties
+	from azure.storage.filedatalake import FileSystemProperties
+
+	# Do we need to get a credential for Azure AD?
+	if "azure_ad" in list(blob_config.keys()) and str2bool(blob_config["azure_ad"]):
+		# Use Azure AD authentication
+		# tenant_id, client_id, client_secret
+		if "azure_ad_authority" in list(blob_config.keys()) and \
+			blob_config["azure_ad_authority"] is not None and \
+			len(blob_config["azure_ad_authority"]) > 0:
+			aad_authority = getattr(AzureAuthorityHosts, blob_config["azure_ad_authority"])
+		else:
+			aad_authority = AzureAuthorityHosts.AZURE_PUBLIC_CLOUD
+
+		token_credential = ClientSecretCredential(
+			blob_config["credential_realm"],
+			blob_config["credential_username"],
+			blob_config["credential_password"],
+			authority=aad_authority)
+
+		if blob_config["type"] == "datalake":
+			# Data lake with Azure AD credentials
+			return DataLakeServiceClient(
+				account_url=f'https://{blob_config["storage_account"]}.dfs.core.windows.net', 
+				credential=token_credential,
+				api_version='2021-08-06')
+		elif blob_config["type"] == "blob":
+			# Blob container with Azure AD credentials
+			return BlobServiceClient(
+				account_url=f'https://{blob_config["storage_account"]}.blob.core.windows.net', 
+				credential=token_credential)
+	else:
+		# Use Account Key authentication
+		connection_string = '"DefaultEndpointsProtocol=https;' + \
+			'EndpointSuffix=core.windows.net;' + \
+			f'AccountName={blob_config["storage_account"]};' + \
+			f'AccountKey={blob_config["credential_password"]}'
+		if blob_config["type"] == "datalake":
+			# Data lake connection with account key
+			return DataLakeServiceClient.from_connection_string(connection_string,
+				api_version='2021-08-06')
+		elif blob_config["type"] == "blob":
+			# Blob container with account key
+			return BlobServiceClient.from_connection_string(connection_string)
+
+def chonkyize_azure_blob(blob):
+	from azure.storage.filedatalake import PathProperties
+
+	if isinstance(blob, BlobPrefix):
+		# Blob folder
+		return {
+			"id": ('/' + blob.container + '/' + blob.prefix).replace('//', '/'),
+			"name": blob.name.strip('/').split('/')[-1],
+			"size": 0,
+			"isDir": True
+		}
+	elif isinstance(blob, PathProperties):
+		# Data Lake folder
+		return {
+			"id": ('/' + blob.container + '/' + blob.name).replace('//', '/'),
+			#"id": blob.name,
+			"name": blob.name.strip('/').split('/')[-1],
+			"size": blob.content_length,
+			"modDate": round(blob.last_modified.timestamp(), 0) if hasattr(blob, "last_modified") and blob.last_modified is not None else None,
+			"isDir": blob.is_directory
+		}
+	else:
+		# Blob or Data Lake file objects
+		return {
+			"id": ('/' + blob.container + '/' + blob.name).replace('//', '/'),
+			"name": blob.name.strip('/').split('/')[-1],
+			"size": blob.size,
+			"modDate": round(blob.last_modified.timestamp(), 0) if hasattr(blob, "last_modified") and blob.last_modified is not None else None,
+			"isDir": False
+		}
+	
+def get_azure_blob_directory(blob_config, container_folder_path):
+
+	logger.debug("Container folder path = " + container_folder_path)
+	folder_path = container_folder_path.strip('/').split('/')
+	container_name = folder_path[0]
+	if container_name is None or len(container_name) == 0:
+		logger.debug("No container specified")
+		folder_prefix = '/'
+		container_name = ''
+		#Default default_container code happens in rest_ep_dirlist
+	if len(folder_path) >= 1:
+		folder_prefix = '/'.join(folder_path[1:]).strip('/')
+	else:
+		folder_prefix = '/'
+	logger.debug("Folder Prefix = " + folder_prefix)
+
+	try:
+		azure_client = get_azureblob_client(blob_config)
+	except BaseException as e:
+		raise Exception("Could not connect to Azure Blob: " + repr(e))
+
+	file_list = []
+	if len(container_name) > 0:
+		# Process the top-level folder (container or file system)
+		logger.debug("Getting container contents for " + container_name)
+		if isinstance(azure_client, DataLakeServiceClient):
+			logger.debug(f'action=list_contents filesystem={container_name} folder="{folder_prefix}"')
+			filesystem_client = azure_client.get_file_system_client(container_name)
+			blob_gen = filesystem_client.get_paths(path=folder_prefix, recursive=False)
+		elif isinstance(azure_client, BlobServiceClient):
+			logger.debug(f'action=list_contents container={container_name} folder="{folder_prefix}"')
+			container_client = azure_client.get_container_client(container_name)
+			blob_gen = container_client.walk_blobs(folder_prefix, delimiter="/")
+		for blob in blob_gen:
+			# PathProperties (Data Lake path) has no container awareness
+			if not hasattr(blob, 'container'): 
+				setattr(blob, 'container', container_name)
+			file_list.append(chonkyize_azure_blob(blob))
+		logger.debug("Finished processing file list. count=", len(file_list))
+	else:
+		# No container specified. Get the list of containers (or DataLake file systems).
+		if isinstance(azure_client, DataLakeServiceClient):
+			container_list = azure_client.list_file_systems()
+		elif isinstance(azure_client, BlobServiceClient):
+			logger.debug("Getting list of containers")
+			container_list = azure_client.list_containers() #include_metadata=True)
+		else:
+			# Unknown? 
+			logger.debug("Client type unknown. Type = " + str(type(azure_client)))
+			logger.debug("Dict = " + str(azure_client.__dict__))
+		logger.debug("Container list: " + str(container_list))
+		for c in container_list:
+			#logger.debug("Container=" + str(c))
+			timestamp = c.last_modified
+			timestamp = round(timestamp.timestamp(), 0) if timestamp is not None else None
+			file_list.append( {
+				"id": '/' + c.name,
+				"name": c.name,
+				"modDate": timestamp,
+				"isDir": True
+			} )
+	return file_list
 
 def get_aws_connection(aws_config, log=True):
 	global boto3, Config
@@ -221,7 +451,6 @@ def get_aws_connection(aws_config, log=True):
 	else:
 		raise Exception("ARN not configured and credential not specified.")
 
-
 def s3_folder_contents(client, bucket, prefix):
 	# Can't use list_objects_v2 - no owner returned
 	#logger.debug("Folder contents")
@@ -232,14 +461,18 @@ def s3_folder_contents(client, bucket, prefix):
 		# Submit a separate request for each folder to get its attributes. 
 		# head_object doesn't work here, not specific enough.
 		for cp in result.get('CommonPrefixes', []):
-			folder_name = cp.get('Prefix')
-			folder_result = client.list_objects(Bucket=bucket, Prefix=folder_name, MaxKeys=1)
-			for content in folder_result.get('Contents'):
-				content = yield_s3_object(content, is_directory=True)
-				content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
-				yield content
+			content = { 
+				"Key": cp.get('Prefix'), 
+				"Size": 0,
+				"Owner": None,
+				"LastModified": None 
+			}
+			content = yield_s3_object(content, is_directory=True)
+			content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
+			yield content
 
 		for content in result.get('Contents', []):
+			logger.debug(f"content = {content}")
 			content = yield_s3_object(content)
 			content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
 			# We already retrieved the folders in the for-loop above.
@@ -265,7 +498,6 @@ def yield_s3_object(content, is_directory=False):
 
 def get_aws_s3_directory(aws_config, bucket_folder_path):
 
-	#logger.debug("Default bucket = " + aws_config['default_s3_bucket'])
 	logger.debug("Bucket folder path = " + bucket_folder_path)
 	folder_path = bucket_folder_path.strip('/').split('/')
 	bucket_name = folder_path[0]
@@ -273,11 +505,9 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 		logger.debug("No bucket specified")
 		folder_prefix = '/'
 		bucket_name = ''
-		#pass #bucket_name = aws_config['default_s3_bucket'] Default bucket code happens in rest_ep_dirlist
+		# Default bucket code happens in rest_ep_dirlist
 	if len(folder_path) >= 1:
 		folder_prefix = '/'.join(folder_path[1:]).strip('/')
-	#elif len(folder_path) == 1:
-	#	folder = '/' + bucket_name
 	else:
 		folder_prefix = '/'
 	logger.debug("Folder Prefix = " + folder_prefix)
@@ -310,7 +540,6 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 			} )
 	return file_list
 
-
 def get_sftp_connection(target_config):
 	global pysftp
 	import pysftp
@@ -337,7 +566,7 @@ def get_sftp_connection(target_config):
 					sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], password=target_config['credential_password'], cnopts=cnopts)
 					return sftp
 				except BaseException as e:
-					exit_error(logger, "Unable to setup SFTP connection with password: " + repr(e), 921982)
+					raise Exception("Unable to setup SFTP connection with password: " + repr(e))
 			elif 'credential_username' in valid_settings and 'private_key' in valid_settings:
 				# Write the decrypted private key to a temporary file
 				temp_dir = os.getcwd()
@@ -348,7 +577,7 @@ def get_sftp_connection(target_config):
 					f.close()
 				try:
 					if 'passphrase_credential' in valid_settings:
-						sftp = pysftp.Connection(host=target_config['host'], private_key=key_file, private_key_pass=target_config['passphrase_credential_password'], cnopts=cnopts)
+						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], private_key=key_file, private_key_pass=target_config['passphrase_credential_password'], cnopts=cnopts)
 					else:
 						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], private_key=key_file, cnopts=cnopts)
 					return sftp
@@ -357,7 +586,7 @@ def get_sftp_connection(target_config):
 			else:
 				raise Exception("Required SFTP settings not found")
 		except BaseException as e: 
-			raise Exception("Could not find or decrypt the specified SFTP credential: " + repr(e))
+			raise Exception("Could not login with the specified SFTP credential: " + repr(e))
 	else:
 		raise Exception("Could not find required SFTP configuration settings")
 		
@@ -629,4 +858,3 @@ def get_box_directory(target_config, folder_path):
 		raise Exception("Could not retrieve folder contents: " + be.message)
 	except BaseException as e:
 		raise Exception("Could not retrieve folder contents: " + repr(e))
-

@@ -1,8 +1,8 @@
 # Common cross-app functions to simplify code
 
-# Copyright 2022 Deductiv Inc.
+# Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.1.0 (2022-12-02)
+# Version: 2.2.0 (2023-02-09)
 
 from __future__ import print_function
 from array import array
@@ -71,11 +71,11 @@ def request(method, url, data, headers, conn=None, verify=True):
 		close_conn = True
 		if url_tuple.scheme == 'https':
 			if verify:
-				conn = httplib.HTTPSConnection(url_tuple.netloc)
+				conn = httplib.HTTPSConnection(url_tuple.netloc, context=ssl.create_default_context())
 			else:
-				conn = httplib.HTTPSConnection(url_tuple.netloc, context = ssl._create_unverified_context())
+				conn = httplib.HTTPSConnection(url_tuple.netloc, context=ssl._create_unverified_context())
 		elif url_tuple.scheme == 'http':
-			conn = httplib.HTTPConnection(url_tuple.netloc, context = ssl._create_unverified_context())
+			conn = httplib.HTTPConnection(url_tuple.netloc, context=ssl._create_unverified_context())
 	else:
 		close_conn = False
 	try:
@@ -87,8 +87,7 @@ def request(method, url, data, headers, conn=None, verify=True):
 			conn.close()
 		return response_data, response_status
 	except BaseException as e:
-		eprint("URL Request Error: " + str(e))
-		sys.exit(1)
+		raise Exception("URL Request Error: " + str(e))
 
 def setup_logging(logger_name):
 	logger = logging.getLogger(logger_name)
@@ -172,10 +171,16 @@ def replace_keywords(s):
 		s = s.replace(x, strings_to_replace[x])
 	return s
 
-def exit_error(logger, message, error_code=1):
-	logger.critical(message)
+def exit_error(source_logger, message, error_code=1, source_obj=None):
 	eprint(message)
-	print(message)
+	if source_obj is not None:
+		if hasattr(source_obj, '_configuration'):
+			command = str(source_obj._configuration.command).split(' ')[0]
+		else:
+			command = ''
+		if hasattr(source_obj, 'write_error'):
+			source_obj.write_error(f'{command}: {message}')
+	source_logger.critical(message)
 	exit(error_code)
 
 def decrypt_with_secret(encrypted_text):
@@ -350,3 +355,16 @@ def log_proxy_settings(logger):
 		logger.debug("HTTPS proxy: %s" % https_proxy)
 	if proxy_exceptions is not None:
 		logger.debug("Proxy Exceptions: %s" % proxy_exceptions)
+
+def is_cloud(session_key):
+	uri = en.buildEndpoint(["server", "info", "server-info"], namespace='-', owner='nobody')
+	server_content = simpleRequest(uri, getargs={"output_mode": "json"}, sessionKey=session_key, raiseAllErrors=True)[1]
+	try:
+		# Test for non-cloud environment
+		#return json.loads(server_content)['entry'][0]['content']['federated_search_enabled'] # true
+		# See if instance_type is set to "cloud"
+		instance_type = json.loads(server_content)['entry'][0]['content']['instance_type']
+		return instance_type == "cloud"
+	except KeyError:
+		return False
+

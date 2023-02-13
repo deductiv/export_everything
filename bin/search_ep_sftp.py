@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright 2022 Deductiv Inc.
+# Copyright 2023 Deductiv Inc.
 # search_ep_sftp.py
 # Export Splunk search results to a remote SFTP server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.1.0 (2022-12-02)
+# Version: 2.2.0 (2023-02-09)
 
 import sys
 import os
@@ -86,7 +86,7 @@ class epsftp(EventingCommand):
 		**Syntax:** **compress=***[true|false]*
 		**Description:** Option to compress the output file into .gz format before uploading
 		**Default:** The setting from the target configuration, or True if .gz is in the filename ''',
-		require=False, validate=validators.Boolean())
+		require=False)
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 	
@@ -132,16 +132,17 @@ class epsftp(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
+			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
-		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
-		self.fields = None if (self.fields is not None and self.fields == "") else self.fields
+		default_values = [None, '', '__default__', '*', ['*']]
+		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
+		self.fields = None if self.fields in default_values else self.fields
 
 		# Read the compress value from the target config unless one was specified in the search
-		if self.compress is None:
+		if self.compress is None or self.compress == '__default__':
 			try:
 				self.compress = str2bool(target_config['compress'])
 			except:
@@ -173,7 +174,7 @@ class epsftp(EventingCommand):
 			try:
 				setattr(self, 'sftp', get_sftp_connection(target_config))
 			except BaseException as e:
-				exit_error(logger, repr(e), 912934)
+				exit_error(logger, repr(e), 912934, self)
 			
 			if self.sftp is not None:
 				# Use the credential to connect to the SFTP server
@@ -181,32 +182,33 @@ class epsftp(EventingCommand):
 					self.sftp.makedirs(folder)
 					self.sftp.chdir(folder)
 				except BaseException as e:
-					exit_error(logger, "Could not load remote SFTP directory: " + repr(e), 6)
+					exit_error(logger, "Could not load remote SFTP directory: " + repr(e), 6, self)
 			else:
-				exit_error(logger, "SFTP credential not configured.", 8)
+				exit_error(logger, "SFTP credential not configured.", 8, self)
 			
 			setattr(self, 'event_counter', 0)
-			append = False
+			append_chunk = False
 		else:
 			# Persistent variable is populated from a prior chunk/iteration.
 			# Use the previous local output file and append to it.
-			append = True
+			append_chunk = True
 
 		try:
 			# Write the output file to disk in the dispatch folder
 			logger.debug("Writing events. file=\"%s\", format=%s, compress=%s, fields=\"%s\"", self.local_output_file, self.outputformat, self.compress, self.fields)
-			for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append=append, finish=self._finished):
+			for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append_chunk=append_chunk, finish=self._finished):
 				yield event
 				self.event_counter += 1
 		except BaseException as e:
-			exit_error(logger, "Error writing staging file to upload", 296733)
+			exit_error(logger, "Error writing staging file to upload", 296733, self)
 	
 		if self._finished or self._finished is None:
 			try:
 				# Upload the file
 				self.sftp.put(self.local_output_file)
+				os.remove(self.local_output_file)
 			except BaseException as e:
-				exit_error(logger, "Error uploading file to SFTP server: " + repr(e), 109693)
+				exit_error(logger, "Error uploading file to SFTP server: " + repr(e), 109693, self)
 
 			try:
 				contents = self.sftp.listdir()
@@ -224,8 +226,8 @@ class epsftp(EventingCommand):
 					message = "SFTP export_status=success, count=%s, file_name=\"%s\"" % (self.event_counter, self.sftp.getcwd() + '/' + self.remote_output_file)
 					logger.info(message)
 				else:
-					exit_error(logger, "Could not verify uploaded file exists", 771293)
+					exit_error(logger, "Could not verify uploaded file exists", 771293, self)
 			except BaseException as e:
-				exit_error(logger, "Error renaming or replacing file on SFTP server. Does the file already exist?" + repr(e), 109693)
+				exit_error(logger, "Error renaming or replacing file on SFTP server. Does the file already exist?" + repr(e), 109693, self)
 
 dispatch(epsftp, sys.argv, sys.stdin, sys.stdout, __name__)

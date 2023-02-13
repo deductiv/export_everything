@@ -11,7 +11,7 @@
     }
     </style>
 
-    <splunk-control-group label="Target Instance" style="width: 150px; padding-right: 10px">
+    <splunk-control-group label="HEC Destination" style="width: 150px; padding-right: 10px">
             <splunk-search-dropdown name="action.alert_ep_hec.param.dest_guid"
                     search="| rest splunk_server=local /servicesNS/-/export_everything/export_everything/ep_hec | table title alias" 
                     label-field="alias" value-field="title" />
@@ -23,8 +23,8 @@
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_source" id="source"/>
             <span class="help-block">
-                <p><strong>Syntax:</strong> <code>source=[source_value|$source_field$]</code></p>
-                <p><strong>Description:</strong> Field or string to be assigned to the source field on the pushed event</p>
+                <p>Field or string to be assigned to the source field on the pushed event</p>
+                <p><strong>Syntax:</strong> <code>[source_value|$source_field$]</code></p>
                 <p><strong>Default:</strong> <code>$source$</code>, or if not defined, it is omitted</p>
             </span>
         </div>
@@ -36,8 +36,8 @@
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_sourcetype" id="sourcetype" />
             <span class="help-block">
-                <p><strong>Syntax:</strong> <code>sourcetype=[sourcetype_value|$sourcetype_field$]</code></p>
-                <p><strong>Description:</strong> Field or string to be assigned to the sourcetype field on the pushed event</p>
+                <p>Field or string to be assigned to the sourcetype field on the pushed event</p>
+                <p><strong>Syntax:</strong> <code>[sourcetype_value|$sourcetype_field$]</code></p>
                 <p><strong>Default:</strong> <code>$sourcetype$</code>, or if not defined, json</p>
             </span>
         </div>
@@ -49,13 +49,12 @@
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_index" id="index" />
             <span class="help-block">
-                <p><strong>Syntax:</strong> <code>index=[index_value|$index_field$]</code></p>
-                <p><strong>Description:</strong> The remote index in which to store the pushed event</p>
+                <p>The remote index in which to store the pushed event</p>
+                <p><strong>Syntax:</strong> <code>[index_value|$index_field$]</code></p>
                 <p><strong>Default:</strong> <code>$index$</code>, or if not defined, the remote endpoint's default.</p>
             </span>
         </div>
     </div>
-    
 
     <div class="control-group">
         <label class="control-label" style="width: 150px;" for="output_host">Event Host</label>
@@ -63,8 +62,8 @@
         <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
             <input type="text" name="action.alert_ep_hec.param.output_host" id="host" />
             <span class="help-block">
-                <p><strong>Syntax:</strong> <code>host=[host_value|$host_field$]</code></p>
-                <p><strong>Description:</strong> Field or string to be assigned to the host field on the pushed event</p>
+                <p>Field or string to be assigned to the host field on the pushed event</p>
+                <p><strong>Syntax:</strong> <code>[host_value|$host_field$]</code></p>
                 <p><strong>Default:</strong> <code>$host$</code>, or if not defined, the hostname of the sending host (from inputs.conf)</p>
             </span>
         </div>

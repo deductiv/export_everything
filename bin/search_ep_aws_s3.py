@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-# Copyright 2022 Deductiv Inc.
+# Copyright 2023 Deductiv Inc.
 # search_ep_aws_s3.py
 # Export Splunk search results to AWS S3 - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.1.0 (2022-12-02)
+# Version: 2.2.0 (2023-02-09)
 
 import sys
 import os
@@ -77,7 +77,7 @@ class epawss3(EventingCommand):
 		**Syntax:** **compress=***[true|false]*
 		**Description:** Option to compress the output file into .gz format before uploading
 		**Default:** The setting from the target configuration, or True if .gz is in the filename ''',
-		require=False, validate=validators.Boolean())
+		require=False)
 
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 
@@ -105,7 +105,7 @@ class epawss3(EventingCommand):
 
 		if first_chunk:
 			logger.info('AWS S3 Export search command initiated')
-			logger.debug('search_ep_awss3 command: %s', self)  # logs command line
+			logger.debug('search_ep_aws_s3 command: %s', self)  # logs command line
 			log_proxy_settings(logger)
 
 		# Enumerate settings
@@ -123,26 +123,27 @@ class epawss3(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, stanza_guid_alias=self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937)
+				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812)
+			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 		
-		if self.bucket is None:
+		default_values = [None, '', '__default__', '*', ['*']]
+		if self.bucket in default_values:
 			if 'default_s3_bucket' in list(target_config.keys()):
 				t = target_config['default_s3_bucket']
 				if t is not None and len(t) > 0:
 					self.bucket = t
 				else:
-					exit_error(logger, "No bucket specified", 4)
+					exit_error(logger, "No bucket specified", 4, self)
 			else:
-				exit_error(logger, "No bucket specified", 5)
+				exit_error(logger, "No bucket specified", 5, self)
 		
 		# If the parameters are not supplied or blank (alert actions), supply defaults
-		self.outputformat = 'csv' if (self.outputformat is None or self.outputformat == "") else self.outputformat
-		self.fields = None if (self.fields is not None and self.fields == "") else self.fields
+		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
+		self.fields = None if self.fields in default_values else self.fields
 
 		# Read the compress value from the target config unless one was specified in the search
-		if self.compress is None:
+		if self.compress is None or self.compress == '__default__':
 			try:
 				self.compress = str2bool(target_config['compress'])
 			except:
@@ -150,7 +151,7 @@ class epawss3(EventingCommand):
 
 		# First run and no remote output file string has been assigned
 		if not hasattr(self, 'remote_output_file'):
-			if self.outputfile is None or self.outputfile == "":
+			if self.outputfile in default_values:
 				# Boto is special. We need repr to give it the encoding it expects to match the hashing.
 				self.outputfile = repr('export_' + user + '___now__' + event_file.file_extensions[self.outputformat]).strip("'")
 			
@@ -181,23 +182,23 @@ class epawss3(EventingCommand):
 				f"staging_file=\"{self.local_output_file}\"")
 			
 			setattr(self, 'event_counter', 0)
-			append = False
+			append_chunk = False
 
 			try:
 				setattr(self, 's3', get_aws_connection(target_config))
 			except BaseException as e:
-				exit_error(logger, "Could not connect to AWS: " + repr(e), 741423)
+				exit_error(logger, "Could not connect to AWS: " + repr(e), 741423, self)
 				
 		else:
 			# Persistent variable is populated from a prior chunk/iteration.
 			# Use the previous local output file and append to it.
-			append = True
+			append_chunk = True
 		
 		# Write the output file to disk in the dispatch folder
 		logger.debug("Writing events. file=\"%s\", format=%s, compress=%s, fields=\"%s\"", \
 			self.local_output_file, self.outputformat, self.compress, \
 			self.fields if self.fields is not None else "")
-		for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append=append, finish=self._finished):
+		for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append_chunk=append_chunk, finish=self._finished):
 			yield event
 			self.event_counter += 1
 		
@@ -211,9 +212,9 @@ class epawss3(EventingCommand):
 				logger.info("Successfully exported events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, self.event_counter, self.bucket, self.remote_output_file, user))
 				os.remove(self.local_output_file)
 			except self.s3.exceptions.NoSuchBucket as e:
-				exit_error(logger, "Error: No such bucket", 123833)
+				exit_error(logger, "Error: No such bucket", 123833, self)
 			except BaseException as e:
-				exit_error(logger, "Could not upload file to S3: " + repr(e), 9)
+				exit_error(logger, "Could not upload file to S3: " + repr(e), 9, self)
 
 dispatch(epawss3, sys.argv, sys.stdin, sys.stdout, __name__)
 
