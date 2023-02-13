@@ -267,20 +267,27 @@ class http_event_collector:
             payload = " ".join(self.flushQueue.get())
             headers = {'Authorization':'Splunk '+self.token, 'X-Splunk-Request-Channel':str(uuid.uuid1())}
             # try to post payload twice then give up and move on
-            response = self.requests_retry_session().post(self.server_uri, data=payload, headers=headers, verify=self.SSL_verify)
-            self.log.debug("batch_thread: http_status_code=%s http_message=%s",response.status_code,response.text)
-
-            if response.status_code == 200:
+            try:
+                response = self.requests_retry_session().post(self.server_uri, data=payload, headers=headers, verify=self.SSL_verify)
+                self.log.debug("batch_thread: http_status_code=%s http_message=%s",response.status_code,response.text)
+            except Exception as e:
+                self.log.exception(e)
+                error_message = e
+            
+            if response is not None and response.status_code == 200:
                 self.flushQueue.task_done()
             else:
                 self.abort.set()
                 # Get the 'text' field from the json response.
-                try:
-                    error_obj = json.loads(response.text)
-                    error_message = error_obj['text']
-                except:
-                    error_message = response.text
-                error = "Received HTTP %d error connecting to HEC service: %s" % (response.status_code, error_message)
+                if response is not None and hasattr(response, 'text'):
+                    try:
+                        error_obj = json.loads(response.text)
+                        error_message = error_obj['text']
+                    except:
+                        error_message = response.text
+                    error = "Received HTTP %d error connecting to HEC service: %s" % (response.status_code, error_message)
+                else:
+                    error = "Error connecting to HEC service: %s" % error_message
                 self.errorQueue.put_nowait(error)
                 
                 # Empty the queue
