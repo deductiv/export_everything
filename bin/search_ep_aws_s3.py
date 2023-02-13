@@ -127,7 +127,8 @@ class epawss3(EventingCommand):
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 		
-		if self.bucket is None or len(self.bucket) == 0 or self.bucket == '__default__':
+		default_values = [None, '', '__default__', '*', ['*']]
+		if self.bucket in default_values:
 			if 'default_s3_bucket' in list(target_config.keys()):
 				t = target_config['default_s3_bucket']
 				if t is not None and len(t) > 0:
@@ -138,7 +139,6 @@ class epawss3(EventingCommand):
 				exit_error(logger, "No bucket specified", 5, self)
 		
 		# If the parameters are not supplied or blank (alert actions), supply defaults
-		default_values = [None, '', '__default__', '*', ['*']]
 		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
 		self.fields = None if self.fields in default_values else self.fields
 

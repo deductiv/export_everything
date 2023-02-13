@@ -138,7 +138,8 @@ class epazureblob(EventingCommand):
 		except BaseException as e:
 			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
 		
-		if self.container is None or len(self.container) == 0 or self.container == '__default__':
+		default_values = [None, '', '__default__', '*', ['*']]
+		if self.container in default_values:
 			if 'default_container' in list(target_config.keys()):
 				t = target_config['default_container']
 				if t is not None and len(t) > 0:
@@ -150,7 +151,6 @@ class epazureblob(EventingCommand):
 				exit_error(logger, "No container specified (status=error)", 5, self)
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
-		default_values = [None, '', '__default__', '*', ['*']]
 		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
 		self.fields = None if self.fields in default_values else self.fields
 		self.append = False if self.append in default_values else self.append
