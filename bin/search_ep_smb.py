@@ -187,7 +187,7 @@ class epsmb(EventingCommand):
 								sign_options = SMBConnection.SIGN_WHEN_SUPPORTED, is_direct_tcp=True))
 							self.conn.connect(target_config['host'], 445, timeout=5)
 
-							if target_config['share_name'] not in (s.name for s in self.conn.listShares(timeout=10)):
+							if not target_config['share_name'].endswith('$') and target_config['share_name'] not in (s.name for s in self.conn.listShares(timeout=10)):
 								exit_error(logger, "Unable to find the specified share name on the server", 553952, self)
 							
 						except BaseException as e:
