@@ -151,6 +151,13 @@ def escape_quotes(string):
 def escape_quotes_csv(string):
 	return string.replace('"', '""')
 
+def is_ipv4(host):
+	r = "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$"
+	if(re.search(r, host)):
+		return True
+	else:
+		return False
+
 def replace_keywords(s):
 
 	now = str(int(time.time()))
