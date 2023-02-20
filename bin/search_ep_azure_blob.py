@@ -5,7 +5,7 @@
 # Export Splunk search results to Azure Blob - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.0 (2023-02-09)
+# Version: 2.2.1 (2023-02-20)
 
 import sys
 import os
