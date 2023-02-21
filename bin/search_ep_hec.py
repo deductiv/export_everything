@@ -10,15 +10,17 @@
 import sys
 import os
 import time
+import json
 from deductiv_helpers import setup_logger, \
 	str2bool, \
-	exit_error, \
+	search_console, \
 	replace_object_tokens, \
 	recover_parameters, \
 	request, \
 	log_proxy_settings
 from ep_helpers import get_config_from_alias
 from splunk.clilib import cli_common as cli
+from splunk.rest import simpleRequest
 
 # Add lib folders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -98,6 +100,7 @@ class ephec(StreamingCommand):
 		facility = os.path.basename(__file__)
 		facility = os.path.splitext(facility)[0]
 		logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
+		ui = search_console(logger, self)
 
 		# Enumerate settings
 		searchinfo = self._metadata.searchinfo
@@ -133,7 +136,7 @@ class ephec(StreamingCommand):
 			try:
 				setattr(self, 'target_config', get_config_from_alias(session_key, cmd_config, self.target, log=first_chunk))
 				if self.target_config is None:
-					exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
+					ui.exit_error("Unable to find target configuration (%s)." % self.target)
 
 				logger.debug("Target configuration: " + str(self.target_config))
 				hec_token = self.target_config['token']
@@ -142,10 +145,10 @@ class ephec(StreamingCommand):
 				hec_ssl = str2bool(self.target_config['ssl'])
 				hec_ssl_verify = str2bool(self.target_config['ssl_verify'])
 			except BaseException as e:
-				exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
+				ui.exit_error("Error reading target server configuration: " + repr(e))
 
 			if len(hec_host) == 0:
-				exit_error(logger, "No host specified", 119371, self)
+				ui.exit_error("No host specified")
 
 			# Create HEC object
 			setattr(self, 'hec', http_event_collector(hec_token, hec_host, http_event_port=hec_port, http_event_server_ssl=hec_ssl))
@@ -164,14 +167,18 @@ class ephec(StreamingCommand):
 					logger.debug(f"Connectivity check passed to host={hec_host}:{hec_port} with ssl_verify={hec_ssl_verify}")
 				else:
 					test_response = test_response.decode('utf-8')
-					exit_error(logger, "HEC health endpoint error: %s" % test_response, 100253, self)
+					ui.exit_error("HEC health endpoint error: %s" % test_response)
 			except BaseException as e:
-				exit_error(logger, "Could not connect to HEC server: %s" % str(e), 1384185, self)
+				ui.exit_error("Could not connect to HEC server: %s" % str(e))
 
 			setattr(self, 'event_counter', 0)
 		
-		# Get the default values used for data originating from this machine
-		inputs_host = cli.getConfStanza('inputs','splunktcp')["host"]
+		# Get the name of the server we are running on, to be used as a last-resort host value
+		try:
+			server_content = simpleRequest('/services/server/info?output_mode=json', sessionKey=session_key)[1]
+			default_host = json.loads(server_content)['entry'][0]['content']['host']
+		except:
+			default_host = None
 
 		# Special event key fields that can be specified/overridden in the alert action
 		meta_keys = ['source', 'sourcetype', 'host', 'index']
@@ -192,27 +199,31 @@ class ephec(StreamingCommand):
 			else:
 				payload.update({ "time": time.time() })
 
-			for k in meta_keys: # host, source, sourcetype, index
+			# Define fields for the top-level payload
+			for meta_key in meta_keys: # host, source, sourcetype, index
 				# self.host, etc starts and ends with $
-				meta_value = getattr(self, k)
+				meta_value = getattr(self, meta_key)
 				if meta_value is not None and '$' in meta_value:
+					# Remove the '$result.' prefix in case it was provided
 					meta_value = meta_value.replace("$result.", "$")
+					# For each field in the event, make a token out of the field name like $fieldname$
 					for event_field, event_field_value in list(payload_event_src.items()):
 						token_string = '$'+event_field+'$'
+						# Replace any tokens that show up in the user-supplied values
 						if token_string in meta_value:
 							meta_value = meta_value.replace(token_string, event_field_value)
 							if meta_value == event_field_value and event_field in list(payload_event_src.keys()):
 								# Delete meta field from the payload event source
 								#  so it's not included when we dump the rest of the fields later.
 								del(payload_event_src[event_field])
-					payload.update({ k: meta_value })
-					# If the key field is in the event and its output argument is set to a variable
-					if k == "host" and self.host == "$host$":
-						# "host" field not found in event, but has the default value. Use the one from inputs.conf.
-						payload.update({ k: inputs_host })
+					# If the key field is in the event and its output argument is still set to a variable
+					if meta_key == "host" and meta_value == "$host$":
+						# "host" field not found in event, but has the default value. Use the one from /services/server/info
+						meta_value = default_host
+					payload.update({ meta_key: meta_value })
 				elif len(meta_value) > 0:
 					# Plain string value (not a token)
-					payload.update({ k: meta_value })
+					payload.update({ meta_key: meta_value })
 
 			# Only send _raw (no other fields) if the _raw field was included in the search result.
 			# (Don't include other fields/values)
@@ -228,13 +239,14 @@ class ephec(StreamingCommand):
 				self.hec.batchEvent(payload)
 				yield(event)
 			except BaseException as e:
-				exit_error(logger, str(e), 954322, self)
+				ui.exit_error(str(e))
 
 		try:
-			result = self.hec.flushBatch()
-			logger.info("Successfully exported events to HEC. count=%s target=%s app=%s user=%s" % (self.event_counter, self.target, app, user))
-			self.event_counter = 0
+			if len(self.hec.batchEvents) > 0:
+				self.hec.flushBatch()
+				logger.info("Successfully exported events to HEC. count=%s target=%s app=%s user=%s" % (self.event_counter, self.target, app, user))
+				self.event_counter = 0
 		except BaseException as e:
-			exit_error(logger, str(e), 954323, self)
+			ui.exit_error("Could not deliver %s events: %s" % (self.event_counter, str(e)))
 
 dispatch(ephec, sys.argv, sys.stdin, sys.stdout, __name__)

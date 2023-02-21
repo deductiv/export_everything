@@ -178,17 +178,22 @@ def replace_keywords(s):
 		s = s.replace(x, strings_to_replace[x])
 	return s
 
-def exit_error(source_logger, message, error_code=1, source_obj=None):
-	eprint(message)
-	if source_obj is not None:
-		if hasattr(source_obj, '_configuration'):
-			command = str(source_obj._configuration.command).split(' ')[0]
-		else:
-			command = ''
-		if hasattr(source_obj, 'write_error'):
-			source_obj.write_error(f'{command}: {message}')
-	source_logger.critical(message)
-	exit(error_code)
+class search_console:
+	def __init__(self, logger, caller_object):
+		self.logger = logger
+		self.caller_object = caller_object
+		
+	def exit_error(self, message, error_code=1):
+		eprint(message)
+		if self.caller_object is not None:
+			if hasattr(self.caller_object, '_configuration'):
+				command = str(self.caller_object._configuration.command).split(' ')[0]
+			else:
+				command = ''
+			if hasattr(self.caller_object, 'write_error'):
+				self.caller_object.write_error(f'{command}: {message} ({command})')
+		self.logger.critical(message)
+		exit(error_code)
 
 def decrypt_with_secret(encrypted_text):
 	# Check for encryption

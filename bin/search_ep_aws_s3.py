@@ -12,7 +12,7 @@ import os
 import random
 from deductiv_helpers import setup_logger, \
 	replace_keywords, \
-	exit_error, \
+	search_console, \
 	replace_object_tokens, \
 	recover_parameters, \
 	str2bool, \
@@ -98,10 +98,8 @@ class epawss3(EventingCommand):
 		# Facility info - prepended to log lines
 		facility = os.path.basename(__file__)
 		facility = os.path.splitext(facility)[0]
-		try:
-			logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
-		except BaseException as e:
-			raise Exception("Could not create logger: " + repr(e))
+		logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
+		ui = search_console(logger, self)
 
 		if first_chunk:
 			logger.info('AWS S3 Export search command initiated')
@@ -123,9 +121,9 @@ class epawss3(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, stanza_guid_alias=self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
+				ui.exit_error("Unable to find target configuration (%s)." % self.target)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
+			ui.exit_error("Error reading target server configuration: " + repr(e))
 		
 		default_values = [None, '', '__default__', '*', ['*']]
 		if self.bucket in default_values:
@@ -134,9 +132,9 @@ class epawss3(EventingCommand):
 				if t is not None and len(t) > 0:
 					self.bucket = t
 				else:
-					exit_error(logger, "No bucket specified", 4, self)
+					ui.exit_error("No bucket specified")
 			else:
-				exit_error(logger, "No bucket specified", 5, self)
+				ui.exit_error("No bucket specified")
 		
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
@@ -187,7 +185,7 @@ class epawss3(EventingCommand):
 			try:
 				setattr(self, 's3', get_aws_connection(target_config))
 			except BaseException as e:
-				exit_error(logger, "Could not connect to AWS: " + repr(e), 741423, self)
+				ui.exit_error( "Could not connect to AWS: " + repr(e))
 				
 		else:
 			# Persistent variable is populated from a prior chunk/iteration.
@@ -212,9 +210,9 @@ class epawss3(EventingCommand):
 				logger.info("Successfully exported events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, self.event_counter, self.bucket, self.remote_output_file, user))
 				os.remove(self.local_output_file)
 			except self.s3.exceptions.NoSuchBucket as e:
-				exit_error(logger, "Error: No such bucket", 123833, self)
+				ui.exit_error(logger, "Error: No such bucket")
 			except BaseException as e:
-				exit_error(logger, "Could not upload file to S3: " + repr(e), 9, self)
+				ui.exit_error(logger, "Could not upload file to S3: " + repr(e))
 
 dispatch(epawss3, sys.argv, sys.stdin, sys.stdout, __name__)
 

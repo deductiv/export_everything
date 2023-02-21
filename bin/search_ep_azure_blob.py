@@ -12,7 +12,7 @@ import os
 import random
 from deductiv_helpers import setup_logger, \
 	replace_keywords, \
-	exit_error, \
+	search_console, \
 	replace_object_tokens, \
 	recover_parameters, \
 	str2bool, \
@@ -105,14 +105,12 @@ class epazureblob(EventingCommand):
 			cmd_config = cli.getConfStanzas('ep_azure_blob')
 		except BaseException as e:
 			raise Exception("Could not read configuration: " + repr(e))
-
+		
 		# Facility info - prepended to log lines
 		facility = os.path.basename(__file__)
 		facility = os.path.splitext(facility)[0]
-		try:
-			logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
-		except BaseException as e:
-			raise Exception("Could not create logger: " + repr(e))
+		logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
+		ui = search_console(logger, self)
 
 		if first_chunk:
 			logger.info('Azure Blob Export search command initiated')
@@ -134,9 +132,9 @@ class epazureblob(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, stanza_guid_alias=self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
+				ui.exit_error("Unable to find target configuration (%s)." % self.target)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
+			ui.exit_error("Error reading target server configuration: " + repr(e))
 		
 		default_values = [None, '', '__default__', '*', ['*']]
 		if self.container in default_values:
@@ -146,9 +144,9 @@ class epazureblob(EventingCommand):
 					self.container = t
 					#target_config["container"] = t
 				else:
-					exit_error(logger, "No container specified (status=error)", 4, self)
+					ui.exit_error("No container specified (status=error)")
 			else:
-				exit_error(logger, "No container specified (status=error)", 5, self)
+				ui.exit_error("No container specified (status=error)")
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
@@ -181,7 +179,7 @@ class epazureblob(EventingCommand):
 				self.outputfile = self.outputfile + '.gz'
 			
 			if self.append and self.compress:
-				exit_error(logger, "Cannot append to gzip blob. (status=error)", 192928, self)
+				ui.exit_error("Cannot append to gzip blob. (status=error)")
 
 			setattr(self, 'remote_output_file', self.outputfile)
 		
@@ -203,7 +201,7 @@ class epazureblob(EventingCommand):
 			try:
 				self.azure_client = get_azureblob_client(target_config)
 			except BaseException as e:
-				exit_error(logger, "Could not connect to Azure Blob: " + repr(e), 741423, self)
+				ui.exit_error("Could not connect to Azure Blob: " + repr(e))
 				
 		else:
 			# Persistent variable is populated from a prior chunk/iteration.
@@ -225,7 +223,7 @@ class epazureblob(EventingCommand):
 				upload_azureblob_file(self.azure_client, self.container, self.local_output_file, self.remote_output_file, self.append)
 			except BaseException as e:
 				#logger.exception(e)
-				exit_error(logger, "Could not upload file to Azure Blob (status=failure): " + repr(e), 9, self)
+				ui.exit_error("Could not upload file to Azure Blob (status=failure): " + repr(e))
 
 dispatch(epazureblob, sys.argv, sys.stdin, sys.stdout, __name__)
 
