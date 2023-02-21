@@ -5,14 +5,14 @@
 # Export Splunk search results to a remote SFTP server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.0 (2023-02-09)
+# Version: 2.2.1 (2023-02-20)
 
 import sys
 import os
 import platform
 import random
 from deductiv_helpers import setup_logger, \
-	exit_error, \
+	search_console, \
 	replace_object_tokens, \
 	recover_parameters, \
 	log_proxy_settings, \
@@ -107,10 +107,8 @@ class epsftp(EventingCommand):
 		# Facility info - prepended to log lines
 		facility = os.path.basename(__file__)
 		facility = os.path.splitext(facility)[0]
-		try:
-			logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
-		except BaseException as e:
-			raise Exception("Could not create logger: " + repr(e))
+		logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
+		ui = search_console(logger, self)
 
 		if first_chunk:
 			logger.info('SFTP Export search command initiated')
@@ -132,9 +130,9 @@ class epsftp(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
+				ui.exit_error("Unable to find target configuration (%s)." % self.target)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
+			ui.exit_error("Error reading target server configuration: " + repr(e))
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		default_values = [None, '', '__default__', '*', ['*']]
@@ -174,7 +172,7 @@ class epsftp(EventingCommand):
 			try:
 				setattr(self, 'sftp', get_sftp_connection(target_config))
 			except BaseException as e:
-				exit_error(logger, repr(e), 912934, self)
+				ui.exit_error(repr(e))
 			
 			if self.sftp is not None:
 				# Use the credential to connect to the SFTP server
@@ -182,9 +180,9 @@ class epsftp(EventingCommand):
 					self.sftp.makedirs(folder)
 					self.sftp.chdir(folder)
 				except BaseException as e:
-					exit_error(logger, "Could not load remote SFTP directory: " + repr(e), 6, self)
+					ui.exit_error("Could not load remote SFTP directory: " + repr(e))
 			else:
-				exit_error(logger, "SFTP credential not configured.", 8, self)
+				ui.exit_error("SFTP credential not configured.")
 			
 			setattr(self, 'event_counter', 0)
 			append_chunk = False
@@ -200,7 +198,7 @@ class epsftp(EventingCommand):
 				yield event
 				self.event_counter += 1
 		except BaseException as e:
-			exit_error(logger, "Error writing staging file to upload", 296733, self)
+			ui.exit_error("Error writing staging file to upload")
 	
 		if self._finished or self._finished is None:
 			try:
@@ -208,7 +206,7 @@ class epsftp(EventingCommand):
 				self.sftp.put(self.local_output_file)
 				os.remove(self.local_output_file)
 			except BaseException as e:
-				exit_error(logger, "Error uploading file to SFTP server: " + repr(e), 109693, self)
+				ui.exit_error("Error uploading file to SFTP server: " + repr(e))
 
 			try:
 				contents = self.sftp.listdir()
@@ -226,8 +224,8 @@ class epsftp(EventingCommand):
 					message = "SFTP export_status=success, count=%s, file_name=\"%s\"" % (self.event_counter, self.sftp.getcwd() + '/' + self.remote_output_file)
 					logger.info(message)
 				else:
-					exit_error(logger, "Could not verify uploaded file exists", 771293, self)
+					ui.exit_error("Could not verify uploaded file exists")
 			except BaseException as e:
-				exit_error(logger, "Error renaming or replacing file on SFTP server. Does the file already exist?" + repr(e), 109693, self)
+				ui.exit_error("Error renaming or replacing file on SFTP server. Does the file already exist?" + repr(e))
 
 dispatch(epsftp, sys.argv, sys.stdin, sys.stdout, __name__)

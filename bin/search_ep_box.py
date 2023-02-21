@@ -5,7 +5,7 @@
 # Export Splunk search results to Box - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.0 (2023-02-09)
+# Version: 2.2.1 (2023-02-20)
 
 import sys
 import os
@@ -13,7 +13,7 @@ import platform
 import random
 from deductiv_helpers import setup_logger, \
 	replace_keywords, \
-	exit_error, \
+	search_console, \
 	replace_object_tokens, \
 	recover_parameters, \
 	log_proxy_settings, \
@@ -110,10 +110,8 @@ class epbox(EventingCommand):
 		# Facility info - prepended to log lines
 		facility = os.path.basename(__file__)
 		facility = os.path.splitext(facility)[0]
-		try:
-			logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
-		except BaseException as e:
-			raise Exception("Could not create logger: " + repr(e))
+		logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
+		ui = search_console(logger, self)
 
 		if first_chunk:
 			logger.info('Box Export search command initiated')
@@ -134,9 +132,9 @@ class epbox(EventingCommand):
 		try:
 			target_config = get_config_from_alias(session_key, cmd_config, self.target, log=first_chunk)
 			if target_config is None:
-				exit_error(logger, "Unable to find target configuration (%s)." % self.target, 100937, self)
+				ui.exit_error("Unable to find target configuration (%s)." % self.target)
 		except BaseException as e:
-			exit_error(logger, "Error reading target server configuration: " + repr(e), 124812, self)
+			ui.exit_error("Error reading target server configuration: " + repr(e))
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		default_values = [None, '', '__default__', '*', ['*']]
@@ -222,7 +220,7 @@ class epbox(EventingCommand):
 			try:
 				client = get_box_connection(target_config)
 			except BaseException as e:
-				exit_error(logger, "Could not connect to box: " + repr(e), 918723, self)
+				ui.exit_error("Could not connect to box: " + repr(e))
 
 			subfolders = folder.strip('/').split('/')
 			if '' in subfolders:
@@ -263,9 +261,9 @@ class epbox(EventingCommand):
 				self.event_counter += 1
 
 		except BoxAPIException as be:
-			exit_error(logger, be.message, 833928, self)
+			ui.exit_error(be.message)
 		except BaseException as e:
-			exit_error(logger, "Error writing staging file to upload", 398372, self)
+			ui.exit_error("Error writing staging file to upload")
 
 		if self._finished or self._finished is None:
 			try:
@@ -274,6 +272,6 @@ class epbox(EventingCommand):
 				logger.info(message)
 				os.remove(self.local_output_file)
 			except BaseException as e:
-				exit_error(logger, "Error uploading file to Box: " + repr(e), 109693, self)
+				ui.exit_error("Error uploading file to Box: " + repr(e))
 
 dispatch(epbox, sys.argv, sys.stdin, sys.stdout, __name__)

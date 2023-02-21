@@ -3,7 +3,7 @@
 # Copyright 2023 Deductiv Inc.
 # REST endpoint for configuration
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.0 (2023-02-09)
+# Version: 2.2.1 (2023-02-20)
 
 from deductiv_helpers import setup_logger, str2bool, is_cloud
 import splunk.admin as admin

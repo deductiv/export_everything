@@ -2,7 +2,7 @@
 
 # Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.0 (2023-02-09)
+# Version: 2.2.1 (2023-02-20)
 
 import random
 import sys
@@ -656,7 +656,7 @@ def get_smb_directory(smb_config, folder_path = '/'):
 						sign_options = SMBConnection.SIGN_WHEN_SUPPORTED, is_direct_tcp=True) 
 					connected = conn.connect(smb_config['host'], 445, timeout=5)
 					
-					if smb_config['share_name'] not in (s.name for s in conn.listShares(timeout=10)):
+					if not smb_config['share_name'].endswith('$') and smb_config['share_name'] not in (s.name for s in conn.listShares(timeout=10)):
 						raise Exception("Unable to find the specified share name on the server")
 						
 					# Omitting this code because Splunk prohibits UDP socket functionality in appinspect

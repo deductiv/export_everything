@@ -2,7 +2,7 @@
 
 # Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.0 (2023-02-09)
+# Version: 2.2.1 (2023-02-20)
 
 from __future__ import print_function
 from array import array
@@ -151,6 +151,13 @@ def escape_quotes(string):
 def escape_quotes_csv(string):
 	return string.replace('"', '""')
 
+def is_ipv4(host):
+	r = "^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])$"
+	if(re.search(r, host)):
+		return True
+	else:
+		return False
+
 def replace_keywords(s):
 
 	now = str(int(time.time()))
@@ -171,17 +178,22 @@ def replace_keywords(s):
 		s = s.replace(x, strings_to_replace[x])
 	return s
 
-def exit_error(source_logger, message, error_code=1, source_obj=None):
-	eprint(message)
-	if source_obj is not None:
-		if hasattr(source_obj, '_configuration'):
-			command = str(source_obj._configuration.command).split(' ')[0]
-		else:
-			command = ''
-		if hasattr(source_obj, 'write_error'):
-			source_obj.write_error(f'{command}: {message}')
-	source_logger.critical(message)
-	exit(error_code)
+class search_console:
+	def __init__(self, logger, caller_object):
+		self.logger = logger
+		self.caller_object = caller_object
+		
+	def exit_error(self, message, error_code=1):
+		eprint(message)
+		if self.caller_object is not None:
+			if hasattr(self.caller_object, '_configuration'):
+				command = str(self.caller_object._configuration.command).split(' ')[0]
+			else:
+				command = ''
+			if hasattr(self.caller_object, 'write_error'):
+				self.caller_object.write_error(f'{command}: {message} ({command})')
+		self.logger.critical(message)
+		exit(error_code)
 
 def decrypt_with_secret(encrypted_text):
 	# Check for encryption
