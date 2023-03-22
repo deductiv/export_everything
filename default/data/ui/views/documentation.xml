@@ -22,14 +22,14 @@
 <ul>
 <li>JSON</li>
 <li>Raw Text</li>
-<li>KV Pairs</li>
+<li>Key-Value Pairs</li>
 <li>Comma-Delimited (CSV)</li>
 <li>Tab-Delimited (TSV)</li>
 <li>Pipe-Delimited</li>
 </ul>
 <h2 class="ep">File-Based Destinations</h2>
 <ul>
-<li>Amazon Web Services (AWS) S3-Compatible Object Storage  </li>
+<li>Amazon Web Services (AWS) S3-Compatible Object Storage (S3, Google Cloud Storage, MinIO, et al.)  </li>
 <li>Azure Blob &amp; Data Lake v2 Storage  </li>
 <li>Box.com Cloud Storage  </li>
 <li>SFTP Servers  </li>

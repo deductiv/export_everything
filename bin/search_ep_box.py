@@ -5,7 +5,7 @@
 # Export Splunk search results to Box - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.1 (2023-02-20)
+# Version: 2.2.2 (2023-03-15)
 
 import sys
 import os

@@ -5,13 +5,13 @@ This add-on exports your Splunk search results to remote destinations so you can
 ## Supported Export Formats
 - JSON
 - Raw Text
-- KV Pairs
+- Key-Value Pairs
 - Comma-Delimited (CSV)
 - Tab-Delimited (TSV)
 - Pipe-Delimited
 
 ## File-Based Destinations  
-- Amazon Web Services (AWS) S3-Compatible Object Storage  
+- Amazon Web Services (AWS) S3-Compatible Object Storage (S3, Google Cloud Storage, MinIO, et al.)  
 - Azure Blob & Data Lake v2 Storage  
 - Box.com Cloud Storage  
 - SFTP Servers  

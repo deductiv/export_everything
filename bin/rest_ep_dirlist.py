@@ -1,7 +1,7 @@
 # Export Everything App for Splunk
 # Handle directory listing requests for configured targets
 # Copyright 2023 Deductiv Inc.
-# Version: 2.2.1 (2023-02-20)
+# Version: 2.2.2 (2023-03-15)
 
 import sys
 import os
@@ -24,15 +24,11 @@ from ep_helpers import get_config_from_alias, \
 	get_smb_directory
 import splunklib.client as client
 
-
 config = cli.getConfStanza('ep_general','settings')
 # Facility info - prepended to log lines
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
 logger = setup_logger(config["log_level"], 'export_everything.log', facility)
-temp_dir = os.path.join(os.environ.get('SPLUNK_HOME'), 'etc','users','splunk-system-user','.eptemp')
-os.makedirs(temp_dir, exist_ok=True)
-os.chdir(temp_dir)
 
 app = 'export_everything'
 
@@ -62,12 +58,7 @@ def get_directory_contents(config_file, config, query):
 		logger.exception("Could not get directory listing: " + repr(e))
 		raise Exception(repr(e))
 
-#class RemoteDirectoryListingHandler(PersistentServerConnectionApplication):
-class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):	
-	#def __init__(self, command_line, command_arg):
-	#	#super(PersistentServerConnectionApplication, self).__init__()	# pylint: disable=bad-super-call
-	#	#PersistentServerConnectionApplication.__init__(self)
-	#	pass
+class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 
 	def __init__(self, method, requestInfo, responseInfo, sessionKey):
 		splunk.rest.BaseRestHandler.__init__(self, method, requestInfo, responseInfo, sessionKey)
@@ -84,8 +75,6 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 		"""
 
 		logger.debug('Started REST directory listing process')
-		#input = json.loads(in_string)
-		#input = self.args
 		session_key = self.sessionKey
 		entity = en.getEntity('/server',
 			'settings',
