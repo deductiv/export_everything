@@ -571,25 +571,32 @@ def get_sftp_connection(target_config):
 				# Write the decrypted private key to a temporary file
 				private_key_setting = target_config['private_key'].replace('\\n', '\n')
 				private_key = io.StringIO(private_key_setting)
+				if 'passphrase_credential_password' in valid_settings:
+					pk_passphrase = target_config['passphrase_credential_password']
+				else:
+					pk_passphrase = None
 				# Try all key types. No other way to do this without forcing the user to specify.
 				try:
-					okey = paramiko.RSAKey.from_private_key(private_key, '')
-				except paramiko.SSHException:
+					okey = paramiko.RSAKey.from_private_key(private_key, pk_passphrase)
+				except:
 					try:
 						private_key.seek(0)
-						okey = paramiko.DSSKey.from_private_key(private_key, '')
-					except paramiko.SSHException:
+						okey = paramiko.DSSKey.from_private_key(private_key, pk_passphrase)
+					except:
 						try:
 							private_key.seek(0)
-							okey = paramiko.ECDSAKey.from_private_key(private_key, '')
-						except paramiko.SSHException:
+							okey = paramiko.ECDSAKey.from_private_key(private_key, pk_passphrase)
+						except:
 							private_key.seek(0)
-							okey = paramiko.Ed25519Key.from_private_key(private_key, '')
+							okey = paramiko.Ed25519Key.from_private_key(private_key, pk_passphrase)
+				logger.debug("Private key object successfully created.")
 				try:
 					if 'passphrase_credential' in valid_settings:
-						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], private_key=okey, private_key_pass=target_config['passphrase_credential_password'], cnopts=cnopts)
+						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], 
+						    private_key=okey, private_key_pass=target_config['passphrase_credential_password'], cnopts=cnopts)
 					else:
-						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], private_key=okey, cnopts=cnopts)
+						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], 
+						    private_key=okey, cnopts=cnopts)
 					return sftp
 				except BaseException as e:
 					raise Exception("Unable to setup SFTP connection with private key: " + repr(e))

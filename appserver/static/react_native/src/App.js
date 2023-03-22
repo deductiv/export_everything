@@ -196,7 +196,7 @@ const config_descriptions = {
 	['ep_smb']: 		'SMB',
 }
 
-const LoadingOverlay = (props) => { 
+const LoadingOverlayAppConfig = (props) => { 
 	return (
 		<div id="loading_overlay"
 			style={{
@@ -220,6 +220,30 @@ const LoadingOverlay = (props) => {
 	)
 }
 
+const LoadingOverlayFileBrowser = (props) => { 
+	return (
+		<div id="loading_overlay_file_browser"
+			style={{
+				position: "fixed",
+				top: 0,
+				left: 0,
+				zIndex: 9999,
+				width: "100%",
+				height: "100%",
+				display: "block",
+				background: "rgba(0,0,0,0.6)"}}
+		> 
+			<div style={{
+				height: "100%",
+				display: "flex",
+				justifyContent: "center",
+				alignItems: "center"
+			}}>
+				<span className="spinner" ></span>
+			</div>
+		</div>
+	)
+}
 async function getAllUrls(urls) {
 	try {
 		var data = await Promise.all(
@@ -248,7 +272,8 @@ class App extends React.Component {
 			current_config_container: '',				// 
 			current_config: '', 			// 
 			current_config_alias: '',		// end chonky,
-			loading: true,					// FadeIn control for chonky modal & config load wait
+			loading_config: true,			// FadeIn control for config load wait
+			loading_filebrowser: true,		// FadeIn control for chonky file browsing modal 
 			['ep_general']: {},
 			// table lists
 			['ep_hec']: [], 
@@ -642,7 +667,7 @@ class App extends React.Component {
 	
 	// Download the data and push it into the corresponding state entry
 	refresh_tables = () => {
-		this.setState({loading: true});
+		this.setState({loading_config: true});
 		let tables = Object.keys(this.columns);
 		console.log("Refreshing tables");
 		//Promise.all(tables.map( async (table) => {
@@ -654,7 +679,7 @@ class App extends React.Component {
 		.then((table_data) => {
 			// Convert array of single-item dicts to one dict
 			// Passwords a 3-item dict
-			let new_state = {loading: false}
+			let new_state = {loading_config: false}
 			table_data.map( (table_dict) => {
 				if (table_dict != null) {
 					for (const [key, value] of Object.entries(table_dict)) {
@@ -1139,7 +1164,7 @@ class App extends React.Component {
 						resolve(response.data);
 					} else {
 						this.props.enqueueSnackbar(`Error updating ACL:\n ${err.status}: ${err.error}`, notistack_options('error'));
-						this.setState({loading: false})
+						this.setState({loading_config: false})
 						reject(String(err.status) + ': ' + err.error);
 					}
 				}
@@ -1167,7 +1192,7 @@ class App extends React.Component {
 			}
 			
 			this.setState({
-				loading: true, 
+				loading_filebrowser: true, 
 				show_file_browser: true,
 				current_config: config_file,
 				current_config_alias: alias,
@@ -1265,7 +1290,7 @@ class App extends React.Component {
 									response_data[e.title] = e.content;
 								}
 								alert(`${response_data.status} Error retrieving the file listing: \n${response_data.error}`)
-								this.setState({loading: false, show_file_browser: false});
+								this.setState({loading_filebrowser: false, show_file_browser: false});
 								reject(response_data);
 							}
 						} else {
@@ -1291,19 +1316,19 @@ class App extends React.Component {
 							this.setState({"file_list": file_list}, () => {
 								//console.log("Setting state from show_folder_contents (last)");
 								this.setState({
-									loading: false,
+									loading_filebrowser: false,
 									folder_chain: chain});
 							});
 							//console.log(file_list);
 							resolve(file_list);
 						} else {
 							alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`)
-							this.setState({loading: false, show_file_browser: false});
+							this.setState({loading_filebrowser: false, show_file_browser: false});
 							reject(reason);
 						}
 					}, reason => {
 						alert(`${reason.status} Error retrieving the file listing: \n${reason.responseText}`)
-						this.setState({loading: false, show_file_browser: false});
+						this.setState({loading_filebrowser: false, show_file_browser: false});
 						reject(reason);
 					});
 				}
@@ -1378,7 +1403,8 @@ class App extends React.Component {
 		return (
 			<div>
 				<Suspense fallback={<div>Loading...</div>}>
-					{this.state.loading && <LoadingOverlay />}
+					{this.state.loading_config && <LoadingOverlayAppConfig />}
+					{this.state.loading_filebrowser && <LoadingOverlayFileBrowser />}
 				</Suspense>
 				<Tabs id="tabs_list" className="nav nav-tabs" 
 					defaultIndex={0} transition={false} >
