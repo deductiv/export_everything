@@ -51,6 +51,8 @@ import Add from "@material-ui/icons/Add";
 import Remove from '@material-ui/icons/Remove';
 import SaveAlt from '@material-ui/icons/SaveAlt';
 import FolderIcon from '@material-ui/icons/Folder';
+import RefreshIcon from '@material-ui/icons/Refresh';
+
 const tableIcons = {
 	Search: forwardRef((props, ref) => <Search {...props} ref={ref}/>),
 	FirstPage: forwardRef((props, ref) => <FirstPage {...props} ref={ref}/>),
@@ -68,7 +70,8 @@ const tableIcons = {
 	Add: forwardRef((props, ref) => <Add {...props} ref={ref}/>),
 	ThirdStateCheck: forwardRef((props, ref) => <Remove {...props} ref={ref}/>),
 	Export: forwardRef((props, ref) => <SaveAlt {...props} ref={ref}/>),
-	Open: forwardRef((props, ref) => <FolderIcon {...props} ref={ref}/>)
+	Open: forwardRef((props, ref) => <FolderIcon {...props} ref={ref}/>),
+	Refresh: forwardRef((props, ref) => <RefreshIcon {...props} ref={ref}/>)
 };
 
 const validators = {
@@ -1384,11 +1387,17 @@ class App extends React.Component {
 							onRowUpdate: (newData, oldData) => this.update_row_data(config, newData, oldData),
 							onRowDelete: oldData => this.delete_row_data(config, oldData)
 						}}
-						actions={ (browsable && [{
+						actions={ ([browsable && {
 							  icon: tableIcons.Open,
 							  tooltip: 'Browse',
 							  onClick: (event,rowData) => { this.show_folder_contents(config, rowData.alias, rowData.share_name || rowData.default_s3_bucket || rowData.default_container, rowData.default_folder) }
-						}])}
+							},
+							{
+								icon: tableIcons.Refresh,
+								tooltip: 'Refresh',
+								isFreeAction: true,
+								onClick: (event) => this.refresh_tables()
+							}])}
 						options={table_options}
 						className={"actionicons-" + action_columns}
 					/>
@@ -1484,6 +1493,13 @@ class App extends React.Component {
 									}}
 									options={table_options}
 									className={"actionicons-2"}
+									actions={[,
+										{
+											icon: tableIcons.Refresh,
+											tooltip: 'Refresh',
+											isFreeAction: true,
+											onClick: (event) => this.refresh_tables()
+										}]}
 								/>
 							</div>
 						</div>
