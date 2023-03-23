@@ -273,7 +273,7 @@ class App extends React.Component {
 			current_config: '', 			// 
 			current_config_alias: '',		// end chonky,
 			loading_config: true,			// FadeIn control for config load wait
-			loading_filebrowser: true,		// FadeIn control for chonky file browsing modal 
+			loading_filebrowser: false,		// FadeIn control for chonky file browsing modal 
 			['ep_general']: {},
 			// table lists
 			['ep_hec']: [], 

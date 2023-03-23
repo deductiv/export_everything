@@ -177,28 +177,28 @@ width: 150px;
 .MuiToolbar-root {
   padding-left: 0 !important;
 }
-.MuiListItem-root, .MuiSelect-root, .MuiMenuItem-root, .MuiFormControl-root, label.MuiFormLabel-root, label.MuiFormLabel-root.Mui-focused, .MuiTableCell-root.MuiTableCell-body {
-font-family: "Splunk Platform Sans","Proxima Nova",Roboto,Droid,Helvetica Neue,Helvetica,Arial,sans-serif;
-font-size: 12px;
-transform: none !important;
-transition: none !important;
-color: rgba(0, 0, 0, 0.87);
+.MuiListItem-root, .MuiSelect-root, .MuiMenuItem-root, .MuiFormControl-root, label.MuiFormLabel-root, label.MuiFormLabel-root.Mui-focused, .MuiTableCell-root.MuiTableCell-body, .MuiButton-root, .chonky-chonkyRoot {
+  font-family: "Splunk Platform Sans","Proxima Nova",Roboto,Droid,Helvetica Neue,Helvetica,Arial,sans-serif !important;
+  font-size: 12px;
+  transform: none !important;
+  transition: none !important;
+  color: rgba(0, 0, 0, 0.87);
 }
 /* Form inputs on General tab */
 label.MuiFormLabel-root {
-padding-top: 10px;
+  padding-top: 10px;
 }
 #general_form > div.MuiInput-root {
-font-family: "Splunk Platform Sans","Proxima Nova",Roboto,Droid,Helvetica Neue,Helvetica,Arial,sans-serif;
-margin-left: 200px;
-margin-top: 0px !important;
-width: 150px;
+  font-family: "Splunk Platform Sans","Proxima Nova",Roboto,Droid,Helvetica Neue,Helvetica,Arial,sans-serif;
+  margin-left: 200px;
+  margin-top: 0px !important;
+  width: 150px;
 }
 .MuiMenuItem-root, .MuiInputBase-root, label.MuiFormLabel-root {
-font-size: 14px !important;
+  font-size: 14px !important;
 }
 .MuiInputBase-fullWidth {
-margin-left: inherit !important;
+  margin-left: inherit !important;
 }
 
 /* Table formatting for Material-Table (React) */
