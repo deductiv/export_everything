@@ -11,7 +11,7 @@ import warnings
 
 import paramiko
 from paramiko import SSHException, AuthenticationException   # make available
-from paramiko import AgentKey, RSAKey, DSSKey
+from paramiko import AgentKey, RSAKey, DSSKey, ECDSAKey, Ed25519Key
 
 from pysftp.exceptions import (CredentialException, ConnectionException,
                                HostKeysException)
@@ -155,7 +155,7 @@ class Connection(object):   # pylint:disable=r0902,r0904
                 else:
                     raise CredentialException("No password or key specified.")
 
-            if isinstance(private_key, (AgentKey, RSAKey)):
+            if isinstance(private_key, (AgentKey, RSAKey, DSSKey, ECDSAKey, Ed25519Key)):
                 # use the paramiko agent or rsa key
                 self._tconnect['pkey'] = private_key
             else:
@@ -165,10 +165,20 @@ class Connection(object):   # pylint:disable=r0902,r0904
                 try:  # try rsa
                     self._tconnect['pkey'] = RSAKey.from_private_key_file(
                         private_key_file, private_key_pass)
-                except paramiko.SSHException:   # if it fails, try dss
-                    # pylint:disable=r0204
-                    self._tconnect['pkey'] = DSSKey.from_private_key_file(
-                        private_key_file, private_key_pass)
+                except paramiko.SSHException:   # if it fails, try DSS
+                    try:
+                        # pylint:disable=r0204
+                        self._tconnect['pkey'] = DSSKey.from_private_key_file(
+                            private_key_file, private_key_pass)
+                    except paramiko.SSHException:   # if it fails, try ECDSA
+                        try:
+                            # pylint:disable=r0204
+                            self._tconnect['pkey'] = ECDSAKey.from_private_key_file(
+                                private_key_file, private_key_pass)
+                        except paramiko.SSHException:   # if it fails, try Ed25519
+                            # pylint:disable=r0204
+                            self._tconnect['pkey'] = Ed25519Key.from_private_key_file(
+                                private_key_file, private_key_pass)
 
     def _start_transport(self, host, port):
         '''start the transport and set the ciphers if specified.'''

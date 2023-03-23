@@ -2,7 +2,7 @@
 
 # Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.1 (2023-02-20)
+# Version: 2.2.2 (2023-03-15)
 
 from __future__ import print_function
 from array import array
@@ -56,7 +56,7 @@ def get_credentials(app, session_key):
 		raise Exception("No credentials have been found")
 
 # HTTP request wrapper
-def request(method, url, data, headers, conn=None, verify=True):
+def request(method, url, data, headers, conn=None, verify=True, is_cloud=False):
 	"""Helper function to fetch data from the given URL"""
 	# See if this is utf-8 encoded already
 	try:
@@ -69,8 +69,9 @@ def request(method, url, data, headers, conn=None, verify=True):
 	url_tuple = urllib.parse.urlparse(url)
 	if conn is None:
 		close_conn = True
-		if url_tuple.scheme == 'https':
-			if verify:
+		# Force verified HTTPS for Splunk Cloud
+		if url_tuple.scheme == 'https' or is_cloud:
+			if verify or is_cloud:
 				conn = httplib.HTTPSConnection(url_tuple.netloc, context=ssl.create_default_context())
 			else:
 				conn = httplib.HTTPSConnection(url_tuple.netloc, context=ssl._create_unverified_context())
@@ -103,7 +104,7 @@ def setup_logger(level, filename, facility):
 	
 	log_file = os.path.join(os.environ['SPLUNK_HOME'], 'var', 'log', 'splunk', filename)
 	file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=25000000, backupCount=2)
-	formatter = logging.Formatter('%(asctime)s [{0}:%(process)d] %(levelname)s %(message)s'.format(facility))
+	formatter = logging.Formatter('%(asctime)s {0}[%(process)d] %(levelname)s %(message)s'.format(facility))
 	file_handler.setFormatter(formatter)
 	stderr_handler = logging.StreamHandler(sys.stderr)
 	stderr_handler.setLevel(logging.ERROR)
@@ -200,6 +201,9 @@ def decrypt_with_secret(encrypted_text):
 	if encrypted_text[:1] == '$':
 		# Decrypt the text
 		# Read the splunk.secret file
+		#
+		# NOT USED IN SPLUNK CLOUD (see caller functions)
+		#
 		with open(os.path.join(os.getenv('SPLUNK_HOME'), 'etc', 'auth', 'splunk.secret'), 'r') as ssfh:
 			splunk_secret = ssfh.readline()
 		# Call the decrypt function from splunksecrets.py

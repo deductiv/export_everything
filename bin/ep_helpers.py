@@ -2,7 +2,7 @@
 
 # Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.1 (2023-02-20)
+# Version: 2.2.2 (2023-03-15)
 
 import random
 import sys
@@ -11,6 +11,7 @@ import platform
 import re
 import socket
 import stat
+import io
 from datetime import datetime
 
 from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret, merge_two_dicts
@@ -541,23 +542,22 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 	return file_list
 
 def get_sftp_connection(target_config):
+	import paramiko
 	global pysftp
 	import pysftp
-
+	
 	# Check to see if we have credentials
 	valid_settings = []
 	for l in list(target_config.keys()):
 		if target_config[l] is not None:
-			if target_config[l][0] == '$':
+			if target_config[l].startswith('$'):
 				target_config[l] = decrypt_with_secret(target_config[l]).strip()
 			if len(target_config[l]) > 0:
 				#logger.debug("l.strip() = [" + target_config[l].strip() + "]")
 				valid_settings.append(l) 
-	#logger.debug("Valid settings: " + str(valid_settings))
-	#logger.debug("Target config: " + str(mask_obj_passwords(target_config)))
 	if 'host' in valid_settings and 'port' in valid_settings:
 		# A target has been configured. Check for credentials.
-		# Disable SSH host checking (fix later - set as an option? !!!)
+		# Disable SSH host checking. No current way to pull in advance.
 		cnopts = pysftp.CnOpts()
 		cnopts.hostkeys = None
 		try:
@@ -569,17 +569,34 @@ def get_sftp_connection(target_config):
 					raise Exception("Unable to setup SFTP connection with password: " + repr(e))
 			elif 'credential_username' in valid_settings and 'private_key' in valid_settings:
 				# Write the decrypted private key to a temporary file
-				temp_dir = os.getcwd()
-				key_file = os.path.join(temp_dir, 'epsftp_private_key_' + random_number)
-				private_key = target_config['private_key'].replace('\\n', '\n')
-				with open(key_file, "w") as f:
-					f.write(private_key)
-					f.close()
+				private_key_setting = target_config['private_key'].replace('\\n', '\n')
+				private_key = io.StringIO(private_key_setting)
+				if 'passphrase_credential_password' in valid_settings:
+					pk_passphrase = target_config['passphrase_credential_password']
+				else:
+					pk_passphrase = None
+				# Try all key types. No other way to do this without forcing the user to specify.
+				try:
+					okey = paramiko.RSAKey.from_private_key(private_key, pk_passphrase)
+				except:
+					try:
+						private_key.seek(0)
+						okey = paramiko.DSSKey.from_private_key(private_key, pk_passphrase)
+					except:
+						try:
+							private_key.seek(0)
+							okey = paramiko.ECDSAKey.from_private_key(private_key, pk_passphrase)
+						except:
+							private_key.seek(0)
+							okey = paramiko.Ed25519Key.from_private_key(private_key, pk_passphrase)
+				logger.debug("Private key object successfully created.")
 				try:
 					if 'passphrase_credential' in valid_settings:
-						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], private_key=key_file, private_key_pass=target_config['passphrase_credential_password'], cnopts=cnopts)
+						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], 
+						    private_key=okey, private_key_pass=target_config['passphrase_credential_password'], cnopts=cnopts)
 					else:
-						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], private_key=key_file, cnopts=cnopts)
+						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], 
+						    private_key=okey, cnopts=cnopts)
 					return sftp
 				except BaseException as e:
 					raise Exception("Unable to setup SFTP connection with private key: " + repr(e))
@@ -612,7 +629,7 @@ def yield_sftp_object(content, folder_path):
 		return {
 			"id": folder_path + '/' + content.filename,
 			"name": content.filename,
-			"isHidden": True if content.filename[0] == '.' else False,
+			"isHidden": True if content.filename.startswith('.') else False,
 			"size": content.st_size,
 			"modDate": content.st_mtime,
 			"parentId": folder_path,
@@ -634,14 +651,8 @@ def get_smb_directory(smb_config, folder_path = '/'):
 	valid_settings = []
 	for setting, value in list(smb_config.items()):
 		if value is not None:
-			if len(value) > 0:
-				if value[0] == '$':
-					smb_config[setting] = decrypt_with_secret(value).strip()
-				valid_settings.append(setting) 
-	
-	#logger.debug("Valid settings: " + str(valid_settings))
-	#logger.debug("smb_config: " + str(smb_config))
-	
+			valid_settings.append(setting)
+		
 	try:
 		if all (k in valid_settings for k in ('host', 'credential_username', 'credential_password', 'share_name')):
 			try:

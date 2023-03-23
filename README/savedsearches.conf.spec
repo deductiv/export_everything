@@ -1,6 +1,6 @@
 # Splunk AppInspect complains when this file is configured with the correct default stanza definitions.
 
-[comment_this_line]
+[<stanza name>]
 action.alert_ep_hec = [0|1]
 action.alert_ep_hec.param.output_source = <string>
 action.alert_ep_hec.param.output_sourcetype = <string>

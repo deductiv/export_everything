@@ -5,7 +5,7 @@
 # Export Splunk events to Splunk HEC over JSON - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.1 (2023-02-20)
+# Version: 2.2.2 (2023-03-15)
 
 import sys
 import os
@@ -17,6 +17,7 @@ from deductiv_helpers import setup_logger, \
 	replace_object_tokens, \
 	recover_parameters, \
 	request, \
+	is_cloud, \
 	log_proxy_settings
 from ep_helpers import get_config_from_alias
 from splunk.clilib import cli_common as cli
@@ -162,7 +163,7 @@ class ephec(StreamingCommand):
 				else:
 					protocol = "http"
 				test_url = "%s://%s:%s/services/collector/health" % (protocol, hec_host, hec_port)
-				test_response, test_response_code = request('GET', test_url, '', {}, verify=hec_ssl_verify)
+				test_response, test_response_code = request('GET', test_url, '', {}, verify=hec_ssl_verify, is_cloud=is_cloud(session_key))
 				if test_response_code == 200:
 					logger.debug(f"Connectivity check passed to host={hec_host}:{hec_port} with ssl_verify={hec_ssl_verify}")
 				else:
