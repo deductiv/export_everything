@@ -439,9 +439,6 @@ margin-top: 125px;
 .chonky-baseButton[title="Switch to List view"] {
 display: none;
 }
-div[class^='listFileEntryProperty-'] {
-/*flex: 0 1 auto;*/
-}
 /* Timestamp field in file listing */
 div[class^='listFileEntry-'] > :nth-child(5) {
 flex: 1 1 100px;
@@ -453,15 +450,22 @@ flex: none;
 width: 100px;
 text-align: right;
 }
-.spinner {
+.spinner_appconfig {
 width: 40px;
 height: 40px;
-border: 4px var(--white-color) solid;
-border-top: 4px var(--level1-color-alt) solid;
+border: 4px var(--level1-color) solid;
+border-top: 4px #d8d8d8 solid;
 border-radius: 50%;
 animation: sp-anime 0.8s infinite linear;
 }
-
+.spinner_filebrowser {
+  width: 40px;
+  height: 40px;
+  border: 4px var(--white-color) solid;
+  border-top: 4px var(--level1-color-alt) solid;
+  border-radius: 50%;
+  animation: sp-anime 0.8s infinite linear;
+  }
 @keyframes sp-anime {
 0% {
     transform: rotate(0deg);
@@ -669,7 +673,6 @@ backface-visibility: visible;
 .nav-tabs > .react-tabs__tab--selected > a, .nav-tabs > .react-tabs__tab--selected > a:hover, .nav-tabs > .react-tabs__tab--selected > a:focus, .nav-tabs > .react-tabs__tab--selected:hover > a, .nav-tabs > .react-tabs__tab--selected:hover > a:hover, .nav-tabs > .react-tabs__tab--selected:hover > a:focus {
 position:relative;
 z-index: 1;
-filter: e(%("progid:DXImageTransform.Microsoft.gradient(enabled = false)"));
 border: none;
 outline-offset: -3px;
 padding: 0 30px;

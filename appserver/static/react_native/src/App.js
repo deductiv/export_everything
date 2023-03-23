@@ -193,7 +193,7 @@ const table_options = {
 const config_descriptions = {
 	['ep_hec']: 		'HTTP Event Collector',
 	['ep_aws_s3']: 		'S3-Compatible',
-	['ep_azure_blob']: 'Azure Blob',
+	['ep_azure_blob']:	'Azure Blob',
 	['ep_box']: 		'Box.com',
 	['ep_sftp']: 		'SFTP',
 	['ep_smb']: 		'SMB',
@@ -209,15 +209,15 @@ const LoadingOverlayAppConfig = (props) => {
 				width: "100%",
 				height: "100%",
 				display: "block",
-				background: "rgba(0,0,0,0.6)"}}
+				background: "rgba(255, 255, 255, 0.5)"}}
 		> 
 			<div style={{
-				height: "100%",
+				height: "50%",
 				display: "flex",
 				justifyContent: "center",
 				alignItems: "center"
 			}}>
-				<span className="spinner" ></span>
+				<span className="spinner_appconfig" ></span>
 			</div>
 		</div>
 	)
@@ -242,7 +242,7 @@ const LoadingOverlayFileBrowser = (props) => {
 				justifyContent: "center",
 				alignItems: "center"
 			}}>
-				<span className="spinner" ></span>
+				<span className="spinner_filebrowser" ></span>
 			</div>
 		</div>
 	)
