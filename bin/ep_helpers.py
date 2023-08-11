@@ -563,7 +563,7 @@ def get_sftp_connection(target_config):
 		try:
 			if 'credential_username' in valid_settings and 'credential_password' in valid_settings and not 'private_key' in valid_settings:
 				try:
-					sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], password=target_config['credential_password'], cnopts=cnopts)
+					sftp = pysftp.Connection(host=target_config['host'], port=int(target_config['port']), username=target_config['credential_username'], password=target_config['credential_password'], cnopts=cnopts)
 					return sftp
 				except BaseException as e:
 					raise Exception("Unable to setup SFTP connection with password: " + repr(e))
@@ -592,10 +592,10 @@ def get_sftp_connection(target_config):
 				logger.debug("Private key object successfully created.")
 				try:
 					if 'passphrase_credential' in valid_settings:
-						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], 
+						sftp = pysftp.Connection(host=target_config['host'], port=int(target_config['port']), username=target_config['credential_username'], 
 						    private_key=okey, private_key_pass=target_config['passphrase_credential_password'], cnopts=cnopts)
 					else:
-						sftp = pysftp.Connection(host=target_config['host'], username=target_config['credential_username'], 
+						sftp = pysftp.Connection(host=target_config['host'], port=int(target_config['port']), username=target_config['credential_username'], 
 						    private_key=okey, cnopts=cnopts)
 					return sftp
 				except BaseException as e:
