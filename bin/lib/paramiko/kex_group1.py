@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
 """
 Standard SSH key exchange ("kex" if you wanna sound cool).  Diffie-Hellman of
@@ -25,20 +25,19 @@ import os
 from hashlib import sha1
 
 from paramiko import util
-from paramiko.common import max_byte, zero_byte
+from paramiko.common import max_byte, zero_byte, byte_chr, byte_mask
 from paramiko.message import Message
-from paramiko.py3compat import byte_chr, long, byte_mask
 from paramiko.ssh_exception import SSHException
 
 
 _MSG_KEXDH_INIT, _MSG_KEXDH_REPLY = range(30, 32)
 c_MSG_KEXDH_INIT, c_MSG_KEXDH_REPLY = [byte_chr(c) for c in range(30, 32)]
 
-b7fffffffffffffff = byte_chr(0x7f) + max_byte * 7
+b7fffffffffffffff = byte_chr(0x7F) + max_byte * 7
 b0000000000000000 = zero_byte * 8
 
 
-class KexGroup1(object):
+class KexGroup1:
 
     # draft-ietf-secsh-transport-09.txt, page 17
     P = 0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF  # noqa
@@ -49,9 +48,9 @@ class KexGroup1(object):
 
     def __init__(self, transport):
         self.transport = transport
-        self.x = long(0)
-        self.e = long(0)
-        self.f = long(0)
+        self.x = 0
+        self.e = 0
+        self.f = 0
 
     def start_kex(self):
         self._generate_x()
@@ -87,7 +86,7 @@ class KexGroup1(object):
         # potential x).
         while 1:
             x_bytes = os.urandom(128)
-            x_bytes = byte_mask(x_bytes[0], 0x7f) + x_bytes[1:]
+            x_bytes = byte_mask(x_bytes[0], 0x7F) + x_bytes[1:]
             if (
                 x_bytes[:8] != b7fffffffffffffff
                 and x_bytes[:8] != b0000000000000000
@@ -140,10 +139,12 @@ class KexGroup1(object):
         hm.add_mpint(self.e)
         hm.add_mpint(self.f)
         hm.add_mpint(K)
-        H = sha1(hm.asbytes()).digest()
+        H = self.hash_algo(hm.asbytes()).digest()
         self.transport._set_K_H(K, H)
         # sign it
-        sig = self.transport.get_server_key().sign_ssh_data(H)
+        sig = self.transport.get_server_key().sign_ssh_data(
+            H, self.transport.host_key_type
+        )
         # send reply
         m = Message()
         m.add_byte(c_MSG_KEXDH_REPLY)

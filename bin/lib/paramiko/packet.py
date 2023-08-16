@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
 """
 Packet handling
@@ -32,13 +32,13 @@ from paramiko import util
 from paramiko.common import (
     linefeed_byte,
     cr_byte_value,
-    asbytes,
     MSG_NAMES,
     DEBUG,
     xffffffff,
     zero_byte,
+    byte_ord,
 )
-from paramiko.py3compat import u, byte_ord
+from paramiko.util import u
 from paramiko.ssh_exception import SSHException, ProxyCommandFailure
 from paramiko.message import Message
 
@@ -62,7 +62,7 @@ def first_arg(e):
     return arg
 
 
-class Packetizer(object):
+class Packetizer:
     """
     Implementation of the base SSH packet protocol.
     """
@@ -312,9 +312,6 @@ class Packetizer(object):
                 arg = first_arg(e)
                 if arg == errno.EAGAIN:
                     got_timeout = True
-                elif arg == errno.EINTR:
-                    # syscall interrupted; try again
-                    pass
                 elif self.__closed:
                     raise EOFError()
                 else:
@@ -339,9 +336,6 @@ class Packetizer(object):
             except socket.error as e:
                 arg = first_arg(e)
                 if arg == errno.EAGAIN:
-                    retry_write = True
-                elif arg == errno.EINTR:
-                    # syscall interrupted; try again
                     retry_write = True
                 else:
                     n = -1
@@ -390,7 +384,7 @@ class Packetizer(object):
         Write a block of data using the current cipher, as an SSH block.
         """
         # encrypt this sucka
-        data = asbytes(data)
+        data = data.asbytes()
         cmd = byte_ord(data[0])
         if cmd in MSG_NAMES:
             cmd_name = MSG_NAMES[cmd]
@@ -610,11 +604,6 @@ class Packetizer(object):
                 break
             except socket.timeout:
                 pass
-            except EnvironmentError as e:
-                if first_arg(e) == errno.EINTR:
-                    pass
-                else:
-                    raise
             if self.__closed:
                 raise EOFError()
             now = time.time()

@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
 """
 Abstraction of a one-way pipe where the read end can be used in
@@ -38,7 +38,7 @@ def make_pipe():
     return p
 
 
-class PosixPipe(object):
+class PosixPipe:
     def __init__(self):
         self._rfd, self._wfd = os.pipe()
         self._set = False
@@ -71,7 +71,7 @@ class PosixPipe(object):
         self.set()
 
 
-class WindowsPipe(object):
+class WindowsPipe:
     """
     On Windows, only an OS-level "WinSock" may be used in select(), but reads
     and writes must be to the actual socket object.
@@ -118,7 +118,7 @@ class WindowsPipe(object):
         self.set()
 
 
-class OrPipe(object):
+class OrPipe:
     def __init__(self, pipe):
         self._set = False
         self._partner = None
