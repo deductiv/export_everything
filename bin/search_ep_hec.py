@@ -5,7 +5,7 @@
 # Export Splunk events to Splunk HEC over JSON - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.2 (2023-03-15)
+# Version: 2.2.3 (2023-08-11)
 
 import sys
 import os
@@ -14,6 +14,7 @@ import json
 from deductiv_helpers import setup_logger, \
 	str2bool, \
 	search_console, \
+	is_search_finalizing, \
 	replace_object_tokens, \
 	recover_parameters, \
 	request, \
@@ -47,42 +48,11 @@ class ephec(StreamingCommand):
 	'''
 
 	#Define Parameters
-	target = Option(
-		doc='''
-		**Syntax:** **target=***<target_host_alias>*
-		**Description:** Reference to a target HEC endpoint within the configuration
-		**Default:** The target configured as "Default" within the HEC Setup page (if any)''',
-		require=False)
-
-	host = Option(
-		doc='''
-		**Syntax:** **host=***[host_value|$host_field$]*
-		**Description:** Field or string to be assigned to the host field on the exported event
-		**Default:** $host$, or if not defined, the hostname of the sending host (from inputs.conf)''',
-		require=False)
-
-	source = Option(
-		doc='''
-		**Syntax:** **source=***[source_value|$source_field$]*
-		**Description:** Field or string to be assigned to the source field on the exported event
-		**Default:** $source$, or if not defined, it is omitted''',
-		require=False)
-
-	sourcetype = Option(
-		doc='''
-		**Syntax:** **sourcetype=***[sourcetype_value|$sourcetype_field$]*
-		**Description:** Field or string to be assigned to the sourcetype field on the exported event
-		**Default:** $sourcetype$, or if not defined, json''',
-		require=False)
-
-	index = Option(
-		doc='''
-		**Syntax:** **index=***[index_value|$index_field$]*
-		**Description:** The remote index in which to store the exported event
-		**Default:** $index$, or if not defined, the remote endpoint's default.''',
-		require=False)
-
-	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
+	target = Option(require=False)
+	host = Option(require=False)
+	source = Option(require=False)
+	sourcetype = Option(require=False)
+	index = Option(require=False)
 
 	def stream(self, events):
 		if getattr(self, 'first_chunk', True):
@@ -102,13 +72,17 @@ class ephec(StreamingCommand):
 		facility = os.path.splitext(facility)[0]
 		logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
 		ui = search_console(logger, self)
-
+		
 		# Enumerate settings
 		searchinfo = self._metadata.searchinfo
 		app = searchinfo.app
 		user = searchinfo.username
-		session_key = self._metadata.searchinfo.session_key
+		session_key = searchinfo.session_key
 
+		# Refuse to run more chunks if the search is being terminated
+		if is_search_finalizing(searchinfo.sid) and not self._finished:
+			ui.exit_error("Search terminated prematurely. No data was exported.")
+		
 		if first_chunk:
 			logger.info('HEC Export search command initiated')
 			logger.debug('search_ep_hec command: %s', self)  # logs command line

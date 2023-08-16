@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.2 (2022-03-15)
+# Version: 2.2.3 (2023-08-11)
 */
  
 const app = 'export_everything';
@@ -156,6 +156,11 @@ const center_table_header_styles = {
 	textAlign: 'center',
 	verticalAlign: 'bottom',
 	paddingBottom: '5px'
+}
+
+const center_table_cell_styles = {
+	textAlign: 'center',
+	paddingRight: '26px'
 }
 
 const azure_ad_authorities = {
@@ -312,7 +317,8 @@ class App extends React.Component {
 		['ep_hec']: [ 
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "20%", 
 				validate: rowData => validators.string(rowData.alias).isValid }, 
 			{ title: "Hostname", field: "host", width: "25%", 
@@ -321,17 +327,20 @@ class App extends React.Component {
 				validate: rowData => (validators.number(rowData.port).isValid || rowData.port == null || rowData.port == "") },
 			{ title: "HEC Token", field: "token", width: "20%", 
 				validate: rowData => validators.uuid(rowData.token).isValid },
-			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles,
+			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles,
 				// Force SSL to true for Splunk Cloud
 				validate: rowData => (this.is_splunk_cloud ? validators.is_true(rowData.ssl) : validators.bool(rowData.ssl)) },
-			{ title: "Verify SSL", field: "ssl_verify", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles,
+			{ title: "Verify SSL", field: "ssl_verify", type: "boolean", width: "5%", initialEditValue: 1,
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles,
 				// Force Verify SSL to true for Splunk Cloud
 				validate: rowData => (this.is_splunk_cloud ? validators.is_true(rowData.ssl_verify) : validators.bool(rowData.ssl_verify)) },
 		],
 		['ep_aws_s3']: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "12%", 
 				validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Access Key", field: "credential", width: "15%", 
@@ -356,12 +365,14 @@ class App extends React.Component {
 				validate: rowData => validators.string(rowData.region).isValid }, 
 			{ title: "Endpoint URL\n(Blank for AWS S3)", field: "endpoint_url", width: "12%" },
 			{ title: "Default Bucket ID", field: "default_s3_bucket", width: "12%" },
-			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles }
 		],
 		['ep_azure_blob']: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "15%", 
 				validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Storage Account Name", field: "storage_account", width: "25%", 
@@ -383,7 +394,8 @@ class App extends React.Component {
 				</Select> 
 				</FormControl>
 			},
-			{ title: "Azure AD", field: "azure_ad", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Azure AD", field: "azure_ad", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Azure AD Authority", field: "azure_ad_authority", width: "15%", 
 				render: rowData => <span>{ azure_ad_authorities[rowData.azure_ad_authority] }</span>,
 				editComponent: props =>
@@ -421,12 +433,14 @@ class App extends React.Component {
 					</FormControl>
 			},
 			{ title: "Default Container", field: "default_container", width: "20%" }, 
-			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles }
 		],
 		['ep_box']: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "14%", 
 				validate: rowData => validators.string(rowData.alias).isValid }, 
 			{ title: "Enterprise ID", field: "enterprise_id", width: "10%", 
@@ -481,12 +495,14 @@ class App extends React.Component {
 				</FormControl>
 			},
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
-			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles }
 		],
 		['ep_sftp']: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "14%", 
 				validate: rowData => validators.string(rowData.alias).isValid }, 
 			{ title: "Hostname", field: "host", width: "35%", 
@@ -546,12 +562,14 @@ class App extends React.Component {
 				</FormControl>
 			},
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
-			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%",
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles }
 		],
 		['ep_smb']: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "14%", 
 				validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Hostname", field: "host", width: "35%", 
@@ -576,7 +594,8 @@ class App extends React.Component {
 			{ title: "Share Name", field: "share_name", width: "15%", 
 				validate: rowData => validators.string(rowData.share_name).isValid },
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
-			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles }
 		],
 		passwords: [
 			// actions = 10%

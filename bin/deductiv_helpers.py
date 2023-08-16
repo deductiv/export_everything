@@ -4,11 +4,6 @@
 # Author: J.R. Murray <jr.murray@deductiv.net>
 # Version: 2.2.2 (2023-03-15)
 
-from __future__ import print_function
-from array import array
-from builtins import str
-from future import standard_library
-standard_library.install_aliases()
 import sys
 import os
 import urllib.request
@@ -24,6 +19,7 @@ import datetime
 import socket
 import json
 import random
+import csv
 import splunk
 import splunk.entity as en
 from splunk.rest import simpleRequest
@@ -76,7 +72,7 @@ def request(method, url, data, headers, conn=None, verify=True, is_cloud=False):
 			else:
 				conn = httplib.HTTPSConnection(url_tuple.netloc, context=ssl._create_unverified_context())
 		elif url_tuple.scheme == 'http':
-			conn = httplib.HTTPConnection(url_tuple.netloc, context=ssl._create_unverified_context())
+			conn = httplib.HTTPConnection(url_tuple.netloc)
 	else:
 		close_conn = False
 	try:
@@ -384,3 +380,26 @@ def is_cloud(session_key):
 	except KeyError:
 		return False
 
+def get_search_status(sid):
+	search_status_file = os.path.join(os.environ['SPLUNK_HOME'], 'var', 'run', 'splunk', 'dispatch', sid, 'status.csv')
+	try:
+		with open(search_status_file) as status_csv:
+			status_reader = csv.DictReader(status_csv)
+			for row in status_reader:
+				return row['state']
+	except BaseException as e:
+		eprint('Exception reading search status from dispatch: %s', str(e))
+		return None
+
+def is_search_finalizing(sid):
+	return get_search_status(sid) == 'FINALIZING'
+
+def attach_dyn_prop(instance, prop_name, prop_fn):
+	"""Attach prop_fn to instance with name prop_name.
+	Assumes that prop_fn takes self as an argument.
+	Reference: https://stackoverflow.com/a/1355444/509706
+	"""
+	class_name = instance.__class__.__name__ + 'Child'
+	child_class = type(class_name, (instance.__class__,), {prop_name: property(prop_fn)})
+
+	instance.__class__ = child_class

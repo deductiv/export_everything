@@ -5,7 +5,7 @@
 # Export Splunk search results to Azure Blob - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.2 (2023-03-15)
+# Version: 2.2.3 (2023-08-11)
 
 import sys
 import os
@@ -13,6 +13,7 @@ import random
 from deductiv_helpers import setup_logger, \
 	replace_keywords, \
 	search_console, \
+	is_search_finalizing, \
 	replace_object_tokens, \
 	recover_parameters, \
 	str2bool, \
@@ -37,61 +38,20 @@ class epazureblob(EventingCommand):
 	Export Splunk events to Azure Blob over JSON or raw text.
 	'''
 
-	#Define Parameters
-	target = Option(
-		doc='''
-		**Syntax:** **target=***<target alias>*
-		**Description:** The name of the AWS target alias provided on the configuration dashboard
-		**Default:** The target configured as "Default" within the Azure Blob Setup page (if any)''',
-		require=False)
+	# Common file-based target parameters
+	target = Option(require=False)
+	outputfile = Option(require=False)
+	outputformat = Option(require=False)
+	fields = Option(require=False, validate=validators.List())
+	blankfields = Option(require=False, validate=validators.Boolean())
+	internalfields = Option(require=False, validate=validators.Boolean())
+	datefields = Option(require=False, validate=validators.Boolean())
+	compress = Option(require=False, validate=validators.Boolean())
 
-	container = Option(
-		doc='''
-		**Syntax:** **container=***<container name>*
-		**Description:** The name of the destination container
-		**Default:** The container name from the Azure Blob Setup page (if any)''',
-		require=False)
-
-	outputfile = Option(
-		doc='''
-		**Syntax:** **outputfile=***<output path/filename>*
-		**Description:** The path and filename to be written to the Azure Blob container
-		**Default:** The name of the user plus the timestamp and the output format, e.g. admin_1588000000.log
-			json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log''',
-		require=False)
-
-	outputformat = Option(
-		doc='''
-		**Syntax:** **outputformat=***[json|raw|kv|csv|tsv|pipe]*
-		**Description:** The format written for the output events/search results
-		**Default:** *csv*''',
-		require=False) 
-
-	append = Option(
-		doc='''
-		**Syntax:** **append=***[true|false]*
-		**Description:** Option to append the output file to the existing blob. 
-			The destination blob must already be of type AppendBlob (not the default BlockBlob).
-			Does not work with gzip compression.
-		**Default:** False ''',
-		require=False)
+	# Command-specific parameters
+	container = Option(require=False)
+	append = Option(require=False)
 	
-	fields = Option(
-		doc='''
-		**Syntax:** **fields=***"field1, field2, field3"*
-		**Description:** Limit the fields to be written to the Azure blob
-		**Default:** All (Unspecified)''',
-		require=False, validate=validators.List()) 
-
-	compress = Option(
-		doc='''
-		**Syntax:** **compress=***[true|false]*
-		**Description:** Option to compress the output file into .gz format before uploading
-		**Default:** The setting from the target configuration, or True if .gz is in the filename ''',
-		require=False)
-
-	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
-
 	@Configuration()
 	def transform(self, events):
 		if getattr(self, 'first_chunk', True):
@@ -111,18 +71,17 @@ class epazureblob(EventingCommand):
 		facility = os.path.splitext(facility)[0]
 		logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
 		ui = search_console(logger, self)
+		searchinfo = self._metadata.searchinfo
 
 		if first_chunk:
 			logger.info('Azure Blob Export search command initiated')
 			logger.debug('search_ep_azure_blob command: %s', self)  # logs command line
 			log_proxy_settings(logger)
 
-		# Enumerate settings
-		app = self._metadata.searchinfo.app
-		user = self._metadata.searchinfo.username
-		dispatch = self._metadata.searchinfo.dispatch_dir
-		session_key = self._metadata.searchinfo.session_key
-
+		# Refuse to run more chunks if the search is being terminated
+		if is_search_finalizing(searchinfo.sid) and not self._finished:
+			ui.exit_error("Search terminated prematurely. No data was exported.")
+		
 		if self.target is None and 'target=' in str(self):
 			recover_parameters(self)
 		# Replace all tokenized parameter strings
@@ -130,7 +89,7 @@ class epazureblob(EventingCommand):
 
 		# Build the configuration
 		try:
-			target_config = get_config_from_alias(session_key, cmd_config, stanza_guid_alias=self.target, log=first_chunk)
+			target_config = get_config_from_alias(searchinfo.session_key, cmd_config, stanza_guid_alias=self.target, log=first_chunk)
 			if target_config is None:
 				ui.exit_error("Unable to find target configuration (%s)." % self.target)
 		except BaseException as e:
@@ -151,20 +110,17 @@ class epazureblob(EventingCommand):
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
 		self.fields = None if self.fields in default_values else self.fields
+		self.blankfields = False if self.blankfields in default_values else self.blankfields
+		self.internalfields = False if self.internalfields in default_values else self.internalfields
+		self.datefields = False if self.datefields in default_values else self.datefields
+		self.compress = str2bool(target_config['compress']) if self.compress in default_values else False
 		self.append = False if self.append in default_values else self.append
-
-		# Read the compress value from the target config unless one was specified in the search
-		if self.compress is None or self.compress == '__default__':
-			try:
-				self.compress = str2bool(target_config['compress'])
-			except:
-				self.compress = False
 
 		# First run and no remote output file string has been assigned
 		if not hasattr(self, 'remote_output_file'):
 			if self.outputfile in default_values:
-				# Boto is special. We need repr to give it the encoding it expects to match the hashing.
-				self.outputfile = repr('export_' + user + '___now__' + event_file.file_extensions[self.outputformat]).strip("'")
+				self.outputfile = "export_%s___now__%s" % (searchinfo.username, 
+						    event_file.file_extensions[self.outputformat]).strip("'")
 			
 			# Replace keywords from output filename
 			self.outputfile = replace_keywords(self.outputfile)
@@ -187,7 +143,7 @@ class epazureblob(EventingCommand):
 			# Use the random number to support running multiple outputs in a single search
 			random_number = str(random.randint(10000, 100000))
 			staging_filename = f"export_everything_staging_azure_blob_{random_number}.txt"
-			setattr(self, 'local_output_file', os.path.join(dispatch, staging_filename))
+			setattr(self, 'local_output_file', os.path.join(searchinfo.dispatch_dir, staging_filename))
 			if self.compress:
 				self.local_output_file = self.local_output_file + '.gz'
 
@@ -212,8 +168,9 @@ class epazureblob(EventingCommand):
 		logger.debug("Writing events. file=\"%s\", format=%s, compress=%s, fields=\"%s\"", \
 			self.local_output_file, self.outputformat, self.compress, \
 			self.fields if self.fields is not None else "")
-		for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, 
-			append_chunk=append_chunk, finish=self._finished, append_data=self.append):
+		for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, 
+					self.compress, self.blankfields, self.internalfields, self.datefields, append_chunk, \
+					self._finished, self.append, searchinfo.sid):
 			yield event
 			self.event_counter += 1
 		
@@ -221,8 +178,9 @@ class epazureblob(EventingCommand):
 		if self._finished or self._finished is None:
 			try:
 				upload_azureblob_file(self.azure_client, self.container, self.local_output_file, self.remote_output_file, self.append)
+				logger.info("Azure Blob export_status=success, app=%s, count=%s, container=%s, file_name=%s, user=%s" % 
+					(searchinfo.app, self.event_counter, self.container, self.remote_output_file, searchinfo.username))
 			except BaseException as e:
-				#logger.exception(e)
 				ui.exit_error("Could not upload file to Azure Blob (status=failure): " + repr(e))
 
 dispatch(epazureblob, sys.argv, sys.stdin, sys.stdout, __name__)
