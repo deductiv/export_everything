@@ -63,7 +63,6 @@ class SMBHandler(urllib.request.BaseHandler):
 
         try:
             conn = SMBConnection(user, passwd, myname, server_name, domain=domain, use_ntlm_v2 = USE_NTLM)
-            print('about to connect')
             conn.connect(host, port)
 
             headers = email.message.Message()

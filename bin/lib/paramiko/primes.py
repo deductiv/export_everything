@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
 """
 Utility functions for dealing with primes.
@@ -23,7 +23,7 @@ Utility functions for dealing with primes.
 import os
 
 from paramiko import util
-from paramiko.py3compat import byte_mask, long
+from paramiko.common import byte_mask
 from paramiko.ssh_exception import SSHException
 
 
@@ -49,7 +49,7 @@ def _roll_random(n):
     return num
 
 
-class ModulusPack(object):
+class ModulusPack:
     """
     convenience object for holding the contents of the /etc/ssh/moduli file,
     on systems that have such a file.
@@ -75,7 +75,7 @@ class ModulusPack(object):
         tries = int(tries)
         size = int(size)
         generator = int(generator)
-        modulus = long(modulus, 16)
+        modulus = int(modulus, 16)
 
         # weed out primes that aren't at least:
         # type 2 (meets basic structural requirements)

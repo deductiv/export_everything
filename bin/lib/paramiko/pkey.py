@@ -14,29 +14,31 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
 """
 Common API for all public keys.
 """
 
 import base64
+from base64 import encodebytes, decodebytes
 from binascii import unhexlify
 import os
-from hashlib import md5
+from pathlib import Path
+from hashlib import md5, sha256
 import re
 import struct
 
-import six
 import bcrypt
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.ciphers import algorithms, modes, Cipher
+from cryptography.hazmat.primitives import asymmetric
 
 from paramiko import util
+from paramiko.util import u, b
 from paramiko.common import o600
-from paramiko.py3compat import u, b, encodebytes, decodebytes, string_types
 from paramiko.ssh_exception import SSHException, PasswordRequiredException
 from paramiko.message import Message
 
@@ -48,20 +50,36 @@ def _unpad_openssh(data):
     # At the moment, this is only used for unpadding private keys on disk. This
     # really ought to be made constant time (possibly by upstreaming this logic
     # into pyca/cryptography).
-    padding_length = six.indexbytes(data, -1)
-    if 0x20 <= padding_length < 0x7f:
+    padding_length = data[-1]
+    if 0x20 <= padding_length < 0x7F:
         return data  # no padding, last byte part comment (printable ascii)
     if padding_length > 15:
         raise SSHException("Invalid key")
     for i in range(padding_length):
-        if six.indexbytes(data, i - padding_length) != i + 1:
+        if data[i - padding_length] != i + 1:
             raise SSHException("Invalid key")
     return data[:-padding_length]
 
 
-class PKey(object):
+class UnknownKeyType(Exception):
+    """
+    An unknown public/private key algorithm was attempted to be read.
+    """
+
+    def __init__(self, key_type=None, key_bytes=None):
+        self.key_type = key_type
+        self.key_bytes = key_bytes
+
+    def __str__(self):
+        return f"UnknownKeyType(type={self.key_type!r}, bytes=<{len(self.key_bytes)}>)"  # noqa
+
+
+class PKey:
     """
     Base class for public keys.
+
+    Also includes some "meta" level convenience constructors such as
+    `.from_type_string`.
     """
 
     # known encryption types for private key files:
@@ -92,6 +110,127 @@ class PKey(object):
     )
     END_TAG = re.compile(r"^-{5}END (RSA|DSA|EC|OPENSSH) PRIVATE KEY-{5}\s*$")
 
+    @staticmethod
+    def from_path(path, passphrase=None):
+        """
+        Attempt to instantiate appropriate key subclass from given file path.
+
+        :param Path path: The path to load (may also be a `str`).
+
+        :returns:
+            A `PKey` subclass instance.
+
+        :raises:
+            `UnknownKeyType`, if our crypto backend doesn't know this key type.
+
+        .. versionadded:: 3.2
+        """
+        # TODO: make sure sphinx is reading Path right in param list...
+
+        # Lazy import to avoid circular import issues
+        from paramiko import DSSKey, RSAKey, Ed25519Key, ECDSAKey
+
+        # Normalize to string, as cert suffix isn't quite an extension, so
+        # pathlib isn't useful for this.
+        path = str(path)
+
+        # Sort out cert vs key, i.e. it is 'legal' to hand this kind of API
+        # /either/ the key /or/ the cert, when there is a key/cert pair.
+        cert_suffix = "-cert.pub"
+        if str(path).endswith(cert_suffix):
+            key_path = path[: -len(cert_suffix)]
+            cert_path = path
+        else:
+            key_path = path
+            cert_path = path + cert_suffix
+
+        key_path = Path(key_path).expanduser()
+        cert_path = Path(cert_path).expanduser()
+
+        data = key_path.read_bytes()
+        # Like OpenSSH, try modern/OpenSSH-specific key load first
+        try:
+            loaded = serialization.load_ssh_private_key(
+                data=data, password=passphrase
+            )
+        # Then fall back to assuming legacy PEM type
+        except ValueError:
+            loaded = serialization.load_pem_private_key(
+                data=data, password=passphrase
+            )
+        # TODO Python 3.10: match statement? (NOTE: we cannot use a dict
+        # because the results from the loader are literal backend, eg openssl,
+        # private classes, so isinstance tests work but exact 'x class is y'
+        # tests will not work)
+        # TODO: leverage already-parsed/math'd obj to avoid duplicate cpu
+        # cycles? seemingly requires most of our key subclasses to be rewritten
+        # to be cryptography-object-forward. this is still likely faster than
+        # the old SSHClient code that just tried instantiating every class!
+        key_class = None
+        if isinstance(loaded, asymmetric.dsa.DSAPrivateKey):
+            key_class = DSSKey
+        elif isinstance(loaded, asymmetric.rsa.RSAPrivateKey):
+            key_class = RSAKey
+        elif isinstance(loaded, asymmetric.ed25519.Ed25519PrivateKey):
+            key_class = Ed25519Key
+        elif isinstance(loaded, asymmetric.ec.EllipticCurvePrivateKey):
+            key_class = ECDSAKey
+        else:
+            raise UnknownKeyType(key_bytes=data, key_type=loaded.__class__)
+        with key_path.open() as fd:
+            key = key_class.from_private_key(fd, password=passphrase)
+        if cert_path.exists():
+            # load_certificate can take Message, path-str, or value-str
+            key.load_certificate(str(cert_path))
+        return key
+
+    @staticmethod
+    def from_type_string(key_type, key_bytes):
+        """
+        Given type `str` & raw `bytes`, return a `PKey` subclass instance.
+
+        For example, ``PKey.from_type_string("ssh-ed25519", <public bytes>)``
+        will (if successful) return a new `.Ed25519Key`.
+
+        :param str key_type:
+            The key type, eg ``"ssh-ed25519"``.
+        :param bytes key_bytes:
+            The raw byte data forming the key material, as expected by
+            subclasses' ``data`` parameter.
+
+        :returns:
+            A `PKey` subclass instance.
+
+        :raises:
+            `UnknownKeyType`, if no registered classes knew about this type.
+
+        .. versionadded:: 3.2
+        """
+        from paramiko import key_classes
+
+        for key_class in key_classes:
+            if key_type in key_class.identifiers():
+                # TODO: needs to passthru things like passphrase
+                return key_class(data=key_bytes)
+        raise UnknownKeyType(key_type=key_type, key_bytes=key_bytes)
+
+    @classmethod
+    def identifiers(cls):
+        """
+        returns an iterable of key format/name strings this class can handle.
+
+        Most classes only have a single identifier, and thus this default
+        implementation suffices; see `.ECDSAKey` for one example of an
+        override.
+        """
+        return [cls.name]
+
+    # TODO 4.0: make this and subclasses consistent, some of our own
+    # classmethods even assume kwargs we don't define!
+    # TODO 4.0: prob also raise NotImplementedError instead of pass'ing; the
+    # contract is pretty obviously that you need to handle msg/data/filename
+    # appropriately. (If 'pass' is a concession to testing, see about doing the
+    # work to fix the tests instead)
     def __init__(self, msg=None, data=None):
         """
         Create a new instance of this public key type.  If ``msg`` is given,
@@ -101,8 +240,8 @@ class PKey(object):
 
         :param .Message msg:
             an optional SSH `.Message` containing a public key of this type.
-        :param str data: an optional string containing a public key
-            of this type
+        :param bytes data:
+            optional, the bytes of a public key of this type
 
         :raises: `.SSHException` --
             if a key cannot be created from the ``data`` or ``msg`` given, or
@@ -110,6 +249,20 @@ class PKey(object):
         """
         pass
 
+    # TODO: arguably this might want to be __str__ instead? ehh
+    # TODO: ditto the interplay between showing class name (currently we just
+    # say PKey writ large) and algorithm (usually == class name, but not
+    # always, also sometimes shows certificate-ness)
+    # TODO: if we do change it, we also want to tweak eg AgentKey, as it
+    # currently displays agent-ness with a suffix
+    def __repr__(self):
+        comment = ""
+        # Works for AgentKey, may work for others?
+        if hasattr(self, "comment") and self.comment:
+            comment = f", comment={self.comment!r}"
+        return f"PKey(alg={self.algorithm_name}, bits={self.get_bits()}, fp={self.fingerprint}{comment})"  # noqa
+
+    # TODO 4.0: just merge into __bytes__ (everywhere)
     def asbytes(self):
         """
         Return a string of an SSH `.Message` made up of the public part(s) of
@@ -118,29 +271,18 @@ class PKey(object):
         """
         return bytes()
 
-    def __str__(self):
+    def __bytes__(self):
         return self.asbytes()
 
-    # noinspection PyUnresolvedReferences
-    # TODO: The comparison functions should be removed as per:
-    # https://docs.python.org/3.0/whatsnew/3.0.html#ordering-comparisons
-    def __cmp__(self, other):
-        """
-        Compare this key to another.  Returns 0 if this key is equivalent to
-        the given key, or non-0 if they are different.  Only the public parts
-        of the key are compared, so a public key will compare equal to its
-        corresponding private key.
-
-        :param .PKey other: key to compare to.
-        """
-        hs = hash(self)
-        ho = hash(other)
-        if hs != ho:
-            return cmp(hs, ho)  # noqa
-        return cmp(self.asbytes(), other.asbytes())  # noqa
-
     def __eq__(self, other):
-        return hash(self) == hash(other)
+        return isinstance(other, PKey) and self._fields == other._fields
+
+    def __hash__(self):
+        return hash(self._fields)
+
+    @property
+    def _fields(self):
+        raise NotImplementedError
 
     def get_name(self):
         """
@@ -152,6 +294,26 @@ class PKey(object):
         """
         return ""
 
+    @property
+    def algorithm_name(self):
+        """
+        Return the key algorithm identifier for this key.
+
+        Similar to `get_name`, but aimed at pure algorithm name instead of SSH
+        protocol field value.
+        """
+        # Nuke the leading 'ssh-'
+        # TODO in Python 3.9: use .removeprefix()
+        name = self.get_name().replace("ssh-", "")
+        # Trim any cert suffix (but leave the -cert, as OpenSSH does)
+        cert_tail = "-cert-v01@openssh.com"
+        if cert_tail in name:
+            name = name.replace(cert_tail, "-cert")
+        # Nuke any eg ECDSA suffix, OpenSSH does basically this too.
+        else:
+            name = name.split("-")[0]
+        return name.upper()
+
     def get_bits(self):
         """
         Return the number of significant bits in this key.  This is useful
@@ -159,6 +321,8 @@ class PKey(object):
 
         :return: bits in the key (as an `int`)
         """
+        # TODO 4.0: raise NotImplementedError, 0 is unlikely to ever be
+        # _correct_ and nothing in the critical path seems to use this.
         return 0
 
     def can_sign(self):
@@ -179,6 +343,21 @@ class PKey(object):
         """
         return md5(self.asbytes()).digest()
 
+    @property
+    def fingerprint(self):
+        """
+        Modern fingerprint property designed to be comparable to OpenSSH.
+
+        Currently only does SHA256 (the OpenSSH default).
+
+        .. versionadded:: 3.2
+        """
+        hashy = sha256(bytes(self))
+        hash_name = hashy.name.upper()
+        b64ed = encodebytes(hashy.digest())
+        cleaned = u(b64ed).strip().rstrip("=")  # yes, OpenSSH does this too!
+        return f"{hash_name}:{cleaned}"
+
     def get_base64(self):
         """
         Return a base64 string containing the public part of this key.  Nothing
@@ -189,13 +368,20 @@ class PKey(object):
         """
         return u(encodebytes(self.asbytes())).replace("\n", "")
 
-    def sign_ssh_data(self, data):
+    def sign_ssh_data(self, data, algorithm=None):
         """
         Sign a blob of data with this private key, and return a `.Message`
         representing an SSH signature message.
 
-        :param str data: the data to sign.
+        :param bytes data:
+            the data to sign.
+        :param str algorithm:
+            the signature algorithm to use, if different from the key's
+            internal name. Default: ``None``.
         :return: an SSH signature `message <.Message>`.
+
+        .. versionchanged:: 2.9
+            Added the ``algorithm`` kwarg.
         """
         return bytes()
 
@@ -204,7 +390,7 @@ class PKey(object):
         Given a blob of data, and an SSH message representing a signature of
         that data, verify that it was signed with this key.
 
-        :param str data: the data that was signed.
+        :param bytes data: the data that was signed.
         :param .Message msg: an SSH signature message
         :return:
             ``True`` if the signature verifies correctly; ``False`` otherwise.
@@ -281,6 +467,7 @@ class PKey(object):
         :raises: ``IOError`` -- if there was an error writing to the file
         :raises: `.SSHException` -- if the key is invalid
         """
+        # TODO 4.0: NotImplementedError (plus everywhere else in here)
         raise Exception("Not implemented in PKey")
 
     def _read_private_key_file(self, tag, filename, password=None):
@@ -297,7 +484,7 @@ class PKey(object):
         :param str password:
             an optional password to use to decrypt the key file, if it's
             encrypted.
-        :return: data blob (`str`) that makes up the private key.
+        :return: the `bytes` that make up the private key.
 
         :raises: ``IOError`` -- if there was an error reading the file.
         :raises: `.PasswordRequiredException` -- if the private key file is
@@ -310,6 +497,8 @@ class PKey(object):
 
     def _read_private_key(self, tag, f, password=None):
         lines = f.readlines()
+        if not lines:
+            raise SSHException("no lines in {} private key file".format(tag))
 
         # find the BEGIN tag
         start = 0
@@ -539,13 +728,28 @@ class PKey(object):
         :param str tag:
             ``"RSA"`` or ``"DSA"``, the tag used to mark the data block.
         :param filename: name of the file to write.
-        :param str data: data blob that makes up the private key.
+        :param bytes data: data blob that makes up the private key.
         :param str password: an optional password to use to encrypt the file.
 
         :raises: ``IOError`` -- if there was an error writing the file.
         """
-        with open(filename, "w") as f:
-            os.chmod(filename, o600)
+        # Ensure that we create new key files directly with a user-only mode,
+        # instead of opening, writing, then chmodding, which leaves us open to
+        # CVE-2022-24302.
+        with os.fdopen(
+            os.open(
+                filename,
+                # NOTE: O_TRUNC is a noop on new files, and O_CREAT is a noop
+                # on existing files, so using all 3 in both cases is fine.
+                flags=os.O_WRONLY | os.O_TRUNC | os.O_CREAT,
+                # Ditto the use of the 'mode' argument; it should be safe to
+                # give even for existing files (though it will not act like a
+                # chmod in that case).
+                mode=o600,
+            ),
+            # Yea, you still gotta inform the FLO that it is in "write" mode.
+            "w",
+        ) as f:
             self._write_private_key(f, key, format, password=password)
 
     def _write_private_key(self, f, key, format, password=None):
@@ -575,9 +779,9 @@ class PKey(object):
         # but eg ECDSA is a 1:N mapping.
         key_types = key_type
         cert_types = cert_type
-        if isinstance(key_type, string_types):
+        if isinstance(key_type, str):
             key_types = [key_types]
-        if isinstance(cert_types, string_types):
+        if isinstance(cert_types, str):
             cert_types = [cert_types]
         # Can't do much with no message, that should've been handled elsewhere
         if msg is None:
@@ -599,7 +803,9 @@ class PKey(object):
             # message; they're *IO objects at heart and their .getvalue()
             # always returns the full value regardless of pointer position.
             self.load_certificate(Message(msg.asbytes()))
-            # Read out nonce as it comes before the public numbers.
+            # Read out nonce as it comes before the public numbers - our caller
+            # is likely going to use the (only borrowed by us, not owned)
+            # 'msg' object for loading those numbers right after this.
             # TODO: usefully interpret it & other non-public-number fields
             # (requires going back into per-type subclasses.)
             msg.get_string()
@@ -645,14 +851,15 @@ class PKey(object):
 # Of little value in the case of standard public keys
 # {ssh-rsa, ssh-dss, ssh-ecdsa, ssh-ed25519}, but should
 # provide rudimentary support for {*-cert.v01}
-class PublicBlob(object):
+class PublicBlob:
     """
     OpenSSH plain public key or OpenSSH signed public key (certificate).
 
     Tries to be as dumb as possible and barely cares about specific
     per-key-type data.
 
-    ..note::
+    .. note::
+
         Most of the time you'll want to call `from_file`, `from_string` or
         `from_message` for useful instantiation, the main constructor is
         basically "I should be using ``attrs`` for this."
@@ -663,7 +870,7 @@ class PublicBlob(object):
         Create a new public blob of given type and contents.
 
         :param str type_: Type indicator, eg ``ssh-rsa``.
-        :param blob: The blob bytes themselves.
+        :param bytes blob: The blob bytes themselves.
         :param str comment: A comment, if one was given (e.g. file-based.)
         """
         self.key_type = type_

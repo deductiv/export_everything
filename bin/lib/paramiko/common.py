@@ -14,13 +14,35 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
 """
 Common constants and global variables.
 """
 import logging
-from paramiko.py3compat import byte_chr, PY2, long, b
+import struct
+
+#
+# Formerly of py3compat.py. May be fully delete'able with a deeper look?
+#
+
+
+def byte_chr(c):
+    assert isinstance(c, int)
+    return struct.pack("B", c)
+
+
+def byte_mask(c, mask):
+    assert isinstance(c, int)
+    return struct.pack("B", c & mask)
+
+
+def byte_ord(c):
+    # In case we're handed a string instead of an int.
+    if not isinstance(c, int):
+        c = ord(c)
+    return c
+
 
 (
     MSG_DISCONNECT,
@@ -29,7 +51,8 @@ from paramiko.py3compat import byte_chr, PY2, long, b
     MSG_DEBUG,
     MSG_SERVICE_REQUEST,
     MSG_SERVICE_ACCEPT,
-) = range(1, 7)
+    MSG_EXT_INFO,
+) = range(1, 8)
 (MSG_KEXINIT, MSG_NEWKEYS) = range(20, 22)
 (
     MSG_USERAUTH_REQUEST,
@@ -68,6 +91,7 @@ cMSG_UNIMPLEMENTED = byte_chr(MSG_UNIMPLEMENTED)
 cMSG_DEBUG = byte_chr(MSG_DEBUG)
 cMSG_SERVICE_REQUEST = byte_chr(MSG_SERVICE_REQUEST)
 cMSG_SERVICE_ACCEPT = byte_chr(MSG_SERVICE_ACCEPT)
+cMSG_EXT_INFO = byte_chr(MSG_EXT_INFO)
 cMSG_KEXINIT = byte_chr(MSG_KEXINIT)
 cMSG_NEWKEYS = byte_chr(MSG_NEWKEYS)
 cMSG_USERAUTH_REQUEST = byte_chr(MSG_USERAUTH_REQUEST)
@@ -109,6 +133,7 @@ MSG_NAMES = {
     MSG_SERVICE_REQUEST: "service-request",
     MSG_SERVICE_ACCEPT: "service-accept",
     MSG_KEXINIT: "kexinit",
+    MSG_EXT_INFO: "ext-info",
     MSG_NEWKEYS: "newkeys",
     30: "kex30",
     31: "kex31",
@@ -177,42 +202,16 @@ CONNECTION_FAILED_CODE = {
 zero_byte = byte_chr(0)
 one_byte = byte_chr(1)
 four_byte = byte_chr(4)
-max_byte = byte_chr(0xff)
+max_byte = byte_chr(0xFF)
 cr_byte = byte_chr(13)
 linefeed_byte = byte_chr(10)
 crlf = cr_byte + linefeed_byte
-
-if PY2:
-    cr_byte_value = cr_byte
-    linefeed_byte_value = linefeed_byte
-else:
-    cr_byte_value = 13
-    linefeed_byte_value = 10
+cr_byte_value = 13
+linefeed_byte_value = 10
 
 
-def asbytes(s):
-    """
-    Coerce to bytes if possible or return unchanged.
-    """
-    try:
-        # Attempt to run through our version of b(), which does the Right Thing
-        # for string/unicode/buffer (Py2) or bytes/str (Py3), and raises
-        # TypeError if it's not one of those types.
-        return b(s)
-    except TypeError:
-        try:
-            # If it wasn't a string/byte/buffer type object, try calling an
-            # asbytes() method, which many of our internal classes implement.
-            return s.asbytes()
-        except AttributeError:
-            # Finally, just do nothing & assume this object is sufficiently
-            # byte-y or buffer-y that everything will work out (or that callers
-            # are capable of handling whatever it is.)
-            return s
-
-
-xffffffff = long(0xffffffff)
-x80000000 = long(0x80000000)
+xffffffff = 0xFFFFFFFF
+x80000000 = 0x80000000
 o666 = 438
 o660 = 432
 o644 = 420
@@ -230,17 +229,17 @@ CRITICAL = logging.CRITICAL
 # Common IO/select/etc sleep period, in seconds
 io_sleep = 0.01
 
-DEFAULT_WINDOW_SIZE = 64 * 2 ** 15
-DEFAULT_MAX_PACKET_SIZE = 2 ** 15
+DEFAULT_WINDOW_SIZE = 64 * 2**15
+DEFAULT_MAX_PACKET_SIZE = 2**15
 
 # lower bound on the max packet size we'll accept from the remote host
 # Minimum packet size is 32768 bytes according to
 # http://www.ietf.org/rfc/rfc4254.txt
-MIN_WINDOW_SIZE = 2 ** 15
+MIN_WINDOW_SIZE = 2**15
 
 # However, according to http://www.ietf.org/rfc/rfc4253.txt it is perfectly
 # legal to accept a size much smaller, as OpenSSH client does as size 16384.
-MIN_PACKET_SIZE = 2 ** 12
+MIN_PACKET_SIZE = 2**12
 
 # Max windows size according to http://www.ietf.org/rfc/rfc4254.txt
-MAX_WINDOW_SIZE = 2 ** 32 - 1
+MAX_WINDOW_SIZE = 2**32 - 1
