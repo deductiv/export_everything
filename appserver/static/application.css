@@ -13,21 +13,26 @@
 .splunk-header.splunk-view.splunk-header.splunk-view > div[data-view="views/shared/appbar/Master"] {
   background-color: #426E86;
 }
-#ep_docs {
+.ep_docs {
 width: 800px;
 }
-#ep_docs > ul > li > p {
+.ep_docs > ul > li > p {
 /* Line breaks in dashboard */
 margin-bottom: 3px;
 }
-h1.ep {
+.ep_docs > h1, h1.ep {
 color: var(--level1-color);
 clear: both;
 padding-top: 15px;
 padding-bottom: 25px;
 font-size: 24px !important;
+display: flex;
+align-items: flex-end;
 }
-h2.ep {
+.ep_docs > h1 > img {
+  margin-right: 15px;
+}
+.ep_docs > h2, h2.ep {
 color: var(--level2-color);
 clear: both;
 padding-bottom: 15px;
@@ -38,22 +43,22 @@ padding-top: 15px;
 font-size: 18px !important;
 font-weight: bold !important;
 }
-h3.ep {
+.ep_docs > h3, h3.ep {
 color: var(--level3-color);
 font-size: 16px !important;
 }
-h4.ep {
+.ep_docs > ul > li > h4 {
 color: var(--level4-color);
 font-size: 14px !important;
 }
-hr.ep {
+.ep_docs > hr, hr.ep {
 clear: both;
 height: 3px;
 background: var(--level3-color);
 /*width: 600px;
 margin-left: 5%;*/
 }
-code {
+.ep_docs > code, code.ep {
   color: var(--level1-color);
 }
 .form-horizontal {

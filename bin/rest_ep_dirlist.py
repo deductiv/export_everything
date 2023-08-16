@@ -1,7 +1,7 @@
 # Export Everything App for Splunk
 # Handle directory listing requests for configured targets
 # Copyright 2023 Deductiv Inc.
-# Version: 2.2.2 (2023-03-15)
+# Version: 2.2.3 (2023-08-11)
 
 import sys
 import os
@@ -42,6 +42,7 @@ def return_error(error_text):
 
 def get_directory_contents(config_file, config, query):
 	# Use config_file to decide which method to call
+	query['folder'] = query['folder'].replace('\\', '/')
 	try:
 		if config_file == 'ep_aws_s3':
 			return get_aws_s3_directory(config, query['folder'])

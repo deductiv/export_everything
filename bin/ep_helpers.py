@@ -2,7 +2,7 @@
 
 # Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.2 (2023-03-15)
+# Version: 2.2.3 (2023-08-11)
 
 import random
 import sys
@@ -22,13 +22,14 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 # Resolve conflicts with old Splunk libs
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 import splunklib.client as client
+from splunklib.searchcommands import Option, validators
 
 os_platform = platform.system()
 py_major_ver = sys.version_info[0]
 # Import the correct version of platform-specific libraries
 if os_platform == 'Linux':
 	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
-elif os_platform == 'Darwin': # Does not work with Splunk Python build. It requires code signing for libs.
+elif os_platform == 'Darwin': # Does not work with Splunk Python build (code signing)
 	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
 elif os_platform == 'Windows':
 	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
@@ -48,6 +49,74 @@ config = cli.getConfStanza('ep_general','settings')
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
 logger = setup_logger(config["log_level"], 'export_everything.log', facility)
+
+def ep_file_options():
+	global target
+	global outputfile
+	global outputformat
+	global fields
+	global compress
+	global blankfields
+	global internalfields
+	global datefields
+	
+	#Define Parameters
+	target = Option(
+		doc='''
+		**Syntax:** **target=***<target alias>*
+		**Description:** The name of the target alias provided on the configuration dashboard
+		**Default:** The target configured as "Default" within the corresponding Setup page (if any)''',
+		require=False)
+	
+	outputfile = Option(
+		doc='''
+		**Syntax:** **outputfile=***<file path/file name>*
+		**Description:** The name of the file to be written remotely
+		**Default:** The name of the user plus the timestamp and the output format, e.g. admin_1588000000.log
+			json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log''',
+		require=False)
+	
+	outputformat = Option(
+		doc='''
+		**Syntax:** **outputformat=***[json|raw|kv|csv|tsv|pipe]*
+		**Description:** The format written for the output events/search results
+		**Default:** *csv*''',
+		require=False)
+
+	fields = Option(
+		doc='''
+		**Syntax:** **fields=***"field1, field2, field3"*
+		**Description:** Limit the fields to be written to the S3 file
+		**Default:** All (Unspecified)''',
+		require=False, validate=validators.List())
+
+	compress = Option(
+		doc='''
+		**Syntax:** **compress=***[true|false]*
+		**Description:** Compress the output file into .gz format before uploading
+		**Default:** The setting from the target configuration, or True if .gz is in the filename ''',
+		require=False, validate=validators.Boolean())
+	
+	blankfields = Option(
+		doc='''
+		**Syntax:** **blankfields=***[true|false]*
+		**Description:** Include fields with blank strings in the exported file (JSON & KV only)
+		**Default:** False ''',
+		require=False, validate=validators.Boolean())
+
+	internalfields = Option(
+		doc='''
+		**Syntax:** **internalfields=***[true|false]*
+		**Description:** Include internal fields in the exported file
+		**Default:** False ''',
+		require=False, validate=validators.Boolean())
+
+	datefields = Option(
+		doc='''
+		**Syntax:** **datefields=***[true|false]*
+		**Description:** Include date fields in the exported file
+		**Default:** False ''',
+		require=False, validate=validators.Boolean())
 
 def mask_obj_passwords(obj):
 	if isinstance(obj, dict):
@@ -462,7 +531,7 @@ def s3_folder_contents(client, bucket, prefix):
 		# Submit a separate request for each folder to get its attributes. 
 		# head_object doesn't work here, not specific enough.
 		for cp in result.get('CommonPrefixes', []):
-			content = { 
+			content = {
 				"Key": cp.get('Prefix'), 
 				"Size": 0,
 				"Owner": None,
@@ -473,14 +542,13 @@ def s3_folder_contents(client, bucket, prefix):
 			yield content
 
 		for content in result.get('Contents', []):
-			logger.debug(f"content = {content}")
 			content = yield_s3_object(content)
 			content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
 			# We already retrieved the folders in the for-loop above.
 			#logger.debug(content["id"][-1])
 			if not content["isDir"] and not content["id"][-1] == '/':
 				yield content
-		
+	
 def yield_s3_object(content, is_directory=False):
 	timestamp = content.get('LastModified')
 	timestamp = timestamp.timestamp() if timestamp is not None else None
@@ -499,7 +567,7 @@ def yield_s3_object(content, is_directory=False):
 
 def get_aws_s3_directory(aws_config, bucket_folder_path):
 
-	logger.debug("Bucket folder path = " + bucket_folder_path)
+	logger.debug("Bucket folder path = %s", bucket_folder_path)
 	folder_path = bucket_folder_path.strip('/').split('/')
 	bucket_name = folder_path[0]
 	if bucket_name is None or len(bucket_name) == 0:
@@ -511,12 +579,12 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 		folder_prefix = '/'.join(folder_path[1:]).strip('/')
 	else:
 		folder_prefix = '/'
-	logger.debug("Folder Prefix = " + folder_prefix)
+	logger.debug("Folder Prefix = %s", folder_prefix)
 
 	try:
 		conn = get_aws_connection(aws_config)
 	except BaseException as e:
-		raise Exception("Could not connect to AWS: " + repr(e))
+		raise Exception("Could not connect to AWS: " + repr(e)) from e
 
 	file_list = []
 	if len(bucket_name) > 0:
