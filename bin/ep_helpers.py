@@ -22,34 +22,37 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 # Resolve conflicts with old Splunk libs
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 import splunklib.client as client
+# AWS S3
+import boto3
+from botocore.client import ClientError
+from botocore.config import Config
+# SMB
+from smb.SMBConnection import SMBConnection
 
 os_platform = platform.system()
 py_major_ver = sys.version_info[0]
 # Import the correct version of platform-specific libraries
+path_prepend = ""
 if os_platform == 'Linux':
 	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
 elif os_platform == 'Windows':
 	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
 sys.path.append(path_prepend)
+if path_prepend != "":
 
-# AWS S3
-import boto3
-from botocore.client import ClientError
-from botocore.config import Config
-# Microsoft Azure
-from azure.storage.filedatalake import DataLakeServiceClient
-from azure.identity import ClientSecretCredential, AzureAuthorityHosts
-from azure.storage.filedatalake import DataLakeServiceClient
-from azure.storage.filedatalake import PathProperties
-from azure.storage.blob import BlobServiceClient
-from azure.storage.blob import BlobPrefix
-# Box Cloud
-from boxsdk import JWTAuth, Client, BoxAPIException
-# SFTP
-import paramiko
-import pysftp
-# SMB
-from smb.SMBConnection import SMBConnection
+	# Microsoft Azure
+	from azure.storage.filedatalake import DataLakeServiceClient
+	from azure.identity import ClientSecretCredential, AzureAuthorityHosts
+	from azure.storage.filedatalake import DataLakeServiceClient
+	from azure.storage.filedatalake import PathProperties
+	from azure.storage.blob import BlobServiceClient
+	from azure.storage.blob import BlobPrefix
+	# Box Cloud
+	from boxsdk import JWTAuth, Client, BoxAPIException
+	# SFTP
+	import paramiko
+	import pysftp
+
 
 app = 'export_everything'
 
