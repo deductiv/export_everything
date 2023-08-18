@@ -1,7 +1,7 @@
 
 import os, logging, select, socket, types, struct, errno
 
-#from tqdm import tqdm # Unused import
+from tqdm import tqdm
 from .smb_constants import *
 from .smb_structs import *
 from .base import SMB, NotConnectedError, NotReadyError, SMBTimeout
