@@ -27,6 +27,7 @@ If you want a friendlier interface to the Splunk REST API, use the
 from __future__ import absolute_import
 
 import io
+import json
 import logging
 import socket
 import ssl
@@ -39,6 +40,7 @@ from functools import wraps
 from io import BytesIO
 from xml.etree.ElementTree import XML
 
+from splunklib import __version__
 from splunklib import six
 from splunklib.six.moves import urllib
 
@@ -59,11 +61,16 @@ __all__ = [
     "HTTPError"
 ]
 
+SENSITIVE_KEYS = ['Authorization', 'Cookie', 'action.email.auth_password', 'auth', 'auth_password', 'clear_password', 'clientId',
+                  'crc-salt', 'encr_password', 'oldpassword', 'passAuth', 'password', 'session', 'suppressionKey',
+                  'token']
+
 # If you change these, update the docstring
 # on _authority as well.
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = "8089"
 DEFAULT_SCHEME = "https"
+
 
 def _log_duration(f):
     @wraps(f)
@@ -74,6 +81,28 @@ def _log_duration(f):
         logger.debug("Operation took %s", end_time-start_time)
         return val
     return new_f
+
+
+def mask_sensitive_data(data):
+    '''
+    Masked sensitive fields data for logging purpose
+    '''
+    if not isinstance(data, dict):
+        try:
+            data = json.loads(data)
+        except Exception as ex:
+            return data
+
+    # json.loads will return "123"(str) as 123(int), so return the data if it's not 'dict' type
+    if not isinstance(data, dict):
+        return data
+    mdata = {}
+    for k, v in data.items():
+        if k in SENSITIVE_KEYS:
+            mdata[k] = "******"
+        else:
+            mdata[k] = mask_sensitive_data(v)
+    return mdata
 
 
 def _parse_cookies(cookie_str, dictionary):
@@ -346,7 +375,8 @@ def _authority(scheme=DEFAULT_SCHEME, host=DEFAULT_HOST, port=DEFAULT_PORT):
             "http://splunk.utopia.net:471"
 
     """
-    if ':' in host:
+    # check if host is an IPv6 address and not enclosed in [ ]
+    if ':' in host and not (host.startswith('[') and host.endswith(']')):
         # IPv6 addresses must be enclosed in [ ] in order to be well
         # formed.
         host = '[' + host + ']'
@@ -629,7 +659,7 @@ class Context(object):
         """
         path = self.authority + self._abspath(path_segment, owner=owner,
                                               app=app, sharing=sharing)
-        logger.debug("DELETE request to %s (body: %s)", path, repr(query))
+        logger.debug("DELETE request to %s (body: %s)", path, mask_sensitive_data(query))
         response = self.http.delete(path, self._auth_headers, **query)
         return response
 
@@ -692,7 +722,7 @@ class Context(object):
 
         path = self.authority + self._abspath(path_segment, owner=owner,
                                               app=app, sharing=sharing)
-        logger.debug("GET request to %s (body: %s)", path, repr(query))
+        logger.debug("GET request to %s (body: %s)", path, mask_sensitive_data(query))
         all_headers = headers + self.additional_headers + self._auth_headers
         response = self.http.get(path, all_headers, **query)
         return response
@@ -771,12 +801,7 @@ class Context(object):
 
         path = self.authority + self._abspath(path_segment, owner=owner, app=app, sharing=sharing)
 
-        # To avoid writing sensitive data in debug logs
-        endpoint_having_sensitive_data = ["/storage/passwords"]
-        if any(endpoint in path for endpoint in endpoint_having_sensitive_data):
-            logger.debug("POST request to %s ", path)
-        else:
-            logger.debug("POST request to %s (body: %s)", path, repr(query))
+        logger.debug("POST request to %s (body: %s)", path, mask_sensitive_data(query))
         all_headers = headers + self.additional_headers + self._auth_headers
         response = self.http.post(path, all_headers, **query)
         return response
@@ -843,8 +868,7 @@ class Context(object):
 
         all_headers = headers + self.additional_headers + self._auth_headers
         logger.debug("%s request to %s (headers: %s, body: %s)",
-                      method, path, str(all_headers), repr(body))
-
+                     method, path, str(mask_sensitive_data(dict(all_headers))), mask_sensitive_data(body))
         if body:
             body = _encode(**body)
 
@@ -1434,7 +1458,7 @@ def handler(key_file=None, cert_file=None, timeout=None, verify=False, context=N
         head = {
             "Content-Length": str(len(body)),
             "Host": host,
-            "User-Agent": "splunk-sdk-python/1.7.2",
+            "User-Agent": "splunk-sdk-python/%s" % __version__,
             "Accept": "*/*",
             "Connection": "Close",
         } # defaults
