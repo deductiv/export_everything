@@ -22,18 +22,34 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '
 # Resolve conflicts with old Splunk libs
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 import splunklib.client as client
-from splunklib.searchcommands import Option, validators
 
 os_platform = platform.system()
 py_major_ver = sys.version_info[0]
 # Import the correct version of platform-specific libraries
 if os_platform == 'Linux':
 	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
-elif os_platform == 'Darwin': # Does not work with Splunk Python build (code signing)
-	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
 elif os_platform == 'Windows':
 	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
 sys.path.append(path_prepend)
+
+# AWS S3
+import boto3
+from botocore.client import ClientError
+from botocore.config import Config
+# Microsoft Azure
+from azure.storage.filedatalake import DataLakeServiceClient
+from azure.identity import ClientSecretCredential, AzureAuthorityHosts
+from azure.storage.filedatalake import DataLakeServiceClient
+from azure.storage.filedatalake import PathProperties
+from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobPrefix
+# Box Cloud
+from boxsdk import JWTAuth, Client, BoxAPIException
+# SFTP
+import paramiko
+import pysftp
+# SMB
+from smb.SMBConnection import SMBConnection
 
 app = 'export_everything'
 
@@ -147,8 +163,6 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias=None, log=
 		raise Exception("Unable to find target configuration: " + repr(e))
 	
 def upload_azureblob_file(azure_client, container, local_file, full_remote_path, append_file):
-	from azure.storage.filedatalake import DataLakeServiceClient
-	from azure.storage.blob import BlobServiceClient
 	
 	# Split out the file path from the file name
 	remote_file_parts = full_remote_path.strip('/').replace('//', '/').split('/')
@@ -226,17 +240,6 @@ def upload_azureblob_file(azure_client, container, local_file, full_remote_path,
 
 # Build the client object for Data Lake or Azure Blob
 def get_azureblob_client(blob_config): #, container_name):
-	global BlobServiceClient
-	global DataLakeServiceClient
-	global BlobPrefix
-	global BlobProperties
-	global FileSystemProperties
-	from azure.identity import ClientSecretCredential, AzureAuthorityHosts
-	from azure.storage.filedatalake import DataLakeServiceClient
-	from azure.storage.blob import BlobServiceClient
-	from azure.storage.blob import BlobPrefix
-	from azure.storage.blob import BlobProperties
-	from azure.storage.filedatalake import FileSystemProperties
 
 	# Do we need to get a credential for Azure AD?
 	if "azure_ad" in list(blob_config.keys()) and str2bool(blob_config["azure_ad"]):
@@ -281,7 +284,6 @@ def get_azureblob_client(blob_config): #, container_name):
 			return BlobServiceClient.from_connection_string(connection_string)
 
 def chonkyize_azure_blob(blob):
-	from azure.storage.filedatalake import PathProperties
 
 	if isinstance(blob, BlobPrefix):
 		# Blob folder
@@ -375,10 +377,6 @@ def get_azure_blob_directory(blob_config, container_folder_path):
 	return file_list
 
 def get_aws_connection(aws_config, log=True):
-	global boto3, Config
-	import boto3
-	from botocore.client import ClientError
-	from botocore.config import Config
 	
 	# Apply proxy settings to AWS config
 	proxy_definitions = {
@@ -542,9 +540,6 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 	return file_list
 
 def get_sftp_connection(target_config):
-	import paramiko
-	global pysftp
-	import pysftp
 	
 	# Check to see if we have credentials
 	valid_settings = []
@@ -639,8 +634,6 @@ def yield_sftp_object(content, folder_path):
 		return None
 
 def get_smb_directory(smb_config, folder_path = '/'):
-	global SMBConnection
-	from smb.SMBConnection import SMBConnection
 	
 	# Get the local client hostname
 	client_name = socket.gethostname()
@@ -725,7 +718,7 @@ def yield_smb_object(content, folder_path):
 		return None
 
 def get_box_connection(target_config):
-	from boxsdk import JWTAuth, Client, BoxAPIException
+
 	# Check to see if we have credentials
 	valid_settings = []
 	
@@ -780,7 +773,6 @@ def get_box_connection(target_config):
 		raise Exception("Could not find required configuration settings")
 
 def get_box_directory(target_config, folder_path):
-	from boxsdk import BoxAPIException
 	
 	# Let the exception pass through
 	client = get_box_connection(target_config)
