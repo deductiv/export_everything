@@ -121,8 +121,8 @@ class epbox(EventingCommand):
 		self.compress = str2bool(target_config['compress']) if self.compress in default_values else False
 
 		# Create the default filename
-		default_filename = "export_%s___now__%s" % (searchinfo.username, 
-					event_file.file_extensions[self.outputformat]).strip("'")
+		default_filename = ("export_%s___now__%s" % (searchinfo.username, 
+					event_file.file_extensions[self.outputformat])).strip("'")
 
 		# First run and no remote output file string has been assigned
 		if not hasattr(self, 'remote_output_file'):
@@ -230,8 +230,8 @@ class epbox(EventingCommand):
 				self.local_output_file, self.outputformat, self.compress, \
 				self.fields if self.fields is not None else "")
 			for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, 
-						self.outputformat, self.compress, append_chunk=append_chunk,
-						finish=self._finished, sid=searchinfo.sid):
+						self.outputformat, self.compress, self.blankfields, self.internalfields, self.datefields, 
+						append_chunk, self._finished, False, searchinfo.sid):
 				yield event
 				self.event_counter += 1
 

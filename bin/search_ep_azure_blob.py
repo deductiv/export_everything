@@ -119,8 +119,8 @@ class epazureblob(EventingCommand):
 		# First run and no remote output file string has been assigned
 		if not hasattr(self, 'remote_output_file'):
 			if self.outputfile in default_values:
-				self.outputfile = "export_%s___now__%s" % (searchinfo.username, 
-						    event_file.file_extensions[self.outputformat]).strip("'")
+				self.outputfile = ("export_%s___now__%s" % (searchinfo.username, 
+							event_file.file_extensions[self.outputformat])).strip("'")
 			
 			# Replace keywords from output filename
 			self.outputfile = replace_keywords(self.outputfile)

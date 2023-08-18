@@ -120,7 +120,6 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 
 		if "query" in list(self.request.keys()):
 			query = {}
-			#logger.debug('input query = ' + str(input['query']))
 			if isinstance(self.request['query'], list):
 				for i in self.request.query:
 					query[i[0]] = i[1]
@@ -151,7 +150,8 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 					else:
 						query['folder'] = ''
 					if 'default_folder' in list(datasource_config.keys()):
-						query['folder'] = (query['folder'] + '/' + datasource_config['default_folder']).replace('//', '/')
+						query['folder'] = (query['folder'] + '/' + datasource_config['default_folder'])
+						query['folder'] = query['folder'].replace('\\', '/').replace('//', '/').rstrip('/')
 				try:
 					payload = get_directory_contents(config_file, datasource_config, query)
 					logger.debug("Directory contents: ", str(payload))

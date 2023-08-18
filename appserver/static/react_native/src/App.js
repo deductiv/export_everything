@@ -1274,7 +1274,8 @@ class App extends React.Component {
 						} else {
 							console.log("Using folder argument as path");
 							// Treat the folder argument like a path
-							for (let f of folder.replace(/^\/+|\/+$/, "").split('/')) {
+							// Strip / from beginning and end
+							for (let f of folder.replace(/^\/+|\/+$/, '').replace(/\\+/g, '/').replace(/\/+/, '/').split('/')) {
 								if ( f.length > 0 ) {
 									chain_path = chain_path + '/' + f;
 									chain.push({

@@ -118,8 +118,8 @@ class epsftp(EventingCommand):
 		# First run and no remote output file string has been assigned
 		if not hasattr(self, 'remote_output_file'):
 			# Use the default filename if one was not specified. Parse either one into folder/file vars.
-			default_filename = "export_%s___now__%s" % (searchinfo.username, 
-					    event_file.file_extensions[self.outputformat]).strip("'")
+			default_filename = ("export_%s___now__%s" % (searchinfo.username, 
+						event_file.file_extensions[self.outputformat])).strip("'")
 			folder, filename = event_file.parse_outputfile(self.outputfile, default_filename, target_config)
 			setattr(self, 'remote_output_file', filename)
 
@@ -165,8 +165,8 @@ class epsftp(EventingCommand):
 			# Write the output file to disk in the dispatch folder
 			logger.debug("Writing events. file=\"%s\", format=%s, compress=%s, fields=\"%s\"", self.local_output_file, self.outputformat, self.compress, self.fields)
 			for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, 
-						self.outputformat, self.compress, append_chunk=append_chunk, 
-						finish=self._finished, sid=searchinfo.sid):
+						self.outputformat, self.compress, self.blankfields, self.internalfields, self.datefields, 
+						append_chunk, self._finished, False, searchinfo.sid):
 				yield event
 				self.event_counter += 1
 		except BaseException as e:
