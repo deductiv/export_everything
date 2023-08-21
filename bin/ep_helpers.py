@@ -18,8 +18,7 @@ from deductiv_helpers import setup_logger, \
 	str2bool, \
 	decrypt_with_secret, \
 	merge_two_dicts, \
-	get_conf_stanza, \
-	eprint
+	get_conf_stanza
 import splunk.entity as en
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
