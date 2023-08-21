@@ -12,6 +12,8 @@ import os
 import random
 import socket
 from deductiv_helpers import setup_logger, \
+	get_conf_stanza, \
+	get_conf_file, \
 	search_console, \
 	is_search_finalizing, \
 	replace_object_tokens, \
@@ -20,7 +22,6 @@ from deductiv_helpers import setup_logger, \
 	str2bool
 from ep_helpers import get_config_from_alias
 import event_file
-from splunk.clilib import cli_common as cli
 
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -60,8 +61,8 @@ class epsmb(EventingCommand):
 			first_chunk = False
 
 		try:
-			app_config = cli.getConfStanza('ep_general','settings')
-			cmd_config = cli.getConfStanzas('ep_smb')
+			app_config = get_conf_stanza('ep_general','settings')
+			cmd_config = get_conf_file('ep_smb')
 		except BaseException as e:
 			raise Exception("Could not read configuration: " + repr(e))
 		
@@ -224,8 +225,9 @@ class epsmb(EventingCommand):
 				ui.exit_error("Error uploading file to SMB server: " + repr(e))
 
 			if bytes_uploaded > 0:
-				logger.info("SMB export_status=success, app=%s, count=%s, file_name=\"%s\", user=%s" % 
-					(searchinfo.app, self.event_counter, self.remote_output_file, searchinfo.username))
+				logger.info("SMB export_status=success, app=%s, count=%s, file_name=\"%s\", file_size=%s, user=%s" % 
+							(searchinfo.app, self.event_counter, self.remote_output_file, 
+							os.stat(self.local_output_file).st_size, searchinfo.username))
 			else:
 				ui.exit_error("Zero bytes uploaded")
 		

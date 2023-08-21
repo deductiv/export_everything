@@ -12,6 +12,8 @@ import os
 import platform
 import random
 from deductiv_helpers import setup_logger, \
+	get_conf_stanza, \
+	get_conf_file, \
 	replace_keywords, \
 	search_console, \
 	is_search_finalizing, \
@@ -21,7 +23,6 @@ from deductiv_helpers import setup_logger, \
 	str2bool
 from ep_helpers import get_config_from_alias, get_box_connection
 import event_file
-from splunk.clilib import cli_common as cli
 
 # Add lib subfolders to import path
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
@@ -78,8 +79,8 @@ class epbox(EventingCommand):
 			first_chunk = False
 
 		try:
-			app_config = cli.getConfStanza('ep_general','settings')
-			cmd_config = cli.getConfStanzas('ep_box')
+			app_config = get_conf_stanza('ep_general','settings')
+			cmd_config = get_conf_file('ep_box')
 		except BaseException as e:
 			raise Exception("Could not read configuration: " + repr(e))
 		
@@ -243,8 +244,9 @@ class epbox(EventingCommand):
 		if self._finished or self._finished is None:
 			try:
 				new_file = self.box_folder_object.upload(self.local_output_file, file_name=self.remote_output_file)
-				logger.info("Box export_status=success, app=%s, count=%s, file_name=\"%s\", file_id=%s, user=%s" % \
-					(searchinfo.app, self.event_counter, new_file.name, new_file.id, searchinfo.username))
+				logger.info("Box export_status=success, app=%s, count=%s, file_name=\"%s\", file_size=%s, file_id=%s, user=%s" % \
+							(searchinfo.app, self.event_counter, new_file.name, os.stat(self.local_output_file).st_size, 
+							new_file.id, searchinfo.username))
 				os.remove(self.local_output_file)
 			except BaseException as e:
 				ui.exit_error("Error uploading file to Box: " + repr(e))

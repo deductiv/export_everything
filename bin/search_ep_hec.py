@@ -12,6 +12,8 @@ import os
 import time
 import json
 from deductiv_helpers import setup_logger, \
+	get_conf_stanza, \
+	get_conf_file, \
 	str2bool, \
 	search_console, \
 	is_search_finalizing, \
@@ -21,7 +23,6 @@ from deductiv_helpers import setup_logger, \
 	is_cloud, \
 	log_proxy_settings
 from ep_helpers import get_config_from_alias
-from splunk.clilib import cli_common as cli
 from splunk.rest import simpleRequest
 
 # Add lib folders to import path
@@ -62,8 +63,9 @@ class ephec(StreamingCommand):
 			first_chunk = False
 		
 		try:
-			app_config = cli.getConfStanza('ep_general','settings')
-			cmd_config = cli.getConfStanzas('ep_hec')
+			app_config = get_conf_stanza('ep_general','settings')
+			cmd_config = get_conf_file('ep_hec')
+
 		except BaseException as e:
 			raise Exception("Could not read configuration: " + repr(e))
 		

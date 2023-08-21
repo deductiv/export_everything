@@ -14,20 +14,28 @@ import stat
 import io
 from datetime import datetime
 
-from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret, merge_two_dicts
-from splunk.clilib import cli_common as cli
+from deductiv_helpers import setup_logger, \
+	str2bool, \
+	decrypt_with_secret, \
+	merge_two_dicts, \
+	get_conf_stanza, \
+	eprint
 import splunk.entity as en
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 # Resolve conflicts with old Splunk libs
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 import splunklib.client as client
-# AWS S3
-import boto3
-from botocore.client import ClientError
-from botocore.config import Config
-# SMB
-from smb.SMBConnection import SMBConnection
+try:
+	# AWS S3
+	import boto3
+	from botocore.client import ClientError
+	from botocore.config import Config
+	# These won't import on indexers
+	# SMB
+	from smb.SMBConnection import SMBConnection
+except:
+	pass
 
 os_platform = platform.system()
 py_major_ver = sys.version_info[0]
@@ -40,18 +48,22 @@ elif os_platform == 'Windows':
 
 sys.path.append(path_prepend)
 if path_prepend != "":
-	# Microsoft Azure
-	from azure.storage.filedatalake import DataLakeServiceClient
-	from azure.identity import ClientSecretCredential, AzureAuthorityHosts
-	from azure.storage.filedatalake import DataLakeServiceClient
-	from azure.storage.filedatalake import PathProperties
-	from azure.storage.blob import BlobServiceClient
-	from azure.storage.blob import BlobPrefix
-	# Box Cloud
-	from boxsdk import JWTAuth, Client, BoxAPIException
-	# SFTP
-	import paramiko
-	import pysftp
+	try:
+		# These won't import on indexers
+		# Microsoft Azure
+		from azure.storage.filedatalake import DataLakeServiceClient
+		from azure.identity import ClientSecretCredential, AzureAuthorityHosts
+		from azure.storage.filedatalake import DataLakeServiceClient
+		from azure.storage.filedatalake import PathProperties
+		from azure.storage.blob import BlobServiceClient
+		from azure.storage.blob import BlobPrefix
+		# Box Cloud
+		from boxsdk import JWTAuth, Client, BoxAPIException
+		# SFTP
+		import paramiko
+		import pysftp
+	except:
+		pass
 
 
 app = 'export_everything'
@@ -63,7 +75,7 @@ proxy_exceptions = os.environ.get('NO_PROXY')
 
 random_number = str(random.randint(10000, 100000))
 
-config = cli.getConfStanza('ep_general','settings')
+config = get_conf_stanza('ep_general','settings')
 # Facility info - prepended to log lines
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]

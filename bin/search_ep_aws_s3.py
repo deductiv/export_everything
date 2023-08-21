@@ -11,6 +11,8 @@ import sys
 import os
 import random
 from deductiv_helpers import setup_logger, \
+	get_conf_stanza, \
+	get_conf_file, \
 	replace_keywords, \
 	search_console, \
 	is_search_finalizing, \
@@ -20,7 +22,6 @@ from deductiv_helpers import setup_logger, \
 	log_proxy_settings
 from ep_helpers import get_config_from_alias, get_aws_connection
 import event_file
-from splunk.clilib import cli_common as cli
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 from splunklib.searchcommands import EventingCommand, dispatch, Configuration, Option, validators
@@ -61,8 +62,8 @@ class epawss3(EventingCommand):
 			first_chunk = False
 		
 		try:
-			app_config = cli.getConfStanza('ep_general','settings')
-			cmd_config = cli.getConfStanzas('ep_aws_s3')
+			app_config = get_conf_stanza('ep_general','settings')
+			cmd_config = get_conf_file('ep_aws_s3')
 		except BaseException as e:
 			raise Exception("Could not read configuration: " + repr(e))
 
@@ -119,7 +120,7 @@ class epawss3(EventingCommand):
 			if self.outputfile in default_values:
 				# Boto is special. We need repr to give it the encoding it expects to match the hashing.
 				self.outputfile = repr("export_%s___now__%s" % (searchinfo.username, 
-						    event_file.file_extensions[self.outputformat])).strip("'")
+							event_file.file_extensions[self.outputformat])).strip("'")
 			
 			# Replace keywords from output filename
 			self.outputfile = replace_keywords(self.outputfile)
@@ -176,10 +177,11 @@ class epawss3(EventingCommand):
 			try:
 				with open(self.local_output_file, "rb") as f:
 					self.s3.upload_fileobj(f, self.bucket, self.remote_output_file)
-				self.s3 = None
-				logger.info("S3 export_status=success, app=%s, count=%s, bucket=%s, file_name=%s, user=%s" % 
-					(searchinfo.app, self.event_counter, self.bucket, self.remote_output_file, searchinfo.username))
+				logger.info("S3 export_status=success, app=%s, count=%s, bucket=%s, file_name=%s, file_size=%s, user=%s" % 
+							(searchinfo.app, self.event_counter, self.bucket, self.remote_output_file, 
+							os.stat(self.local_output_file).st_size, searchinfo.username))
 				os.remove(self.local_output_file)
+				self.s3 = None
 			except self.s3.exceptions.NoSuchBucket as e:
 				ui.exit_error(logger, "Error: No such bucket")
 			except BaseException as e:

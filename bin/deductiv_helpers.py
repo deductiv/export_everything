@@ -22,6 +22,7 @@ import random
 import csv
 import splunk
 import splunk.entity as en
+from splunk.clilib import cli_common as cli
 from splunk.rest import simpleRequest
 
 # Add lib folders to import path
@@ -109,6 +110,38 @@ def setup_logger(level, filename, facility):
 	
 	return logger
 
+def get_conf_stanza(config_file, stanza):
+	# Get the configuration using the API
+	# If this fails, read the configs directly
+	# Implemented for indexers where configs only live in the knowledge bundle
+	try:
+		config = cli.getConfStanza(config_file, stanza)
+	except (splunk.clilib.control_exceptions.ParsingError, KeyError):
+		try:
+			eprint('Reading configuration file directly: ' + config_file)
+			config_all_stanzas = read_config(config_file + '.conf')
+			config = dict(config_all_stanzas.items(stanza))
+		except configparser.NoSectionError:
+			config = get_conf_file(config_file)[stanza]
+	return config
+
+def get_conf_file(config_file):
+	# Get the configuration using the API
+	# If this fails, read the configs directly
+	# Implemented for indexers where configs only live in the knowledge bundle
+	manual_read = False
+	try:
+		config = cli.getConfStanzas(config_file)
+		if len(list(config.keys())) <= 1: # default only
+			manual_read = True
+	except splunk.clilib.control_exceptions.ParsingError:
+		manual_read = True
+	if manual_read:
+		# Convert each stanza/section to a dict
+		config_items = read_config(config_file + '.conf')
+		config = { c:dict(config_items.items(c)) for c in config_items }
+	return config
+
 def read_config(filename):
 	config = configparser.ConfigParser()
 	app_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
@@ -117,8 +150,8 @@ def read_config(filename):
 		try:
 			config_file = os.path.join(app_dir, cdir, filename)
 			config.read(config_file)
-		except:
-			pass
+		except BaseException as e:
+			eprint("Error reading config file %s: %s", config_file, e)
 	return config
 
 # Merge two dictionary objects (x,y) into one (z)

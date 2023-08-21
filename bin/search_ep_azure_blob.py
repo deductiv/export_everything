@@ -11,6 +11,8 @@ import sys
 import os
 import random
 from deductiv_helpers import setup_logger, \
+	get_conf_stanza, \
+	get_conf_file, \
 	replace_keywords, \
 	search_console, \
 	is_search_finalizing, \
@@ -20,7 +22,6 @@ from deductiv_helpers import setup_logger, \
 	log_proxy_settings
 from ep_helpers import get_config_from_alias, get_azureblob_client, upload_azureblob_file
 import event_file
-from splunk.clilib import cli_common as cli
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
@@ -61,8 +62,8 @@ class epazureblob(EventingCommand):
 			first_chunk = False
 		
 		try:
-			app_config = cli.getConfStanza('ep_general','settings')
-			cmd_config = cli.getConfStanzas('ep_azure_blob')
+			app_config = get_conf_stanza('ep_general','settings')
+			cmd_config = get_conf_file('ep_azure_blob')
 		except BaseException as e:
 			raise Exception("Could not read configuration: " + repr(e))
 		
@@ -178,8 +179,9 @@ class epazureblob(EventingCommand):
 		if self._finished or self._finished is None:
 			try:
 				upload_azureblob_file(self.azure_client, self.container, self.local_output_file, self.remote_output_file, self.append)
-				logger.info("Azure Blob export_status=success, app=%s, count=%s, container=%s, file_name=%s, user=%s" % 
-					(searchinfo.app, self.event_counter, self.container, self.remote_output_file, searchinfo.username))
+				logger.info("Azure Blob export_status=success, app=%s, count=%s, container=%s, file_name=%s, file_size=%s, user=%s" % 
+							(searchinfo.app, self.event_counter, self.container, self.remote_output_file, 
+							os.stat(self.local_output_file).st_size, searchinfo.username))
 			except BaseException as e:
 				ui.exit_error("Could not upload file to Azure Blob (status=failure): " + repr(e))
 

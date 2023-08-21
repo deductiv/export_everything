@@ -7,7 +7,7 @@ import sys
 import os
 import re
 import json
-from splunk.clilib import cli_common as cli
+from deductiv_helpers import get_conf_stanza, get_conf_file
 import splunk.entity as en
 import splunk.rest
 
@@ -24,7 +24,7 @@ from ep_helpers import get_config_from_alias, \
 	get_smb_directory
 import splunklib.client as client
 
-config = cli.getConfStanza('ep_general','settings')
+config = get_conf_stanza('ep_general','settings')
 # Facility info - prepended to log lines
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
@@ -98,11 +98,11 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 					}
 			
 			config = {
-				"general": cli.getConfStanza('ep_general','settings')
+				"general": get_conf_stanza('ep_general','settings')
 			}
 			configurations = ["ep_aws_s3", "ep_azure_blob", "ep_box", "ep_sftp", "ep_smb"]
 			for c in configurations:
-				config[c] = cli.getConfStanzas(c)
+				config[c] = get_conf_file(c)
 				for stanza in list(config[c].keys()):
 					for k, v in list(config[c][stanza].items()):
 						if 'credential' in k:
