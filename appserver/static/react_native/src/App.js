@@ -138,7 +138,7 @@ const booleanize = (value) => {
 	}
 }
 
-const cell_format = { 
+const cell_styles = { 
 	wordBreak: 'break-all', 
 	padding: '0 3px'
 }
@@ -182,7 +182,6 @@ const table_options = {
 	toolbar: true,
 	paging: false,
 	draggable: false,
-	headerStyle: {},
 	rowStyle: { 
 		padding: '0',
 		fontSize: '12px', 
@@ -191,7 +190,6 @@ const table_options = {
 	actionsColumnIndex: -1,
 	actionsCellStyle: {
 		padding: '0',
-		/*display:"flex", */
 		justifyContent: "center"}
 };
 
