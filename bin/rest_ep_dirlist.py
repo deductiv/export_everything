@@ -7,21 +7,21 @@ import sys
 import os
 import re
 import json
-from deductiv_helpers import get_conf_stanza, get_conf_file
 import splunk.entity as en
 import splunk.rest
 
-# Add lib subfolders to import path
+# Add current directory to import path
 sys.path.append(os.path.dirname(os.path.abspath(__file__))) # Special for REST endpoints
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
-from deductiv_helpers import setup_logger
+from deductiv_helpers import setup_logger, get_conf_stanza, get_conf_file
 from ep_helpers import get_config_from_alias, \
 	get_aws_s3_directory, \
 	get_azure_blob_directory, \
 	get_box_directory, \
 	get_sftp_directory, \
 	get_smb_directory
+# Add lib directories to import path
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 import splunklib.client as client
 
 config = get_conf_stanza('ep_general','settings')
@@ -65,7 +65,6 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 		splunk.rest.BaseRestHandler.__init__(self, method, requestInfo, responseInfo, sessionKey)
 
 	# Handle a synchronous from splunkd.
-	#def handle(self, in_string):
 	def handle_GET(self):
 		"""
 		Called for a simple synchronous request.

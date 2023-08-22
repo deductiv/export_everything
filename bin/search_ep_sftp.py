@@ -122,7 +122,7 @@ class epsftp(EventingCommand):
 			default_filename = ("export_%s___now__%s" % (searchinfo.username, 
 						event_file.file_extensions[self.outputformat])).strip("'")
 			folder, filename = event_file.parse_outputfile(self.outputfile, default_filename, target_config)
-			setattr(self, 'remote_output_file', filename)
+			self.outputfile = folder + '/' + filename
 
 			# Append .gz to the output file if compress=true
 			if not self.compress and self.outputfile.endswith('.gz'):
@@ -131,7 +131,10 @@ class epsftp(EventingCommand):
 			elif self.compress and not self.outputfile.endswith('.gz'):
 				# We have compression with no gz extension. Add .gz.
 				self.outputfile = self.outputfile + '.gz'
+				filename = filename + '.gz'
 			
+			setattr(self, 'remote_output_file', filename)
+
 			# First run and no local output file string has been assigned
 			# Use the random number to support running multiple outputs in a single search
 			random_number = str(random.randint(10000, 100000))

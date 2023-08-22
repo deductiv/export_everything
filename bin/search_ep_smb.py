@@ -113,7 +113,7 @@ class epsmb(EventingCommand):
 						event_file.file_extensions[self.outputformat])).strip("'")
 			folder, filename = event_file.parse_outputfile(self.outputfile, default_filename, target_config)
 			folder = folder.replace("\\", "/").replace("//", "/")
-			setattr(self, 'remote_output_file', folder + '/' + filename)
+			self.outputfile = folder + '/' + filename
 
 			# Append .gz to the output file if compress=true
 			if not self.compress and self.outputfile.endswith('.gz'):
@@ -123,6 +123,8 @@ class epsmb(EventingCommand):
 				# We have compression with no gz extension. Add .gz.
 				self.outputfile = self.outputfile + '.gz'
 			
+			setattr(self, 'remote_output_file', self.outputfile)
+
 			# First run and no local output file string has been assigned
 			# Use the random number to support running multiple outputs in a single search
 			random_number = str(random.randint(10000, 100000))
@@ -220,13 +222,13 @@ class epsmb(EventingCommand):
 			try:
 				with open(self.local_output_file, 'rb', buffering=0) as local_file:
 					bytes_uploaded = self.conn.storeFile(target_config['share_name'], self.remote_output_file, local_file)
-				os.remove(self.local_output_file)
+				#os.remove(self.local_output_file)
 			except BaseException as e:
 				ui.exit_error("Error uploading file to SMB server: " + repr(e))
 
 			if bytes_uploaded > 0:
-				logger.info("SMB export_status=success, app=%s, count=%s, file_name=\"%s\", file_size=%s, user=%s" % 
-							(searchinfo.app, self.event_counter, self.remote_output_file, 
+				logger.info("SMB export_status=success, app=%s, count=%s, file_name=\"%s%s\", file_size=%s, user=%s" % 
+							(searchinfo.app, self.event_counter, target_config['share_name'], self.remote_output_file, 
 							os.stat(self.local_output_file).st_size, searchinfo.username))
 			else:
 				ui.exit_error("Zero bytes uploaded")
