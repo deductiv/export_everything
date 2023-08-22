@@ -4,7 +4,7 @@
 #
 # Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.3 (2023-08-11)
+# Version: 2.3.0 (2023-08-11)
 
 import json
 import fnmatch

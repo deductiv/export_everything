@@ -5,7 +5,7 @@
 # Export Splunk search results to a remote SFTP server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.3 (2023-08-11)
+# Version: 2.3.0 (2023-08-11)
 
 import sys
 import os
@@ -153,6 +153,14 @@ class epsftp(EventingCommand):
 				try:
 					self.sftp.makedirs(folder)
 					self.sftp.chdir(folder)
+
+					# Check to see if the file already exists
+					if self.remote_output_file in self.sftp.listdir():
+						try:
+							logger.debug("File already exists. Deleting before upload: %s/%s", folder, self.outputfile)
+							self.sftp.remove(self.remote_output_file)
+						except BaseException as e:
+							ui.exit_error("File already exists. Unable to overwrite: " + str(e))
 				except BaseException as e:
 					ui.exit_error("Could not load remote SFTP directory: " + repr(e))
 			else:
@@ -180,19 +188,7 @@ class epsftp(EventingCommand):
 			try:
 				# Upload the file
 				self.sftp.put(self.local_output_file)
-				os.remove(self.local_output_file)
-			except BaseException as e:
-				ui.exit_error("Error uploading file to SFTP server: " + repr(e))
 
-			try:
-				contents = self.sftp.listdir()
-				if self.remote_output_file in contents:
-					file_exists = True
-				else:
-					file_exists = False
-				# Rename the file
-				if file_exists:
-					self.sftp.remove(self.remote_output_file)
 				# Rename the file in the current remote working directory
 				self.sftp.rename(self.local_output_file.split('/')[-1], self.remote_output_file)
 
@@ -201,8 +197,10 @@ class epsftp(EventingCommand):
 					logger.info("SFTP export_status=success, app=%s, count=%s, file_name=\"%s\", file_size=%s, user=%s" % 
 		 				(searchinfo.app, self.event_counter, rfilename, os.stat(self.local_output_file).st_size, searchinfo.username))
 				else:
-					ui.exit_error("Could not verify uploaded file exists")
+					ui.exit_error("Could not verify the uploaded file exists: %s" % rfilename)
 			except BaseException as e:
-				ui.exit_error("Error renaming or replacing file on SFTP server. Does the file already exist?" + repr(e))
+				ui.exit_error("Error uploading file to SFTP server: " + repr(e))
+			finally:
+				os.remove(self.local_output_file)
 
 dispatch(epsftp, sys.argv, sys.stdin, sys.stdout, __name__)

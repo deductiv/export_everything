@@ -45,8 +45,8 @@ if os_platform == 'Linux':
 elif os_platform == 'Windows':
 	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
 
-sys.path.append(path_prepend)
 if path_prepend != "":
+	sys.path.append(path_prepend)
 	try:
 		# These won't import on indexers
 		# Microsoft Azure

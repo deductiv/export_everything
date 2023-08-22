@@ -5,7 +5,7 @@
 # Export Splunk events to Splunk HEC over JSON - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.3 (2023-08-11)
+# Version: 2.3.0 (2023-08-11)
 
 import sys
 import os

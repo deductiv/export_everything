@@ -5,7 +5,7 @@
 # Export Splunk search results to a remote SMB server - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.3 (2023-08-11)
+# Version: 2.3.0 (2023-08-11)
 
 import sys
 import os
@@ -222,14 +222,15 @@ class epsmb(EventingCommand):
 			try:
 				with open(self.local_output_file, 'rb', buffering=0) as local_file:
 					bytes_uploaded = self.conn.storeFile(target_config['share_name'], self.remote_output_file, local_file)
-				#os.remove(self.local_output_file)
 			except BaseException as e:
 				ui.exit_error("Error uploading file to SMB server: " + repr(e))
+			finally:
+				os.remove(self.local_output_file)
 
 			if bytes_uploaded > 0:
 				logger.info("SMB export_status=success, app=%s, count=%s, file_name=\"%s%s\", file_size=%s, user=%s" % 
 							(searchinfo.app, self.event_counter, target_config['share_name'], self.remote_output_file, 
-							os.stat(self.local_output_file).st_size, searchinfo.username))
+							bytes_uploaded, searchinfo.username))
 			else:
 				ui.exit_error("Zero bytes uploaded")
 		

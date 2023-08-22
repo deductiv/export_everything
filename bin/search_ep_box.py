@@ -5,7 +5,7 @@
 # Export Splunk search results to Box - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.3 (2023-08-11)
+# Version: 2.3.0 (2023-08-11)
 
 import sys
 import os
@@ -210,13 +210,24 @@ class epbox(EventingCommand):
 				for item in folder_contents:
 					if item.type == 'folder':
 						#logger.debug('{0} {1} is named "{2}"'.format(item.type.capitalize(), item.id, item.name))
-						if subfolder_name == item.name:
-							logger.debug("Found Box folder_id=%s for folder=\"%s\"" % (str(item.id), subfolder_name))
+						if subfolder_name.lower() == item.name.lower():
+							logger.debug("Found Box folder_id=%s for folder=\"%s\"", str(item.id), subfolder_name)
 							self.box_folder_object = client.folder(folder_id=item.id)
 							folder_found = True
 				if not folder_found:
+					logger.debug('Folder not found. Creating %s', subfolder_name)
 					# Create the required subfolder
 					self.box_folder_object = self.box_folder_object.create_subfolder(subfolder_name)
+			
+			# Check if the target file exists
+			folder_contents = self.box_folder_object.get_items()
+			for item in folder_contents:
+				if item.name.lower() == self.outputfile.lower():
+					try:
+						logger.debug("File already exists. Deleting before upload: %s/%s", folder, self.outputfile)
+						item.delete()
+					except BoxAPIException as be:
+						ui.exit_error("File already exists: %s/%s" % folder, self.outputfile)
 			
 			setattr(self, 'event_counter', 0)
 			append_chunk = False
@@ -247,8 +258,13 @@ class epbox(EventingCommand):
 				logger.info("Box export_status=success, app=%s, count=%s, file_name=\"%s\", file_size=%s, file_id=%s, user=%s" % \
 							(searchinfo.app, self.event_counter, new_file.name, os.stat(self.local_output_file).st_size, 
 							new_file.id, searchinfo.username))
-				os.remove(self.local_output_file)
+			except BoxAPIException as be:
+				ui.exit_error("BoxAPIException uploading file to Box: " + be.message)
+			except KeyError as e:
+				ui.exit_error("KeyError uploading file to Box: " + repr(e))
 			except BaseException as e:
 				ui.exit_error("Error uploading file to Box: " + repr(e))
+			finally:
+				os.remove(self.local_output_file)
 
 dispatch(epbox, sys.argv, sys.stdin, sys.stdout, __name__)

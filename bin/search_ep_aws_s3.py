@@ -5,7 +5,7 @@
 # Export Splunk search results to AWS S3 - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.3 (2023-08-11)
+# Version: 2.3.0 (2023-08-11)
 
 import sys
 import os
@@ -180,12 +180,13 @@ class epawss3(EventingCommand):
 				logger.info("S3 export_status=success, app=%s, count=%s, bucket=%s, file_name=%s, file_size=%s, user=%s" % 
 							(searchinfo.app, self.event_counter, self.bucket, self.remote_output_file, 
 							os.stat(self.local_output_file).st_size, searchinfo.username))
-				os.remove(self.local_output_file)
 				self.s3 = None
 			except self.s3.exceptions.NoSuchBucket as e:
 				ui.exit_error(logger, "Error: No such bucket")
 			except BaseException as e:
 				ui.exit_error(logger, "Could not upload file to S3: " + repr(e))
+			finally:
+				os.remove(self.local_output_file)
 
 dispatch(epawss3, sys.argv, sys.stdin, sys.stdout, __name__)
 

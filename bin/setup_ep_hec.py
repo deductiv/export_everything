@@ -3,7 +3,7 @@
 # Copyright 2023 Deductiv Inc.
 # REST endpoint for configuration
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.3 (2023-08-11)
+# Version: 2.3.0 (2023-08-11)
 
 from deductiv_helpers import get_conf_stanza
 import splunk.admin as admin

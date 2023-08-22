@@ -5,7 +5,7 @@
 # Export Splunk search results to Azure Blob - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.3 (2023-08-11)
+# Version: 2.3.0 (2023-08-11)
 
 import sys
 import os
@@ -184,7 +184,9 @@ class epazureblob(EventingCommand):
 							os.stat(self.local_output_file).st_size, searchinfo.username))
 			except BaseException as e:
 				ui.exit_error("Could not upload file to Azure Blob (status=failure): " + repr(e))
-
+			finally:
+				os.remove(self.local_output_file)
+				
 dispatch(epazureblob, sys.argv, sys.stdin, sys.stdout, __name__)
 
 
