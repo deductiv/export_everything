@@ -1062,7 +1062,6 @@ class App extends React.Component {
 					JSON.stringify(oldcred.write) !== JSON.stringify(newacl.write)) {
 					
 					// Update the ACL
-					console.log("Updating ACL for " + JSON.stringify(oldcred));
 					this.update_credential_acl(
 						item.stanza,
 						item.realm,
@@ -1273,7 +1272,7 @@ class App extends React.Component {
 							console.log("Using folder argument as path");
 							// Treat the folder argument like a path
 							// Strip / from beginning and end
-							for (let f of folder.replace(/^\/+|\/+$/, '').replace(/\\+/g, '/').replace(/\/+/, '/').split('/')) {
+							for (let f of folder.replace(/^\/+|\/+$/, '').replace(/\\+/g, '/').replace(/\/+/g, '/').split('/')) {
 								if ( f.length > 0 ) {
 									chain_path = chain_path + '/' + f;
 									chain.push({
