@@ -1,71 +1,73 @@
 <form class="form-horizontal form-complex">
-    <style>
-    splunk-control-group > label.control-label {
-        width: 150px !important; padding-right: 10px;
+  <style>
+    splunk-control-group {
+        width: 370px !important;
     }
-    splunk-control-group > div[role=group] {
-        margin-bottom: 0;
+    .custom_help {
+      display: grid;
     }
-    splunk-search-dropdown[name^='action.alert_ep'] > div > div > div[data-component='splunk-core:/splunkjs/mvc/components/Dropdown'] {
-        width: 230px;
+    .custom_help > div.help-block {
+      margin-left: 0;
     }
-    </style>
+    splunk-search-dropdown {
+      width: 270px;
+    }
+    .help-code {
+      font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+      white-space: pre;
+      padding: 2px;
+    }
+  </style>
 
-    <splunk-control-group label="HEC Destination" style="width: 150px; padding-right: 10px">
-            <splunk-search-dropdown name="action.alert_ep_hec.param.dest_guid"
-                    search="| rest splunk_server=local /servicesNS/-/export_everything/export_everything/ep_hec | table title alias" 
-                    label-field="alias" value-field="title" />
-          </splunk-control-group>
-    </splunk-control-group>
+  <splunk-control-group label="HEC Destination">
+    <splunk-search-dropdown name="action.alert_ep_hec.param.dest_guid"
+        search="| rest splunk_server=local /servicesNS/-/export_everything/export_everything/ep_hec | table title alias" 
+        label-field="alias" value-field="title" />
+  </splunk-control-group>
 
-    <div class="control-group">
-        <label class="control-label" style="width: 150px;" for="output_source">Event Source (e.g. $name$)</label>
-        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <input type="text" name="action.alert_ep_hec.param.output_source" id="source"/>
-            <span class="help-block">
-                <p>Field or string to be assigned to the source field on the pushed event</p>
-                <p><strong>Syntax:</strong> <code>[source_value|$source_field$]</code></p>
-                <p><strong>Default:</strong> <code>$source$</code>, or if not defined, it is omitted</p>
-            </span>
-        </div>
+  <splunk-control-group label="Event Source">
+    <div class="custom_help">
+      <splunk-text-input name="action.alert_ep_hec.param.output_source" id="source" />
+      <div class="help-block">
+        Field or string to be assigned to the source field on the exported event.<br style="display: none"/>
+        <strong>Syntax:</strong> <span class="help-code">[source_value|$source_field$]</span><br style="display: none"/>
+        <strong>Default:</strong> <span class="help-code">$source$</span>, or if not defined, it is omitted.<br style="display: none"/>
+        <strong>Example:</strong> <span class="help-code">$name$</span> (saved search name)<br style="display: none"/>
+      </div>
     </div>
+  </splunk-control-group>
 
-    <div class="control-group">
-        <label class="control-label" style="width: 150px;" for="output_sourcetype">Event Sourcetype (e.g. $result.sourcetype$)</label>
-
-        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <input type="text" name="action.alert_ep_hec.param.output_sourcetype" id="sourcetype" />
-            <span class="help-block">
-                <p>Field or string to be assigned to the sourcetype field on the pushed event</p>
-                <p><strong>Syntax:</strong> <code>[sourcetype_value|$sourcetype_field$]</code></p>
-                <p><strong>Default:</strong> <code>$sourcetype$</code>, or if not defined, json</p>
-            </span>
-        </div>
+  <splunk-control-group label="Event Sourcetype">
+    <div class="custom_help">
+      <splunk-text-input name="action.alert_ep_hec.param.output_sourcetype" id="sourcetype" />
+      <div class="help-block">
+        Field or string to be assigned to the sourcetype field on the exported event.<br style="display: none"/>
+        <strong>Syntax:</strong> <span class="help-code">[sourcetype_value|$sourcetype_field$]</span><br style="display: none"/>
+        <strong>Default:</strong> <span class="help-code">$sourcetype$</span>, or if not defined, it is omitted.<br style="display: none"/>
+        <strong>Example:</strong> <span class="help-code">$result.sourcetype$</span><br style="display: none"/>
+      </div>
     </div>
+  </splunk-control-group>
 
-    <div class="control-group">
-        <label class="control-label" style="width: 150px;" for="output_index">Event Index</label>
-
-        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <input type="text" name="action.alert_ep_hec.param.output_index" id="index" />
-            <span class="help-block">
-                <p>The remote index in which to store the pushed event</p>
-                <p><strong>Syntax:</strong> <code>[index_value|$index_field$]</code></p>
-                <p><strong>Default:</strong> <code>$index$</code>, or if not defined, the remote endpoint's default.</p>
-            </span>
-        </div>
+  <splunk-control-group label="Event Index">
+    <div class="custom_help">
+      <splunk-text-input name="action.alert_ep_hec.param.output_index" id="index" />
+      <div class="help-block">
+        The remote index in which to store the exported event.<br style="display: none"/>
+        <strong>Syntax:</strong> <span class="help-code">[index_value|$index_field$]</span><br style="display: none"/>
+        <strong>Default:</strong> <span class="help-code">$index$</span>, or if not defined, the remote endpoint's default.<br style="display: none"/>
+      </div>
     </div>
+  </splunk-control-group>
 
-    <div class="control-group">
-        <label class="control-label" style="width: 150px;" for="output_host">Event Host</label>
-
-        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <input type="text" name="action.alert_ep_hec.param.output_host" id="host" />
-            <span class="help-block">
-                <p>Field or string to be assigned to the host field on the pushed event</p>
-                <p><strong>Syntax:</strong> <code>[host_value|$host_field$]</code></p>
-                <p><strong>Default:</strong> <code>$host$</code>, or if not defined, the hostname of the sending host (from inputs.conf)</p>
-            </span>
-        </div>
+  <splunk-control-group label="Event Host">
+    <div class="custom_help">
+      <splunk-text-input name="action.alert_ep_hec.param.output_host" id="host" />
+      <div class="help-block">
+        Field or string to be assigned to the host field on the exported event.<br style="display: none"/>
+        <strong>Syntax:</strong> <span class="help-code">[host_value|$host_field$]</span><br style="display: none"/>
+        <strong>Default:</strong> <span class="help-code">$host$</span>, or if not defined, the hostname of the sending host (from inputs.conf)<br style="display: none"/>
+      </div>
     </div>
+  </splunk-control-group>
 </form>

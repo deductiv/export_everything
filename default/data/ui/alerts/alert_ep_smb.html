@@ -1,73 +1,95 @@
 <form class="form-horizontal form-complex">
-    <style>
-    splunk-control-group > label.control-label {
-        width: 150px !important; padding-right: 10px;
+  <style>
+    splunk-control-group {
+        width: 370px !important;
     }
-    splunk-control-group > div[role=group] {
-        margin-bottom: 0;
+    .custom_help {
+      display: grid;
     }
-    splunk-search-dropdown[name^='action.alert_ep'] > div > div > div[data-component='splunk-core:/splunkjs/mvc/components/Dropdown'] {
-        width: 230px;
+    .custom_help > div.help-block {
+      margin-left: 0;
     }
-    </style>
-    
-    <splunk-control-group label="SMB Destination" style="width: 150px; padding-right: 10px">
-            <splunk-search-dropdown name="action.alert_ep_smb.param.dest_guid"
-                    search="| rest splunk_server=local /servicesNS/-/export_everything/export_everything/ep_smb | table title alias" 
-                    label-field="alias" value-field="title" />
-          </splunk-control-group>
-    </splunk-control-group>
+    splunk-search-dropdown {
+      width: 270px;
+    }
+    .help-code {
+      font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+      white-space: pre;
+      padding: 2px;
+    }
+  </style>
+  
+  <splunk-control-group label="SMB Destination">
+    <splunk-search-dropdown name="action.alert_ep_smb.param.dest_guid"
+        search="| rest splunk_server=local /servicesNS/-/export_everything/export_everything/ep_smb | table title alias" 
+        label-field="alias" value-field="title"/>
+  </splunk-control-group>
 
-    <div class="control-group">
-        <label class="control-label" style="width: 150px;" for="outputfile">Output Folder/File</label>
-        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <input type="text" name="action.alert_ep_smb.param.outputfile" id="outputfile" />
-            <span class="help-block">
-                <p>The name of the file to be written to the destination. If compression is enabled, a .gz extension will be appended. If compression is not specified and the filename ends in .gz, compression will automatically be applied.</p>
-                <p><strong>Syntax:</strong> <code>&lt;[folder/]file name&gt;</code></p>
-                <p><strong>Default:</strong> <code>app_username_epoch.ext</code> (e.g. <code>search_admin_1588000000.log</code>).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log</p>
-                <p><strong>Keywords:</strong> <br style="display: none"/>
-                    <code>__now__</code> = epoch <br style="display: none"/>
-                    <code>__nowft__</code> = timestamp in yyyy-mm-dd_hhmmss format <br style="display: none"/>
-                    <code>__today__</code> = date in yyyy-mm-dd format <br style="display: none"/>
-                    <code>__yesterday__</code> = yesterday's date in yyyy-mm-dd format</p>
-            </span>
-        </div>
+  <splunk-control-group label="Output Folder/File">
+    <div class="custom_help">
+      <splunk-text-input name="action.alert_ep_smb.param.outputfile" id="outputfile" />
+      <div class="help-block">
+        The name of the file to be written to the destination. If compression is enabled, 
+        a .gz extension will be appended. If compression is not specified and the filename 
+        ends in .gz, compression will automatically be applied.<br style="display: none"/>
+        <strong>Syntax:</strong> <span class="help-code">&lt;[folder/]file name&gt;</span><br style="display: none"/>
+        <strong>Default:</strong> <span class="help-code">app_username_epoch.ext</span> (e.g. search_admin_1588000000.log).  json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log<br style="display: none"/>
+        <strong>Keywords:</strong> <br style="display: none"/>
+            <span class="help-code">__now__</span> = epoch timestamp <br style="display: none"/>
+            <span class="help-code">__nowft__</span> = yyyy-mm-dd_hhmmss timestamp <br style="display: none"/>
+            <span class="help-code">__today__</span> = yyyy-mm-dd date <br style="display: none"/>
+            <span class="help-code">__yesterday__</span> = yyyy-mm-dd date (-1d)
+      </div>
     </div>
+  </splunk-control-group>
 
-    <div class="control-group">
-        <label class="control-label" style="width: 150px;" for="outputformat">Output Format</label>
-        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <select id="outputformat" name="action.alert_ep_smb.param.outputformat"> 
-                <option value="raw">Raw Text (_raw contents)</option>
-                <option value="json">JSON</option>
-                <option value="kv">Key-Value Pairs</option>
-                <option value="csv">Comma-Delimited</option>
-                <option value="tsv">Tab-Delimited</option>
-                <option value="pipe">Pipe-Delimited</option>
-            </select>
-        </div>
+  <splunk-control-group label="Output Format">
+    <splunk-select id="outputformat" name="action.alert_ep_smb.param.outputformat"> 
+      <option value="raw">Raw Text (_raw contents)</option>
+      <option value="json">JSON</option>
+      <option value="kv">Key-Value Pairs</option>
+      <option value="csv">Comma-Delimited</option>
+      <option value="tsv">Tab-Delimited</option>
+      <option value="pipe">Pipe-Delimited</option>
+    </splunk-select>
+  </splunk-control-group>
+  
+  <splunk-control-group label="Fields List">
+    <div class="custom_help">
+      <splunk-text-input name="action.alert_ep_smb.param.fields" id="fields" />
+      <div class="help-block">
+        Limit the fields to be written to the exported file. Wildcards are supported.<br style="display: none"/>
+        <strong>Syntax:</strong> <span class="help-code">"field1, field2, field3"</span><br style="display: none"/>
+        <strong>Default:</strong> <span class="help-code">All (*)</span><br style="display: none"/>
+      </div>
     </div>
+  </splunk-control-group>
 
-    <div class="control-group">
-        <label class="control-label" style="width: 150px;" for="fields">Fields List</label>
-        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <input type="text" name="action.alert_ep_smb.param.fields" id="fields" />
-            <span class="help-block">
-                <p>Limit the fields to be written to the exported file. Wildcards are supported.</p>
-                <p><strong>Syntax:</strong> <code>"field1, field2, field3"</code></p>
-                <p><strong>Default:</strong> All (*)</p>
-            </span>
-        </div>
-    </div>
+  <splunk-control-group label="Blank Fields" help="Include fields with blank data in output results. Only applies to JSON and KV output formats.">
+    <splunk-radio-input name="action.alert_ep_smb.param.blankfields" id="blankfields">
+      <option value="True">Enabled</option>
+      <option value="False">Disabled</option>
+    </splunk-radio-input>
+  </splunk-control-group>
 
-    <div class="control-group">
-        <label class="control-label" style="width: 150px;" for="compress">Compression</label>
-        <div class="controls controls-block" style="margin-left: 160px; width: 246px;">
-            <input type="checkbox" name="action.alert_ep_smb.param.compress" id="compress" />
-            <span class="help-block">
-                <p>Create the file as a .gz compressed archive.</p>
-            </span>
-        </div>
-    </div>
+  <splunk-control-group label="Internal Fields" help="Include internal fields in the output. Can be overridden with 'fields' setting. Includes: _bkt, _cd, _si, _kv, _serial, _indextime, _sourcetype, splunk_server, splunk_server_group, punct, linecount, _subsecond, timestartpos, timeendpos, _eventtype_color">
+    <splunk-radio-input name="action.alert_ep_smb.param.internalfields" id="internalfields">
+      <option value="True">Enabled</option>
+      <option value="False">Disabled</option>
+    </splunk-radio-input>
+  </splunk-control-group>
+
+  <splunk-control-group label="Date Fields" help="Include date_* fields in the output. Can be overridden with 'fields' setting.">
+    <splunk-radio-input name="action.alert_ep_smb.param.datefields" id="datefields">
+      <option value="True">Enabled</option>
+      <option value="False">Disabled</option>
+    </splunk-radio-input>
+  </splunk-control-group>
+
+  <splunk-control-group label="Compression" help="Create the file as a .gz compressed archive.">
+    <splunk-radio-input name="action.alert_ep_smb.param.compress" id="compress">
+      <option value="True">Enabled</option>
+      <option value="False">Disabled</option>
+    </splunk-radio-input>
+  </splunk-control-group>
 </form>
