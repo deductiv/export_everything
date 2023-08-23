@@ -98,13 +98,13 @@ class epsmb(EventingCommand):
 			ui.exit_error("Error reading target server configuration: " + repr(e))
 
 		# If the parameters are not supplied or blank (alert actions), supply defaults
-		default_values = [None, '', '__default__', '*', ['*']]
+		default_values = [None, '', '__default__', ['__default__']]
 		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
 		self.fields = None if self.fields in default_values else self.fields
 		self.blankfields = False if self.blankfields in default_values else self.blankfields
 		self.internalfields = False if self.internalfields in default_values else self.internalfields
 		self.datefields = False if self.datefields in default_values else self.datefields
-		self.compress = str2bool(target_config['compress']) if self.compress in default_values else False
+		self.compress = str2bool(target_config['compress']) if self.compress in default_values else self.compress
 
 		# First run and no remote output file string has been assigned
 		if not hasattr(self, 'remote_output_file'):

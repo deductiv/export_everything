@@ -96,7 +96,7 @@ class epawss3(EventingCommand):
 		except BaseException as e:
 			ui.exit_error("Error reading target server configuration: " + repr(e))
 		
-		default_values = [None, '', '__default__', '*', ['*']]
+		default_values = [None, '', '__default__', ['__default__']]
 		if self.bucket in default_values:
 			if 'default_s3_bucket' in list(target_config.keys()):
 				t = target_config['default_s3_bucket']
@@ -113,7 +113,7 @@ class epawss3(EventingCommand):
 		self.blankfields = False if self.blankfields in default_values else self.blankfields
 		self.internalfields = False if self.internalfields in default_values else self.internalfields
 		self.datefields = False if self.datefields in default_values else self.datefields
-		self.compress = str2bool(target_config['compress']) if self.compress in default_values else False
+		self.compress = str2bool(target_config['compress']) if self.compress in default_values else self.compress
 
 		# First run and no remote output file string has been assigned
 		if not hasattr(self, 'remote_output_file'):

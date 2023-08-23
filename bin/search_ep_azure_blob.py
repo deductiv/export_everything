@@ -96,7 +96,7 @@ class epazureblob(EventingCommand):
 		except BaseException as e:
 			ui.exit_error("Error reading target server configuration: " + repr(e))
 		
-		default_values = [None, '', '__default__', '*', ['*']]
+		default_values = [None, '', '__default__', ['__default__']]
 		if self.container in default_values:
 			if 'default_container' in list(target_config.keys()):
 				t = target_config['default_container']
@@ -114,8 +114,8 @@ class epazureblob(EventingCommand):
 		self.blankfields = False if self.blankfields in default_values else self.blankfields
 		self.internalfields = False if self.internalfields in default_values else self.internalfields
 		self.datefields = False if self.datefields in default_values else self.datefields
-		self.compress = str2bool(target_config['compress']) if self.compress in default_values else False
-		self.append = False if self.append in default_values else self.append
+		self.compress = str2bool(target_config['compress']) if self.compress in default_values else self.compress
+		self.append = False if self.append in default_values else str2bool(self.append)
 
 		# First run and no remote output file string has been assigned
 		if not hasattr(self, 'remote_output_file'):

@@ -90,7 +90,7 @@ class ephec(StreamingCommand):
 			logger.debug('search_ep_hec command: %s', self)  # logs command line
 			log_proxy_settings(logger)
 
-			default_values = [None, '', '__default__']
+			default_values = [None, '', '__default__', ['__default__']]
 			# Set defaults
 			if self.host in default_values:
 				self.host = "$host$"
