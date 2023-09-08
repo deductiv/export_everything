@@ -244,9 +244,9 @@ button.MuiButtonBase-root.MuiIconButton-root, .MuiInput-multiline.MuiInputBase-m
 padding: 0;
 }
 th.MuiTableCell-root.MuiTableCell-head {
-padding: 5px 3px 1px 3px;
+padding: 5px 3px 5px 3px;
 font-size: 12px;
-text-align: bottom;
+vertical-align: bottom;
 line-height: normal;
 }
 textarea.MuiInputBase-inputMultiline {
