@@ -9,6 +9,13 @@ import { dictToQuerystring } from './Helpers'
 import { notistackOptions } from './Constants'
 import { enqueueSnackbar } from 'notistack'
 
+/*
+// New toaster, not yet finished - need theme support
+import Toaster, { makeCreateToast } from '@splunk/react-toast-notifications/Toaster'
+import { TOAST_TYPES } from '@splunk/react-toast-notifications/ToastConstants'
+const createToast = makeCreateToast(Toaster)
+*/
+
 const app = config.app
 
 /*
@@ -351,6 +358,20 @@ export function request (restEndpoint, method, queryArgs, data = null) {
 
 export function toastSuccess (message) {
   enqueueSnackbar(message, notistackOptions('success'))
+  /* createToast({
+    // title: ,
+    message,
+    type: TOAST_TYPES.SUCCESS,
+    autoDismiss: true,
+    dismissOnActionClick: true,
+    showAction: false
+    /* action: {
+      label: 'Show Alert',
+      callback: () => {
+        // do something
+      }
+    }
+  }) */
 }
 
 export function toastError (message) {

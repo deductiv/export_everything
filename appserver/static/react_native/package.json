@@ -18,6 +18,8 @@
     "@material-ui/core": "^4.12.4",
     "@material-ui/icons": "^4.11.3",
     "@mui/system": "^5.14.6",
+    "@splunk/react-page": "^6.3.0",
+    "@splunk/react-toast-notifications": "^0.11.2",
     "@splunk/react-ui": "^4.19.0",
     "@splunk/splunk-utils": "^2.3.4",
     "babel-loader": "^9.1.3",

@@ -30,7 +30,7 @@ require([
     var text = $('#markdown').html();
     var static_links_re = /(\(\/static\/)([^)]+\))/g;
     text = text.replace(static_links_re, `$1app/${app}/$2`);
-    console.log('text', text)
+    // console.log('text', text)
     
     var xml_escapes_re = /&amp;(?=lt;|gt;|nbsp;)/g;
     
