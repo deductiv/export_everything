@@ -97,11 +97,11 @@ function buildFolderChain (configName, configAlias, containerName, folder, oldCh
 
   // If the query folder is blank, use the default container name in the chain
   // else, use what's in the folder setting only
-  containerName && console.log('Container Name = ' + containerName)
-  folder && console.log('Folder = ' + folder)
-  oldChain && console.log('oldChain = ' + JSON.stringify(oldChain))
+  // containerName && console.log('Container Name = ' + containerName)
+  // folder && console.log('Folder = ' + folder)
+  // oldChain && console.log('oldChain = ' + JSON.stringify(oldChain))
 
-  if (folder !== undefined && folder !== null && folder.length > 0) {
+  if (folder != null && folder.length > 0) {
     let chainPath = ''
     if (folder.match(/^[0-9]+\/$/)) {
       // Treat the folder like an ID
@@ -144,7 +144,7 @@ function buildFolderChain (configName, configAlias, containerName, folder, oldCh
         }
       }
     }
-  } else if ((folder == null || folder.length === 0) && containerName !== '/') {
+  } else if ((folder == null || folder.length === 0) && containerName !== '/' && configName !== 'ep_smb') {
     // Append the root file (folder) object - container_name = share, bucket, /, etc.
     chain.push({
       id: ('/' + containerName + '/').replace('//', '/'),
@@ -178,7 +178,7 @@ export function handleShowFolderContents (changeState, configName, configAlias, 
       .then(() => { folderChain = buildFolderChain(configName, configAlias, containerName, folder, oldChain, oldFiles) })
       .then(() => {
         console.log('Querying REST endpoint for directory contents')
-        const requestFolder = folderChain[folderChain.length - 1].id ?? '/'
+        const requestFolder = (folderChain[folderChain.length - 1].id + '/').replace('//', '/') ?? '/'
         const params = {
           config: configName,
           alias: configAlias,
@@ -188,12 +188,21 @@ export function handleShowFolderContents (changeState, configName, configAlias, 
       })
       .then((response) => {
         if (Array.isArray(response) && response.length > 0) {
-          // Different format of response from Splunk. Get the data from within the object.
-          if ('content' in response[0] && Array.isArray(response[0].content)) {
+          // Get the data from within the object.
+          try {
             fileList = JSON.parse(response[0].content[0].payload)
-          } else {
-            changeState({ loadingFileBrowser: false, showFileBrowser: false })
-            throw new Error(response)
+          } catch (err) {
+            // Translate the response array to a dict (content[x].title: content[x].content)
+            const responseDict = {}
+            response.forEach(item => {
+              if (item?.title && item?.content) responseDict[item.title] = item.content
+            })
+            if ('error' in responseDict) {
+              // Something obviously went wrong.
+              responseDict.responseText = responseDict.error
+              delete responseDict.error
+              throw new Error(JSON.stringify(responseDict))
+            }
           }
         } else {
           console.error(response)
@@ -226,11 +235,13 @@ export function handleShowFolderContents (changeState, configName, configAlias, 
         }
       })
       .catch((err) => {
+        console.log('Setting state from handleShowFolderContents error')
         changeState({ loadingFileBrowser: false, showFileBrowser: false })
-        console.error(err)
-        if (err?.status && err?.responseText) {
-          window.alert(`${err.status} Error retrieving the file listing: \n${err.responseText}`)
-        } else {
+        console.error(err.message)
+        try {
+          const errorMessage = JSON.parse(err.message)
+          window.alert(`${errorMessage.status} Error retrieving the file listing: \n${errorMessage.responseText}`)
+        } catch (err) {
           window.alert(`Error retrieving the file listing: ${JSON.stringify(err.message)}`)
         }
         throw err
