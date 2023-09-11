@@ -276,7 +276,14 @@ export function deleteConfigItem (configFile, stanza) {
   })
 }
 
-export function updateCredentialACL (username, realm, owner, read, write, sharing) {
+export function updateCredentialACL (stanza, owner, read, write, sharing) {
+  console.log('updateCredentialACL')
+  stanza = `credential%3A${stanza}`
+  return updateACL('passwords', stanza, owner, read, write, sharing)
+}
+
+export function updateACL (config, stanza, owner, read, write, sharing) {
+  console.log('updateACL')
   return new Promise((resolve, reject) => {
     // read and write must be arrays
     const acl = {
@@ -286,7 +293,7 @@ export function updateCredentialACL (username, realm, owner, read, write, sharin
       owner
     }
     // console.log('acl = ' + JSON.stringify(acl))
-    const restEndpoint = `services/configs/conf-passwords/credential%3A${username}/acl`
+    const restEndpoint = `services/configs/conf-${config}/${stanza}/acl`
     request(restEndpoint, 'POST', null, acl)
       .then(data => {
         toastSuccess('ACL update successful')
@@ -299,7 +306,6 @@ export function updateCredentialACL (username, realm, owner, read, write, sharin
       })
   })
 }
-
 export function request (restEndpoint, method, queryArgs, data = null) {
   return new Promise((resolve, reject) => {
     const url = `${config.splunkdPath}/${restEndpoint}`

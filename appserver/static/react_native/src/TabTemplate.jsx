@@ -52,9 +52,12 @@ export function TabTemplate (props) {
           columns={props.columns}
           data={props.configData}
           editable={{
-            onRowAdd: newData => props.onRowAdd(config, newData),
-            onRowUpdate: (newData, oldData) => props.onRowUpdate(config, newData, oldData),
-            onRowDelete: oldData => props.onRowDelete(config, oldData)
+            onRowAdd: newData => props.onRowAdd(
+              props.changeState, config, props.configData, newData),
+            onRowUpdate: (newData, oldData) => props.onRowUpdate(
+              props.changeState, config, props.configData, newData, oldData),
+            onRowDelete: oldData => props.onRowDelete(
+              props.changeState, config, props.configData, oldData)
           }}
           actions={(
             [
