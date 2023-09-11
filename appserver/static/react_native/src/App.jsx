@@ -13,14 +13,11 @@ import { getServerInfo, getConfigStanza, updateConfigItem } from './HelpersSplun
 import { handleTablesRefresh, handleRowAdd, handleRowUpdate, handleRowDelete } from './HelpersTable'
 import { getColumns } from './TableColumns'
 import { TabContents, TabDocs } from './TabContents'
-import { FileBrowserModal, handleShowFolderContents, handleFileAction } from './FileBrowserModal'
+import { FileBrowserModal, handleShowFolderContents } from './FileBrowserModal'
 import c from './Constants'
 
 // Stylesheets
 import 'react-tabs/style/react-tabs.css'
-
-// Lazy load controls for the file browser UI
-// const { FileBrowserModal } = React.lazy(() => import('./FileBrowserModal'))
 
 // Material-UI v5 migration
 // const theme = createTheme()
@@ -31,13 +28,14 @@ import 'react-tabs/style/react-tabs.css'
   }
 }) */
 
-// All remote destination states
+// Load all default remote destination states based on constants
 const configStates = []
 Object.entries(c.configDescriptions).forEach(([config, description]) => {
   configStates[config] = []
 })
 
 class App extends React.Component {
+  // Initialize state
   state = {
     // begin chonky file browser
     fileList: [],
@@ -58,27 +56,19 @@ class App extends React.Component {
     ...configStates
   }
 
-  // table lists
-  /* ep_hec: [],
-  ep_aws_s3: [],
-  ep_box: [],
-  ep_sftp: [],
-  ep_smb: [], */
-
   constructor (props) {
     super(props)
-
     this.columns = getColumns()
-    // console.log('User: ', JSON.stringify(this.props.splunk.currentUser()))
   }
 
+  // Set state from child components/called functions
   changeState = (newValue) => {
-    // Set state from child components/called functions
     return new Promise((resolve, reject) => {
       this.setState({ ...newValue }, () => { resolve() })
     })
   }
 
+  // Load general config and refresh all tables (which gets other configs)
   componentDidMount = () => {
     // Check to see if we are running Splunk Cloud
     getServerInfo()
@@ -97,10 +87,13 @@ class App extends React.Component {
     this.handleTablesRefreshWrap()
   }
 
+  // Wrap this function to provide default arguments
   handleTablesRefreshWrap = () => {
     handleTablesRefresh(this.changeState, this.columns, this.state.isSplunkCloud)
   }
 
+  // Refresh the columns to a non-state variable
+  // When this runs in render() we don't get a loop
   refreshColumns = () => {
     this.columns = getColumns(
       this.state.users,
@@ -111,14 +104,15 @@ class App extends React.Component {
   }
 
   render () {
-    // const self = this
     console.log('Rendering')
     this.refreshColumns()
 
     return (
       <div>
         <Suspense fallback={<div>Loading...</div>}>
+          {/* Initial load screen and refresh button overlay */}
           {this.state?.loadingConfig && <LoadingOverlayAppConfig />}
+          {/* File browser loading overlay */}
           {this.state?.loadingFileBrowser && <LoadingOverlayFileBrowser />}
         </Suspense>
         <Tabs
@@ -204,15 +198,16 @@ class App extends React.Component {
           </TabPanel>
 
           {/* All remote destination tabs */}
-          {Object.entries(c.configDescriptions).map(([config, description], index) => {
+          {Object.entries(c.configDescriptions).map(([configName, description], index) => {
             return (
-              <TabPanel key={`tabPanel_${config}`} className='tab-pane'>
+              <TabPanel key={`tabPanel_${configName}`} className='tab-pane'>
                 <TabTemplate
-                  key={`tabcontents_${config}`}
+                  key={`tabcontents_${configName}`}
                   changeState={this.changeState}
-                  config={config}
-                  configData={this.state[config]}
-                  columns={this.columns[config]}
+                  state={this.state}
+                  configName={configName}
+                  configData={this.state[configName]}
+                  columns={this.columns[configName]}
                   onRowUpdate={handleRowUpdate}
                   onRowAdd={handleRowAdd}
                   onRowDelete={handleRowDelete}
@@ -225,12 +220,14 @@ class App extends React.Component {
 
         </Tabs>
 
+        {/* File browser (chonky) modal */}
         <Suspense fallback={<div style={{ width: '100%', margin: '25px auto', textAlign: 'center' }}>Loading Script...</div>}>
           {this.state.showFileBrowser && (
             <FileBrowserModal
+              changeState={this.changeState}
+              state={this.state}
               id='file_browser'
               instanceId='ep'
-              show={this.state.showFileBrowser}
               onHide={() => {
                 console.log('Setting state from FileBrowserModal')
                 this.setState({
@@ -239,10 +236,6 @@ class App extends React.Component {
                   folderChain: []
                 })
               }}
-              location={`${c.configDescriptions[this.state.currentConfig]} / ${this.state.currentConfigAlias}`}
-              fileList={this.state.fileList}
-              folderChain={this.state.folderChain}
-              onFileAction={handleFileAction}
             />
           )}
         </Suspense>

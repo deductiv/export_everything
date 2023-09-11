@@ -336,18 +336,21 @@ export function request (restEndpoint, method, queryArgs, data = null) {
         }
       })
       .then((data) => {
-        const entry = data.entry
-        // Delete unneeded properties from Splunk responses
-        const defaultProps = ['links', 'api_entry', 'updated', 'removable']
-        if (Array.isArray(entry)) {
-          entry.forEach((list, idx) => {
-            defaultProps.forEach(prop => {
-              // console.log(`Deleting entry ${idx} field ${prop}`)
-              delete entry[idx][prop]
+        if (data.entry) {
+          const entry = data.entry
+          // Delete unneeded properties from Splunk responses
+          const defaultProps = ['links', 'api_entry', 'updated', 'removable']
+          if (Array.isArray(entry)) {
+            entry.forEach((list, idx) => {
+              defaultProps.forEach(prop => {
+                delete entry[idx][prop]
+              })
             })
-          })
+          }
+          resolve(entry)
+        } else {
+          resolve(data)
         }
-        resolve(entry)
       })
       .catch((err) => {
         let error
@@ -364,6 +367,7 @@ export function request (restEndpoint, method, queryArgs, data = null) {
 
 export function toastSuccess (message) {
   enqueueSnackbar(message, notistackOptions('success'))
+
   /* createToast({
     // title: ,
     message,

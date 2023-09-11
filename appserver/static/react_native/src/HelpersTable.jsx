@@ -190,7 +190,6 @@ export async function handleRowAdd (changeState, configFile, configData, newData
     }
     let newConfigState
     console.log('starting add')
-    // const dataNew = [...this.state[configFile]]
     // If 'default' is set for this new record, unset it for any other records that might have it
     unsetDefaultEntry(configFile, configData, newData)
       .then((configState) => {
@@ -207,10 +206,8 @@ export async function handleRowAdd (changeState, configFile, configData, newData
         return (configFile === 'passwords') ? await handleRowUpdateACL(putRes, newData) : newData
       })
       .then((d) => {
-        // dataNew.push(d)
         console.log('Setting state from handleRowAdd')
         changeState({ [configFile]: newConfigState })
-        // handleTableRefresh(configFile)
         resolve(d)
       })
       .catch(err => reject(err))
@@ -220,11 +217,9 @@ export async function handleRowAdd (changeState, configFile, configData, newData
 // Update the UI and state
 export function handleRowUpdate (changeState, configFile, configData, updatedEntry, originalEntry = {}) {
   return new Promise((resolve, reject) => {
-    // Account for values set to blank, which are not submitted automatically
-    // console.log(JSON.stringify(updatedEntry))
     let newConfigState
+    // Account for values set to blank, which are not submitted automatically
     updatedEntry = getMissingFormData(configFile, updatedEntry)
-    // console.log('updatedEntry', updatedEntry)
     // If 'default' is set for this updated record, unset it for any other records that might have it
     unsetDefaultEntry(configFile, configData, updatedEntry)
       .then((configState) => {

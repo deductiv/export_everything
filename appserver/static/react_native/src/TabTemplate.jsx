@@ -20,8 +20,8 @@ configData
 */
 
 export function TabTemplate (props) {
-  const config = props.config
-  const tabContents = TabContents(config)
+  const configName = props.configName
+  const tabContents = TabContents(configName)
   // console.log(`${config} tabContents`, tabContents)
   // console.log(`${config} props`, JSON.stringify(props))
   const browsable = tabContents.browsable ?? false
@@ -31,7 +31,7 @@ export function TabTemplate (props) {
     <div className='form form-horizontal form-complex'>
       <h1 className='ep'> {tabContents.title}</h1>
       <div style={{ width: '700px', paddingBottom: '15px' }}>
-        <TabDocs config={config} />
+        <TabDocs config={configName} />
       </div>
 
       <div className='panel-element-row'>
@@ -53,11 +53,11 @@ export function TabTemplate (props) {
           data={props.configData}
           editable={{
             onRowAdd: newData => props.onRowAdd(
-              props.changeState, config, props.configData, newData),
+              props.changeState, configName, props.configData, newData),
             onRowUpdate: (newData, oldData) => props.onRowUpdate(
-              props.changeState, config, props.configData, newData, oldData),
+              props.changeState, configName, props.configData, newData, oldData),
             onRowDelete: oldData => props.onRowDelete(
-              props.changeState, config, props.configData, oldData)
+              props.changeState, configName, props.configData, oldData)
           }}
           actions={(
             [
@@ -65,8 +65,10 @@ export function TabTemplate (props) {
                 icon: tableStyles.icons.Open,
                 tooltip: 'Browse',
                 onClick: (event, rowData) => {
+                  // FileBrowserModal.jsx/handleShowFolderContents
                   props.onBrowse(
-                    config,
+                    props.changeState,
+                    configName,
                     rowData.alias,
                     rowData.share_name ||
                       rowData.default_s3_bucket ||
