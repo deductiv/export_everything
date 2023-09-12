@@ -85,7 +85,7 @@ export function getMissingFormData (configFile, newData) {
 
 // Download the data and push it into the corresponding state entry
 export function handleTablesRefresh (changeState, columns, isSplunkCloud) {
-  changeState({ loadingConfig: true })
+  changeState({ loadingConfig: true }, 'handleTablesRefresh')
   let newState = { loadingConfig: false }
 
   const tableList = Object.keys(columns)
@@ -111,7 +111,7 @@ export function handleTablesRefresh (changeState, columns, isSplunkCloud) {
         isSplunkCloud
       )
       newState = { ...newState, columns: newColumns }
-      changeState({ ...newState })
+      changeState({ ...newState }, 'handleTablesRefresh')
       console.log('Refreshing tables complete')
     })
     .catch(err => console.log(err))
@@ -171,8 +171,6 @@ export function handleRowUpdateACL (res, configEntry) {
           resolve(c)
         })
         .catch(err => {
-          // console.log('Setting state from handleRowUpdateACL error)', err)
-          // this.setState({ loadingConfig: false })
           reject(err)
         })
     } else {
@@ -185,29 +183,24 @@ export function handleRowUpdateACL (res, configEntry) {
 export async function handleRowAdd (changeState, configFile, configData, newData) {
   // console.log('New data = ' + JSON.stringify(newData))
   return new Promise((resolve, reject) => {
-    if (configFile !== 'passwords') {
-      newData.stanza = uuid.v4()
-    }
+    newData.stanza = configFile === 'passwords'
+      ? `${newData.realm ?? ''}:${newData.username}:`
+      : uuid.v4()
     let newConfigState
-    console.log('starting add')
     // If 'default' is set for this new record, unset it for any other records that might have it
     unsetDefaultEntry(configFile, configData, newData)
       .then((configState) => {
-        newData = getMissingFormData(configFile, newData)
         newConfigState = configState // Copy the revised config state for editing
+        newData = getMissingFormData(configFile, newData)
         newConfigState.push(newData) // Add the newData entry to newConfigState
-        console.log('newconfigstate')
         return newData
       })
       .then((newDataRes) => putConfigItem(configFile, newDataRes))
       .then(async (putRes) => {
-        console.log('putres')
-        // Item has been committed to the config and the response is res
         return (configFile === 'passwords') ? await handleRowUpdateACL(putRes, newData) : newData
       })
       .then((d) => {
-        console.log('Setting state from handleRowAdd')
-        changeState({ [configFile]: newConfigState })
+        changeState({ [configFile]: newConfigState }, 'handleRowAdd')
         resolve(d)
       })
       .catch(err => reject(err))

@@ -249,7 +249,7 @@ export function updateConfigItem (configFile, itemUpdate) {
 }
 
 export function deleteConfigItem (configFile, stanza) {
-  // console.log(`Deleting config ${configFile}/${stanza}`)
+  console.log(`Deleting config ${configFile}/${stanza}`)
   return new Promise((resolve, reject) => {
     let restEndpoint
     if (configFile === 'passwords') {
@@ -306,7 +306,7 @@ export function updateACL (config, stanza, owner, read, write, sharing) {
       })
   })
 }
-export function request (restEndpoint, method, queryArgs, data = null) {
+export function request (restEndpoint, method, queryArgs, data = null, cache = 'no-cache') {
   return new Promise((resolve, reject) => {
     const url = `${config.splunkdPath}/${restEndpoint}`
     const defaultArgs = {
@@ -318,7 +318,7 @@ export function request (restEndpoint, method, queryArgs, data = null) {
     fetch(url + queryString, {
       ...defaultFetchInit,
       method,
-      cache: 'no-cache',
+      cache,
       // credentials: 'same-origin', // include, *same-origin, omit'
       // headers: defaultFetchInit.headers,
       // referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url

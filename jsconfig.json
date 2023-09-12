@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
     "jsx": "react",
-    "baseUrl": "./appserver/static/react_native/src/",
+    "baseUrl": "appserver/static/react_native/src/",
     "paths": {
-      "@/*": ["./appserver/static/react_native/src/*"],
+      "./*": ["appserver/static/react_native/src/*"],
+      "@/*": ["appserver/static/react_native/src/*"]
     }
   },
   "exclude": [

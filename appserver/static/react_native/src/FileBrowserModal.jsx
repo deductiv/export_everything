@@ -23,12 +23,23 @@ onFileAction
 setChonkyDefaults({ iconComponent: ChonkyIconFA })
 ChonkyActions.ToggleHiddenFiles.option.defaultValue = false
 
-export function FileBrowserModal (props) {
-  const location = `${c.configDescriptions[props.state.currentConfig]} / ${props.state.currentConfigAlias}`
+export function handleBrowse (changeState, configName, rowData, fileBrowserRef) {
+  handleShowFolderContents(
+    changeState,
+    configName,
+    rowData.alias,
+    (rowData.default_s3_bucket || rowData.default_container || rowData.share_name),
+    rowData.default_folder,
+    [],
+    []
+  )
+}
 
-  function handleFileAction (data) {
-    if (!data?.payload?.targetFile || !data.payload?.targetFile?.isDir) return
-    const newPrefix = `${data.payload.targetFile.id.replace(/\/*$/, '')}/`
+function handleFileAction ({ data, props }) {
+  if (!data?.payload?.targetFile || !data.payload?.targetFile?.isDir) return
+  const newPrefix = `${data.payload.targetFile.id.replace(/\/*$/, '')}/`
+  return (
+    // (changeState, configName, configAlias, containerName, folder, oldChain, oldFiles)
     handleShowFolderContents(
       props.changeState,
       props.state.currentConfig,
@@ -38,14 +49,18 @@ export function FileBrowserModal (props) {
       props.state.folderChain,
       props.state.fileList
     )
-  }
+  )
+}
+
+export const FileBrowserModal = React.forwardRef((props, ref) => {
+  const location = `${c.configDescriptions[props.state.currentConfig]} / ${props.state.currentConfigAlias}`
 
   return (
     <Modal
       // size='lg'
       id='ep_file_browser_modal'
       show={props.state.showFileBrowser}
-      onHide={props.onHide}
+      onHide={() => props.onHide()}
       dialogClassName='primaryModal'
       aria-labelledby='file_browser'
       centered
@@ -65,7 +80,7 @@ export function FileBrowserModal (props) {
           files={props.state.fileList}
           folderChain={props.state.folderChain}
           fillParentContainer
-          onFileAction={handleFileAction}
+          onFileAction={(data) => handleFileAction({ data, props })}
           defaultFileViewActionId={ChonkyActions.EnableListView.id}
           disableDragAndDrop
           disableDragAndDropProvider
@@ -85,9 +100,9 @@ export function FileBrowserModal (props) {
       </Modal.Body>
     </Modal>
   )
-}
+})
 
-function buildFolderChain (configName, configAlias, containerName, folder, oldChain, oldFiles) {
+function buildFolderChain (configName, containerName, folder, oldChain, oldFiles) {
   // Start with the root - /
   let chain = [{
     id: '/',
@@ -97,6 +112,7 @@ function buildFolderChain (configName, configAlias, containerName, folder, oldCh
 
   // If the query folder is blank, use the default container name in the chain
   // else, use what's in the folder setting only
+
   // containerName && console.log('Container Name = ' + containerName)
   // folder && console.log('Folder = ' + folder)
   // oldChain && console.log('oldChain = ' + JSON.stringify(oldChain))
@@ -122,7 +138,6 @@ function buildFolderChain (configName, configAlias, containerName, folder, oldCh
           // Must have been selected from the list shown
           // Get the object from the file list and append it to the folder chain
           for (const oldFile of oldFiles) {
-            console.log(folder + ' / ' + oldFile.id)
             if (oldFile.id === folder) {
               chain.push(oldFile)
               break
@@ -155,18 +170,18 @@ function buildFolderChain (configName, configAlias, containerName, folder, oldCh
   return chain
 }
 
+function listFiles (params) {
+  const url = 'servicesNS/-/export_everything/export_everything_dirlist'
+  return request(url, 'GET', params, null, 'default')
+}
+
 // Set the state data when adding a configuration item using the table view
 export function handleShowFolderContents (changeState, configName, configAlias, containerName, folder, oldChain, oldFiles) {
   return new Promise((resolve, reject) => {
     // Showing folder data
-    // const oldChain = [...this.state.folder_chain]
-    // const oldFiles = [...this.state.file_list]
     let fileList
     let folderChain
     containerName = (containerName == null || containerName.length === 0) ? '/' : containerName
-
-    console.log('Setting state from handleShowFolderContents')
-    const url = 'servicesNS/-/export_everything/export_everything_dirlist'
 
     changeState({
       loadingFileBrowser: true,
@@ -174,8 +189,8 @@ export function handleShowFolderContents (changeState, configName, configAlias, 
       currentConfig: configName,
       currentConfigAlias: configAlias,
       currentConfigContainer: containerName
-    })
-      .then(() => { folderChain = buildFolderChain(configName, configAlias, containerName, folder, oldChain, oldFiles) })
+    }, 'handleShowFolderContents')
+      .then(() => { folderChain = buildFolderChain(configName, containerName, folder, oldChain, oldFiles) })
       .then(() => {
         console.log('Querying REST endpoint for directory contents')
         const requestFolder = (folderChain[folderChain.length - 1].id + '/').replace('//', '/') ?? '/'
@@ -184,7 +199,7 @@ export function handleShowFolderContents (changeState, configName, configAlias, 
           alias: configAlias,
           folder: requestFolder
         }
-        return request(url, 'GET', params)
+        return listFiles(params)
       })
       .then((response) => {
         if (Array.isArray(response) && response.length > 0) {
@@ -224,19 +239,17 @@ export function handleShowFolderContents (changeState, configName, configAlias, 
               }
             }
           }
-          console.log('Setting state from handleShowFolderContents')
           changeState({
             fileList,
             folderChain,
             loadingFileBrowser: false
-          })
+          }, 'handleShowFolderContents')
           // console.log('File list = ' + JSON.stringify(fileList))
           resolve(fileList)
         }
       })
       .catch((err) => {
-        console.log('Setting state from handleShowFolderContents error')
-        changeState({ loadingFileBrowser: false, showFileBrowser: false })
+        changeState({ loadingFileBrowser: false, showFileBrowser: false }, 'handleShowFolderContents (error)')
         console.error(err.message)
         try {
           const errorMessage = JSON.parse(err.message)

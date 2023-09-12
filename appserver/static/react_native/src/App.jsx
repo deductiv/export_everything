@@ -4,7 +4,7 @@ import { FormControl, Select, InputLabel, MenuItem } from '@material-ui/core'
 import MaterialTable from '@material-table/core'
 // import { rootPath, username, app } from '@splunk/splunk-utils/config'
 // import { ThemeProvider, createTheme /* , makeStyles */ } from '@material-ui/core/styles'
-// import Chip from '@splunk/react-ui/Chip'
+// import Select from '@splunk/react-ui/Select'
 
 import tableStyles from './TableStyles'
 import { TabTemplate } from './TabTemplate'
@@ -13,12 +13,12 @@ import { getServerInfo, getConfigStanza, updateConfigItem } from './HelpersSplun
 import { handleTablesRefresh, handleRowAdd, handleRowUpdate, handleRowDelete } from './HelpersTable'
 import { getColumns } from './TableColumns'
 import { TabContents, TabDocs } from './TabContents'
-import { FileBrowserModal, handleShowFolderContents } from './FileBrowserModal'
+import { FileBrowserModal } from './FileBrowserModal'
 import c from './Constants'
 
 // Stylesheets
 import 'react-tabs/style/react-tabs.css'
-
+const DEBUG = process.env.NODE_ENV === 'development'
 // Material-UI v5 migration
 // const theme = createTheme()
 
@@ -59,12 +59,22 @@ class App extends React.Component {
   constructor (props) {
     super(props)
     this.columns = getColumns()
+    this.fileBrowserRef = React.createRef()
   }
 
   // Set state from child components/called functions
-  changeState = (newValue) => {
+  changeState = (newValue, callerFunction) => {
+    if (!callerFunction) {
+      // Get the caller function stack
+      const stack = new Error().stack.toString()
+      // Do a regex match to get the function name (with exclusions)
+      const matches = [...stack.matchAll(/at (?!changeState|commit[A-Z])((?:new )?[\w.]+)/g)]
+      // Put all of the groups (1) together into a cohesive string
+      callerFunction = matches.map(m => m[1]).reverse().join(' > ')
+    }
+    (DEBUG || this.state.ep_general?.log_level === 'DEBUG') && console.log(`Setting state from ${callerFunction}`)
     return new Promise((resolve, reject) => {
-      this.setState({ ...newValue }, () => { resolve() })
+      this.setState({ ...newValue }, () => { resolve(this.state) })
     })
   }
 
@@ -73,14 +83,14 @@ class App extends React.Component {
     // Check to see if we are running Splunk Cloud
     getServerInfo()
       .then((serverInfo) => {
-        this.setState({ isSplunkCloud: (serverInfo.instance_type === 'cloud') })
+        this.changeState({ isSplunkCloud: (serverInfo.instance_type === 'cloud') }, 'getServerInfo')
         const instanceType = serverInfo.instance_type ?? 'Splunk Enterprise'
-        console.log(`Instance type: ${instanceType}`)
+        DEBUG && console.log(`Instance type: ${instanceType}`)
       })
 
     getConfigStanza('ep_general', 'settings')
       .then((d) => {
-        this.setState({ ep_general: d })
+        this.changeState({ ep_general: d }, 'getConfigStanza')
       })
       .catch(err => console.log(err))
 
@@ -104,7 +114,7 @@ class App extends React.Component {
   }
 
   render () {
-    console.log('Rendering')
+    DEBUG && console.log('Rendering')
     this.refreshColumns()
 
     return (
@@ -143,8 +153,7 @@ class App extends React.Component {
                   onChange={(event) => {
                     updateConfigItem('ep_general', { stanza: 'settings', log_level: event.target.value })
                       .then(() => {
-                        console.log('Setting state from General Settings tab')
-                        this.setState({ ep_general: { log_level: event.target.value } })
+                        this.changeState({ ep_general: { log_level: event.target.value } }, 'General Settings tab')
                       })
                   }}
                 >
@@ -204,6 +213,7 @@ class App extends React.Component {
                 <TabTemplate
                   key={`tabcontents_${configName}`}
                   changeState={this.changeState}
+                  fileBrowserRef={this.fileBrowserRef}
                   state={this.state}
                   configName={configName}
                   configData={this.state[configName]}
@@ -212,7 +222,6 @@ class App extends React.Component {
                   onRowAdd={handleRowAdd}
                   onRowDelete={handleRowDelete}
                   onRefresh={this.handleTablesRefreshWrap}
-                  onBrowse={handleShowFolderContents}
                 />
               </TabPanel>
             )
@@ -224,17 +233,17 @@ class App extends React.Component {
         <Suspense fallback={<div style={{ width: '100%', margin: '25px auto', textAlign: 'center' }}>Loading Script...</div>}>
           {this.state.showFileBrowser && (
             <FileBrowserModal
+              ref={this.fileBrowserRef}
               changeState={this.changeState}
               state={this.state}
               id='file_browser'
               instanceId='ep'
               onHide={() => {
-                console.log('Setting state from FileBrowserModal')
-                this.setState({
+                this.changeState({
                   showFileBrowser: false,
                   fileList: [],
                   folderChain: []
-                })
+                }, 'FileBrowserModal')
               }}
             />
           )}

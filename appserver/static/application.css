@@ -126,19 +126,19 @@ font-family: "Roboto", "Helvetica", "Arial", sans-serif;
 }
 
 /* Set all editable cells to top-align */
-tr.MuiTableRow-root[mode="update"] {
+tr.MuiTableRow-root[mode="update"], tr.MuiTableRow-root[mode="add"] {
   vertical-align: top;
 }
 /* Pad the top of all top-aligned editable cells */
-tr.MuiTableRow-root[mode="update"] > td {
+tr.MuiTableRow-root[mode="update"] > td, tr.MuiTableRow-root[mode="add"] > td {
   padding-top: 5px;
 }
 /* Static text spacing on edit mode (non-editable fields) */
-tr.MuiTableRow-root[mode="update"] > td:has(> span) {
+tr.MuiTableRow-root[mode="update"] > td:has(> span), tr.MuiTableRow-root[mode="add"] > td:has(> span) {
   padding-top: 12px !important;
 }
 /* Action button upper spacing on edit mode */
-tr.MuiTableRow-root[mode="update"] > td > div:has(> button) {
+tr.MuiTableRow-root[mode="update"] > td > div:has(> button), tr.MuiTableRow-root[mode="add"] > td > div:has(> button) {
   padding-top: 6px !important;
   text-align: center;
 }
@@ -437,7 +437,10 @@ min-height: 60%;
 .modal-backdrop.fade {
 opacity: 0.8;
 }
-
+/* Font for chonky popup ("/" path separator, ## items) */
+.MuiTypography-body1 {
+  font-family: inherit !important;
+}
 .chonky-chonkyRoot {
 user-select: text !important;
 }

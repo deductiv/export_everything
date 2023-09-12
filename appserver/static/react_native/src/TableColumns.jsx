@@ -106,7 +106,7 @@ export function getColumns (
               id='credential'
               name='credential'
               style={{ width: '150px' }}
-              defaultValue={props.value ?? '[EC2 ARN]'}
+              value={props.value ?? '[EC2 ARN]'}
               onChange={e => { props.onChange(e.target.value) }}
             >
               <MenuItem value=''>None</MenuItem>
@@ -173,7 +173,7 @@ export function getColumns (
               id='credential'
               name='credential'
               style={{ width: '200px' }}
-              defaultValue={props.value === undefined ? '' : props.value}
+              value={props.value ?? ''}
               onChange={e => { props.onChange(e.target.value) }}
             >
               <MenuItem value=''>None</MenuItem>
@@ -205,7 +205,7 @@ export function getColumns (
               name='azure_ad_authority'
               disabled={!props.rowData.azure_ad}
               style={{ width: '80px' }}
-              defaultValue={props.value === undefined ? '' : props.value}
+              value={props.value ?? ''}
               onChange={e => { props.onChange(e.target.value) }}
             >
               <MenuItem key='' value=''>N/A</MenuItem>
@@ -227,7 +227,7 @@ export function getColumns (
               id='type'
               name='type'
               style={{ width: '80px' }}
-              defaultValue={props.value === undefined ? '' : props.value}
+              value={props.value ?? ''}
               onChange={e => { props.onChange(e.target.value) }}
             >
               {Object.entries(c.azureBlobTypes)
@@ -284,7 +284,7 @@ export function getColumns (
               id='client_credential'
               name='client_credential'
               style={{ width: '150px' }}
-              defaultValue={props.value}
+              value={props.value ?? ''}
               onChange={e => { props.onChange(e.target.value) }}
             >
               <MenuItem value=''>None</MenuItem>
@@ -317,7 +317,7 @@ export function getColumns (
             placeholder='Private Key'
             multiline
             minRows={1}
-            maxRax={4}
+            maxRows={4}
           />)
       },
       {
@@ -331,7 +331,7 @@ export function getColumns (
               id='passphrase_credential'
               name='passphrase_credential'
               style={{ width: '150px' }}
-              defaultValue={props.value}
+              value={props.value ?? ''}
               onChange={e => { props.onChange(e.target.value) }}
             >
               <MenuItem value=''>None</MenuItem>
@@ -396,7 +396,7 @@ export function getColumns (
               id='credential'
               name='credential'
               style={{ width: '150px' }}
-              defaultValue={props.value}
+              value={props.value ?? ''}
               onChange={e => { props.onChange(e.target.value) }}
             >
               <MenuItem value=''>None</MenuItem>
@@ -426,7 +426,7 @@ export function getColumns (
             placeholder='Private Key'
             multiline
             minRows={1}
-            maxRax={4}
+            maxRows={4}
           />)
       },
       {
@@ -441,7 +441,8 @@ export function getColumns (
               id='passphrase_credential'
               name='passphrase_credential'
               style={{ width: '150px' }}
-              defaultValue={props.value}
+              disabled={!props.rowData.private_key || props.rowData.private_key.length === 0}
+              value={props.value ?? ''}
               onChange={e => { props.onChange(e.target.value) }}
             >
               <MenuItem value=''>None</MenuItem>
@@ -499,7 +500,7 @@ export function getColumns (
               id='credential'
               name='credential'
               style={{ width: '150px' }}
-              defaultValue={props.value}
+              value={props.value ?? ''}
               onChange={e => { props.onChange(e.target.value) }}
             >
               <MenuItem value=''>None</MenuItem>
@@ -588,8 +589,6 @@ export function getColumns (
               name='owner'
               style={{ width: '150px' }}
               value={props.value ?? 'nobody'}
-              // inputProps={{ ref: credentialOwnerRef }}
-              // value= { !props.value ? 'nobody' : props.value }
               onChange={e => props.onChange(e.target.value)}
             >
               <MenuItem key='nobody' value='nobody'>nobody</MenuItem>

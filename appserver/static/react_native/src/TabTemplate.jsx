@@ -2,7 +2,7 @@ import React from 'react'
 import MaterialTable from '@material-table/core'
 import tableStyles from './TableStyles'
 import { TabContents, TabDocs } from './TabContents'
-
+import { handleBrowse } from './FileBrowserModal'
 /*
 
 Props list:
@@ -22,8 +22,6 @@ configData
 export function TabTemplate (props) {
   const configName = props.configName
   const tabContents = TabContents(configName)
-  // console.log(`${config} tabContents`, tabContents)
-  // console.log(`${config} props`, JSON.stringify(props))
   const browsable = tabContents.browsable ?? false
   const actionColumns = browsable ? 3 : 2
 
@@ -65,16 +63,11 @@ export function TabTemplate (props) {
                 icon: tableStyles.icons.Open,
                 tooltip: 'Browse',
                 onClick: (event, rowData) => {
-                  // FileBrowserModal.jsx/handleShowFolderContents
-                  props.onBrowse(
-                    props.changeState,
-                    configName,
-                    rowData.alias,
-                    rowData.share_name ||
-                      rowData.default_s3_bucket ||
-                      rowData.default_container,
-                    rowData.default_folder
-                  )
+                  // FileBrowserModal.jsx/handleBrowse
+                  props.changeState({
+                    loadingFileBrowser: true
+                  }, 'Row browse icon click handler')
+                  handleBrowse(props.changeState, props.configName, rowData, props.fileBrowserRef)
                 }
               },
               {
