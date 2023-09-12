@@ -2,10 +2,6 @@ import React, { Suspense } from 'react'
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs'
 import { FormControl, Select, InputLabel, MenuItem } from '@material-ui/core'
 import MaterialTable from '@material-table/core'
-// import { rootPath, username, app } from '@splunk/splunk-utils/config'
-// import { ThemeProvider, createTheme /* , makeStyles */ } from '@material-ui/core/styles'
-// import Select from '@splunk/react-ui/Select'
-
 import tableStyles from './TableStyles'
 import { TabTemplate } from './TabTemplate'
 import { LoadingOverlayAppConfig, LoadingOverlayFileBrowser } from './Overlays'
@@ -19,14 +15,6 @@ import c from './Constants'
 // Stylesheets
 import 'react-tabs/style/react-tabs.css'
 const DEBUG = process.env.NODE_ENV === 'development'
-// Material-UI v5 migration
-// const theme = createTheme()
-
-/* const useStyles = makeStyles((theme) => {
-  root: {
-    // some CSS that accesses the theme
-  }
-}) */
 
 // Load all default remote destination states based on constants
 const configStates = []
