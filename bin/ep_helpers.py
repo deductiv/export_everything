@@ -2,7 +2,7 @@
 
 # Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.3 (2023-08-11)
+# Version: 2.4.0 (2023-09-12)
 
 import random
 import sys
