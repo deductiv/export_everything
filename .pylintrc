@@ -1,0 +1,8 @@
+[MASTER]
+init-hook='import sys; sys.path.append(\"/Applications/Splunk/lib/python3.7/site-packages\")'
+
+[BASIC]
+good-names=
+    i,
+    e,
+    logger

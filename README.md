@@ -217,9 +217,9 @@ Export Splunk search results to SMB file shares.
 ```
 
 ___
-## Splunk HEC Export (ephec)
+## Splunk HEC Export (ephec)  
 
-Push Splunk search results to a Splunk HTTP Event Collector (HEC) listener.
+Stream Splunk search results to a Splunk HTTP Event Collector (HEC) or Cribl Stream HEC endpoint.  
 
 ### Capabilities  
 - configure_ep_hec_read  

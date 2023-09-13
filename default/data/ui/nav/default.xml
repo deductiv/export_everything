@@ -1,5 +1,5 @@
 <nav search_view="search" color="#426E86">
-  <view name="documentation" default='true' />
+  <view name="readme" default='true' />
   <view name="setup" />
   <saved name="Export Everything Logs" />
   <a href="mailto:contact@deductiv.net?subject=Export Everything Support" target="_blank">Support</a>

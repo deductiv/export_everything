@@ -28,7 +28,7 @@ config = get_conf_stanza('ep_general','settings')
 # Facility info - prepended to log lines
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
-logger = setup_logger(config["log_level"], 'export_everything.log', facility)
+logger = setup_logger(config["log_level"], 'export_everything_rest.log', facility)
 
 app = 'export_everything'
 

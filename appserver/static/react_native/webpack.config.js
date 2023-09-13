@@ -69,8 +69,8 @@ function create () {
     watch: true,
     output: {
       // globalObject: 'this',
-      path: path.join(__dirname, '../react'),
-      publicPath: `/static/app/${appName}/react/`,
+      path: path.join(__dirname, '../dist'),
+      publicPath: `/static/app/${appName}/dist/`,
       filename: (pathData) => {
         return ['main', 'react', 'react-dom'].includes(pathData.chunk.name)
           ? '[name].js'

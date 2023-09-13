@@ -1,0 +1,27 @@
+{
+    "python.analysis.extraPaths": [
+        "./lib",
+        "./bin/lib",
+        "/Applications/Splunk/lib/python3.7/site-packages"
+    ],
+    "pylint.args": [
+        "--indent-string='\t'",
+        "--init-hook='import sys; sys.path.append(\"/Applications/Splunk/lib/python3.7/site-packages\")'"
+    ],
+    "pylint.interpreter": ["/Applications/Splunk/bin/python3"],
+    "python.analysis.typeCheckingMode": "off",
+    "standard.enableGlobally": true,
+    "typescript.disableAutomaticTypeAcquisition": true,
+
+    // I want my default to be 4, but JavaScript/JSON to be 2
+    "editor.tabSize": 4,
+    "editor.insertSpaces": false,
+
+    "[javascript]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true
+    },
+    "[json]": {
+        "editor.tabSize": 2
+    }
+}
