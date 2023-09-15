@@ -18,8 +18,8 @@ require([
   "markdown-it-footnote",
 	"splunkjs/mvc/simplexml/ready!"
 ], function(
-	  _, //underscore
-    $  //jquery
+	  _, // underscore
+    $  // jquery
 ) {
 
   var md = require('markdown-it')()
@@ -38,9 +38,8 @@ require([
       var result = md.render(text);
       result = result.replace(xml_escapes_re, '&');
       $('#documentation').html(result);
-      console.log(result)
     });
   } catch (err) {
-    console.log(err);
+    console.error(err);
   }
 });

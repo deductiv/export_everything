@@ -1,15 +1,14 @@
 import React from 'react'
+import { createRoot } from 'react-dom/client'
 import App from './App'
 import { SnackbarProvider } from 'notistack'
 
-class main extends React.Component {
-  render () {
-    return (
-      <SnackbarProvider>
-        <App />
-      </SnackbarProvider>
-    )
-  }
-}
-
-export default main
+console.log('loading')
+const el = document.getElementById('root')
+const root = createRoot(el)
+root.render(
+  <SnackbarProvider>
+    <App />
+  </SnackbarProvider>
+)
+console.log('done')
