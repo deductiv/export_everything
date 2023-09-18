@@ -1,30 +1,30 @@
 # Export Everything App for Splunk
 # Handle directory listing requests for configured targets
 # Copyright 2023 Deductiv Inc.
-# Version: 2.2.2 (2023-03-15)
+# Version: 2.3.0 (2023-08-11)
 
 import sys
 import os
 import re
 import json
-from splunk.clilib import cli_common as cli
 import splunk.entity as en
 import splunk.rest
 
-# Add lib subfolders to import path
+# Add current directory to import path
 sys.path.append(os.path.dirname(os.path.abspath(__file__))) # Special for REST endpoints
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
-from deductiv_helpers import setup_logger
+from deductiv_helpers import setup_logger, get_conf_stanza, get_conf_file
 from ep_helpers import get_config_from_alias, \
 	get_aws_s3_directory, \
 	get_azure_blob_directory, \
 	get_box_directory, \
 	get_sftp_directory, \
 	get_smb_directory
+# Add lib directories to import path
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 import splunklib.client as client
 
-config = cli.getConfStanza('ep_general','settings')
+config = get_conf_stanza('ep_general','settings')
 # Facility info - prepended to log lines
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
@@ -42,6 +42,7 @@ def return_error(error_text):
 
 def get_directory_contents(config_file, config, query):
 	# Use config_file to decide which method to call
+	query['folder'] = query['folder'].replace('\\', '/')
 	try:
 		if config_file == 'ep_aws_s3':
 			return get_aws_s3_directory(config, query['folder'])
@@ -64,7 +65,6 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 		splunk.rest.BaseRestHandler.__init__(self, method, requestInfo, responseInfo, sessionKey)
 
 	# Handle a synchronous from splunkd.
-	#def handle(self, in_string):
 	def handle_GET(self):
 		"""
 		Called for a simple synchronous request.
@@ -97,11 +97,11 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 					}
 			
 			config = {
-				"general": cli.getConfStanza('ep_general','settings')
+				"general": get_conf_stanza('ep_general','settings')
 			}
 			configurations = ["ep_aws_s3", "ep_azure_blob", "ep_box", "ep_sftp", "ep_smb"]
 			for c in configurations:
-				config[c] = cli.getConfStanzas(c)
+				config[c] = get_conf_file(c)
 				for stanza in list(config[c].keys()):
 					for k, v in list(config[c][stanza].items()):
 						if 'credential' in k:
@@ -119,7 +119,6 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 
 		if "query" in list(self.request.keys()):
 			query = {}
-			#logger.debug('input query = ' + str(input['query']))
 			if isinstance(self.request['query'], list):
 				for i in self.request.query:
 					query[i[0]] = i[1]
@@ -150,7 +149,8 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 					else:
 						query['folder'] = ''
 					if 'default_folder' in list(datasource_config.keys()):
-						query['folder'] = (query['folder'] + '/' + datasource_config['default_folder']).replace('//', '/')
+						query['folder'] = (query['folder'] + '/' + datasource_config['default_folder'])
+						query['folder'] = query['folder'].replace('\\', '/').replace('//', '/').rstrip('/')
 				try:
 					payload = get_directory_contents(config_file, datasource_config, query)
 					logger.debug("Directory contents: ", str(payload))

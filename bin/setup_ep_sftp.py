@@ -3,14 +3,14 @@
 # Copyright 2023 Deductiv Inc.
 # REST endpoint for configuration
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.2 (2023-03-15)
+# Version: 2.3.0 (2023-08-11)
 
+from deductiv_helpers import get_conf_stanza
 import splunk.admin as admin
-from splunk.clilib import cli_common as cli
 from setup_ep import SetupApp
 import sys
 
-log_level = cli.getConfStanza('ep_general', 'settings')["log_level"]
+log_level = get_conf_stanza('ep_general', 'settings')["log_level"]
 options = ['stanza', 'default', 'alias', 
 	'host', 'port', 'default_folder',
 	'credential', 'private_key', 'passphrase_credential', 

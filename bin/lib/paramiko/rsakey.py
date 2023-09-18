@@ -14,20 +14,19 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
 """
 RSA keys.
 """
 
-from cryptography.exceptions import InvalidSignature
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 
 from paramiko.message import Message
 from paramiko.pkey import PKey
-from paramiko.py3compat import PY2
 from paramiko.ssh_exception import SSHException
 
 
@@ -36,6 +35,16 @@ class RSAKey(PKey):
     Representation of an RSA key which can be used to sign and verify SSH2
     data.
     """
+
+    name = "ssh-rsa"
+    HASHES = {
+        "ssh-rsa": hashes.SHA1,
+        "ssh-rsa-cert-v01@openssh.com": hashes.SHA1,
+        "rsa-sha2-256": hashes.SHA256,
+        "rsa-sha2-256-cert-v01@openssh.com": hashes.SHA256,
+        "rsa-sha2-512": hashes.SHA512,
+        "rsa-sha2-512-cert-v01@openssh.com": hashes.SHA512,
+    }
 
     def __init__(
         self,
@@ -61,12 +70,18 @@ class RSAKey(PKey):
         else:
             self._check_type_and_load_cert(
                 msg=msg,
-                key_type="ssh-rsa",
+                # NOTE: this does NOT change when using rsa2 signatures; it's
+                # purely about key loading, not exchange or verification
+                key_type=self.name,
                 cert_type="ssh-rsa-cert-v01@openssh.com",
             )
             self.key = rsa.RSAPublicNumbers(
                 e=msg.get_mpint(), n=msg.get_mpint()
             ).public_key(default_backend())
+
+    @classmethod
+    def identifiers(cls):
+        return list(cls.HASHES.keys())
 
     @property
     def size(self):
@@ -81,30 +96,22 @@ class RSAKey(PKey):
 
     def asbytes(self):
         m = Message()
-        m.add_string("ssh-rsa")
+        m.add_string(self.name)
         m.add_mpint(self.public_numbers.e)
         m.add_mpint(self.public_numbers.n)
         return m.asbytes()
 
     def __str__(self):
-        # NOTE: as per inane commentary in #853, this appears to be the least
-        # crummy way to get a representation that prints identical to Python
-        # 2's previous behavior, on both interpreters.
-        # TODO: replace with a nice clean fingerprint display or something
-        if PY2:
-            # Can't just return the .decode below for Py2 because stuff still
-            # tries stuffing it into ASCII for whatever godforsaken reason
-            return self.asbytes()
-        else:
-            return self.asbytes().decode("utf8", errors="ignore")
+        # NOTE: see #853 to explain some legacy behavior.
+        # TODO 4.0: replace with a nice clean fingerprint display or something
+        return self.asbytes().decode("utf8", errors="ignore")
 
-    def __hash__(self):
-        return hash(
-            (self.get_name(), self.public_numbers.e, self.public_numbers.n)
-        )
+    @property
+    def _fields(self):
+        return (self.get_name(), self.public_numbers.e, self.public_numbers.n)
 
     def get_name(self):
-        return "ssh-rsa"
+        return self.name
 
     def get_bits(self):
         return self.size
@@ -112,26 +119,40 @@ class RSAKey(PKey):
     def can_sign(self):
         return isinstance(self.key, rsa.RSAPrivateKey)
 
-    def sign_ssh_data(self, data):
+    def sign_ssh_data(self, data, algorithm=None):
+        if algorithm is None:
+            algorithm = self.name
         sig = self.key.sign(
-            data, padding=padding.PKCS1v15(), algorithm=hashes.SHA1()
+            data,
+            padding=padding.PKCS1v15(),
+            # HASHES being just a map from long identifier to either SHA1 or
+            # SHA256 - cert'ness is not truly relevant.
+            algorithm=self.HASHES[algorithm](),
         )
-
         m = Message()
-        m.add_string("ssh-rsa")
+        # And here again, cert'ness is irrelevant, so it is stripped out.
+        m.add_string(algorithm.replace("-cert-v01@openssh.com", ""))
         m.add_string(sig)
         return m
 
     def verify_ssh_sig(self, data, msg):
-        if msg.get_text() != "ssh-rsa":
+        sig_algorithm = msg.get_text()
+        if sig_algorithm not in self.HASHES:
             return False
         key = self.key
         if isinstance(key, rsa.RSAPrivateKey):
             key = key.public_key()
 
+        # NOTE: pad received signature with leading zeros, key.verify()
+        # expects a signature of key size (e.g. PuTTY doesn't pad)
+        sign = msg.get_binary()
+        diff = key.key_size - len(sign) * 8
+        if diff > 0:
+            sign = b"\x00" * ((diff + 7) // 8) + sign
+
         try:
             key.verify(
-                msg.get_binary(), data, padding.PKCS1v15(), hashes.SHA1()
+                sign, data, padding.PKCS1v15(), self.HASHES[sig_algorithm]()
             )
         except InvalidSignature:
             return False
@@ -186,7 +207,7 @@ class RSAKey(PKey):
                 key = serialization.load_der_private_key(
                     data, password=None, backend=default_backend()
                 )
-            except ValueError as e:
+            except (ValueError, TypeError, UnsupportedAlgorithm) as e:
                 raise SSHException(str(e))
         elif pkformat == self._PRIVATE_KEY_FORMAT_OPENSSH:
             n, e, d, iqmp, p, q = self._uint32_cstruct_unpack(data, "iiiiii")

@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
 """
 Variant on `KexGroup1 <paramiko.kex_group1.KexGroup1>` where the prime "p" and
@@ -26,9 +26,8 @@ import os
 from hashlib import sha1, sha256
 
 from paramiko import util
-from paramiko.common import DEBUG
+from paramiko.common import DEBUG, byte_chr, byte_ord, byte_mask
 from paramiko.message import Message
-from paramiko.py3compat import byte_chr, byte_ord, byte_mask
 from paramiko.ssh_exception import SSHException
 
 
@@ -49,7 +48,7 @@ from paramiko.ssh_exception import SSHException
 ) = [byte_chr(c) for c in range(30, 35)]
 
 
-class KexGex(object):
+class KexGex:
 
     name = "diffie-hellman-group-exchange-sha1"
     min_bits = 1024
@@ -112,7 +111,7 @@ class KexGex(object):
         qnorm = util.deflate_long(q, 0)
         qhbyte = byte_ord(qnorm[0])
         byte_count = len(qnorm)
-        qmask = 0xff
+        qmask = 0xFF
         while not (qhbyte & 0x80):
             qhbyte <<= 1
             qmask >>= 1
@@ -240,7 +239,9 @@ class KexGex(object):
         H = self.hash_algo(hm.asbytes()).digest()
         self.transport._set_K_H(K, H)
         # sign it
-        sig = self.transport.get_server_key().sign_ssh_data(H)
+        sig = self.transport.get_server_key().sign_ssh_data(
+            H, self.transport.host_key_type
+        )
         # send reply
         m = Message()
         m.add_byte(c_MSG_KEXDH_GEX_REPLY)

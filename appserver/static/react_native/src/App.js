@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.2 (2022-03-15)
+# Version: 2.3.0 (2023-08-11)
 */
  
 const app = 'export_everything';
@@ -138,7 +138,7 @@ const booleanize = (value) => {
 	}
 }
 
-const cell_format = { 
+const cell_styles = { 
 	wordBreak: 'break-all', 
 	padding: '0 3px'
 }
@@ -156,6 +156,11 @@ const center_table_header_styles = {
 	textAlign: 'center',
 	verticalAlign: 'bottom',
 	paddingBottom: '5px'
+}
+
+const center_table_cell_styles = {
+	textAlign: 'center',
+	paddingRight: '26px'
 }
 
 const azure_ad_authorities = {
@@ -177,7 +182,6 @@ const table_options = {
 	toolbar: true,
 	paging: false,
 	draggable: false,
-	headerStyle: {},
 	rowStyle: { 
 		padding: '0',
 		fontSize: '12px', 
@@ -186,7 +190,6 @@ const table_options = {
 	actionsColumnIndex: -1,
 	actionsCellStyle: {
 		padding: '0',
-		/*display:"flex", */
 		justifyContent: "center"}
 };
 
@@ -312,7 +315,8 @@ class App extends React.Component {
 		['ep_hec']: [ 
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "20%", 
 				validate: rowData => validators.string(rowData.alias).isValid }, 
 			{ title: "Hostname", field: "host", width: "25%", 
@@ -321,17 +325,20 @@ class App extends React.Component {
 				validate: rowData => (validators.number(rowData.port).isValid || rowData.port == null || rowData.port == "") },
 			{ title: "HEC Token", field: "token", width: "20%", 
 				validate: rowData => validators.uuid(rowData.token).isValid },
-			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles,
+			{ title: "SSL", field: "ssl", type: "boolean", width: "5%", initialEditValue: 1, 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles,
 				// Force SSL to true for Splunk Cloud
 				validate: rowData => (this.is_splunk_cloud ? validators.is_true(rowData.ssl) : validators.bool(rowData.ssl)) },
-			{ title: "Verify SSL", field: "ssl_verify", type: "boolean", width: "5%", initialEditValue: 1, headerStyle: center_table_header_styles,
+			{ title: "Verify SSL", field: "ssl_verify", type: "boolean", width: "5%", initialEditValue: 1,
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles,
 				// Force Verify SSL to true for Splunk Cloud
 				validate: rowData => (this.is_splunk_cloud ? validators.is_true(rowData.ssl_verify) : validators.bool(rowData.ssl_verify)) },
 		],
 		['ep_aws_s3']: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "12%", 
 				validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Access Key", field: "credential", width: "15%", 
@@ -356,12 +363,14 @@ class App extends React.Component {
 				validate: rowData => validators.string(rowData.region).isValid }, 
 			{ title: "Endpoint URL\n(Blank for AWS S3)", field: "endpoint_url", width: "12%" },
 			{ title: "Default Bucket ID", field: "default_s3_bucket", width: "12%" },
-			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles }
 		],
 		['ep_azure_blob']: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "15%", 
 				validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Storage Account Name", field: "storage_account", width: "25%", 
@@ -383,7 +392,8 @@ class App extends React.Component {
 				</Select> 
 				</FormControl>
 			},
-			{ title: "Azure AD", field: "azure_ad", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Azure AD", field: "azure_ad", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Azure AD Authority", field: "azure_ad_authority", width: "15%", 
 				render: rowData => <span>{ azure_ad_authorities[rowData.azure_ad_authority] }</span>,
 				editComponent: props =>
@@ -421,12 +431,14 @@ class App extends React.Component {
 					</FormControl>
 			},
 			{ title: "Default Container", field: "default_container", width: "20%" }, 
-			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles }
 		],
 		['ep_box']: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "14%", 
 				validate: rowData => validators.string(rowData.alias).isValid }, 
 			{ title: "Enterprise ID", field: "enterprise_id", width: "10%", 
@@ -481,12 +493,14 @@ class App extends React.Component {
 				</FormControl>
 			},
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
-			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles }
 		],
 		['ep_sftp']: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "14%", 
 				validate: rowData => validators.string(rowData.alias).isValid }, 
 			{ title: "Hostname", field: "host", width: "35%", 
@@ -546,12 +560,14 @@ class App extends React.Component {
 				</FormControl>
 			},
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
-			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%",
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles }
 		],
 		['ep_smb']: [
 			{ title: "Stanza", field: "stanza", hidden: true },
 			// actions = 10%
-			{ title: "Default", field: "default", type: "boolean", width: "5%", headerStyle: center_table_header_styles },
+			{ title: "Default", field: "default", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles },
 			{ title: "Name/Alias", field: "alias", width: "14%", 
 				validate: rowData => validators.string(rowData.alias) }, 
 			{ title: "Hostname", field: "host", width: "35%", 
@@ -576,7 +592,8 @@ class App extends React.Component {
 			{ title: "Share Name", field: "share_name", width: "15%", 
 				validate: rowData => validators.string(rowData.share_name).isValid },
 			{ title: "Default Folder", field: "default_folder", width: "20%" }, 
-			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", headerStyle: center_table_header_styles }
+			{ title: "Compress Output", field: "compress", type: "boolean", width: "5%", 
+				headerStyle: center_table_header_styles, cellStyle: center_table_cell_styles }
 		],
 		passwords: [
 			// actions = 10%
@@ -1045,7 +1062,6 @@ class App extends React.Component {
 					JSON.stringify(oldcred.write) !== JSON.stringify(newacl.write)) {
 					
 					// Update the ACL
-					console.log("Updating ACL for " + JSON.stringify(oldcred));
 					this.update_credential_acl(
 						item.stanza,
 						item.realm,
@@ -1255,7 +1271,8 @@ class App extends React.Component {
 						} else {
 							console.log("Using folder argument as path");
 							// Treat the folder argument like a path
-							for (let f of folder.replace(/^\/+|\/+$/, "").split('/')) {
+							// Strip / from beginning and end
+							for (let f of folder.replace(/^\/+|\/+$/, '').replace(/\\+/g, '/').replace(/\/+/g, '/').split('/')) {
 								if ( f.length > 0 ) {
 									chain_path = chain_path + '/' + f;
 									chain.push({

@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
 
 from binascii import hexlify
@@ -28,7 +28,6 @@ from paramiko import util
 from paramiko.channel import Channel
 from paramiko.message import Message
 from paramiko.common import INFO, DEBUG, o777
-from paramiko.py3compat import b, u, long
 from paramiko.sftp import (
     BaseSFTP,
     CMD_OPENDIR,
@@ -61,12 +60,13 @@ from paramiko.sftp import (
     SFTP_EOF,
     SFTP_NO_SUCH_FILE,
     SFTP_PERMISSION_DENIED,
+    int64,
 )
 
 from paramiko.sftp_attr import SFTPAttributes
 from paramiko.ssh_exception import SSHException
 from paramiko.sftp_file import SFTPFile
-from paramiko.util import ClosingContextManager
+from paramiko.util import ClosingContextManager, b, u
 
 
 def _to_unicode(s):
@@ -179,7 +179,7 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
             # escape '%' in msg (they could come from file or directory names)
             # before logging
             msg = msg.replace("%", "%%")
-            super(SFTPClient, self)._log(
+            super()._log(
                 level,
                 "[chan %s] " + msg,
                 *([self.sock.get_name()] + list(args))
@@ -344,13 +344,13 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         ``O_EXCL`` flag in posix.
 
         The file will be buffered in standard Python style by default, but
-        can be altered with the ``bufsize`` parameter.  ``0`` turns off
+        can be altered with the ``bufsize`` parameter.  ``<=0`` turns off
         buffering, ``1`` uses line buffering, and any number greater than 1
         (``>1``) uses that specific buffer size.
 
         :param str filename: name of the file to open
         :param str mode: mode (Python-style) to open in
-        :param int bufsize: desired buffering (-1 = default buffer size)
+        :param int bufsize: desired buffering (default: ``-1``)
         :return: an `.SFTPFile` object representing the open file
 
         :raises: ``IOError`` -- if the file could not be opened.
@@ -758,7 +758,14 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         with open(localpath, "rb") as fl:
             return self.putfo(fl, remotepath, file_size, callback, confirm)
 
-    def getfo(self, remotepath, fl, callback=None):
+    def getfo(
+        self,
+        remotepath,
+        fl,
+        callback=None,
+        prefetch=True,
+        max_concurrent_prefetch_requests=None,
+    ):
         """
         Copy a remote file (``remotepath``) from the SFTP server and write to
         an open file or file-like object, ``fl``.  Any exception raised by
@@ -771,18 +778,36 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         :param callable callback:
             optional callback function (form: ``func(int, int)``) that accepts
             the bytes transferred so far and the total bytes to be transferred
+        :param bool prefetch:
+            controls whether prefetching is performed (default: True)
+        :param int max_concurrent_prefetch_requests:
+            The maximum number of concurrent read requests to prefetch. See
+            `.SFTPClient.get` (its ``max_concurrent_prefetch_requests`` param)
+            for details.
         :return: the `number <int>` of bytes written to the opened file object
 
         .. versionadded:: 1.10
+        .. versionchanged:: 2.8
+            Added the ``prefetch`` keyword argument.
+        .. versionchanged:: 3.3
+            Added ``max_concurrent_prefetch_requests``.
         """
         file_size = self.stat(remotepath).st_size
         with self.open(remotepath, "rb") as fr:
-            fr.prefetch(file_size)
+            if prefetch:
+                fr.prefetch(file_size, max_concurrent_prefetch_requests)
             return self._transfer_with_callback(
                 reader=fr, writer=fl, file_size=file_size, callback=callback
             )
 
-    def get(self, remotepath, localpath, callback=None):
+    def get(
+        self,
+        remotepath,
+        localpath,
+        callback=None,
+        prefetch=True,
+        max_concurrent_prefetch_requests=None,
+    ):
         """
         Copy a remote file (``remotepath``) from the SFTP server to the local
         host as ``localpath``.  Any exception raised by operations will be
@@ -793,13 +818,32 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         :param callable callback:
             optional callback function (form: ``func(int, int)``) that accepts
             the bytes transferred so far and the total bytes to be transferred
+        :param bool prefetch:
+            controls whether prefetching is performed (default: True)
+        :param int max_concurrent_prefetch_requests:
+            The maximum number of concurrent read requests to prefetch.
+            When this is ``None`` (the default), do not limit the number of
+            concurrent prefetch requests. Note: OpenSSH's sftp internally
+            imposes a limit of 64 concurrent requests, while Paramiko imposes
+            no limit by default; consider setting a limit if a file can be
+            successfully received with sftp but hangs with Paramiko.
 
         .. versionadded:: 1.4
         .. versionchanged:: 1.7.4
             Added the ``callback`` param
+        .. versionchanged:: 2.8
+            Added the ``prefetch`` keyword argument.
+        .. versionchanged:: 3.3
+            Added ``max_concurrent_prefetch_requests``.
         """
         with open(localpath, "wb") as fl:
-            size = self.getfo(remotepath, fl, callback)
+            size = self.getfo(
+                remotepath,
+                fl,
+                callback,
+                prefetch,
+                max_concurrent_prefetch_requests,
+            )
         s = os.stat(localpath)
         if s.st_size != size:
             raise IOError(
@@ -808,18 +852,18 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
 
     # ...internals...
 
-    def _request(self, t, *arg):
-        num = self._async_request(type(None), t, *arg)
+    def _request(self, t, *args):
+        num = self._async_request(type(None), t, *args)
         return self._read_response(num)
 
-    def _async_request(self, fileobj, t, *arg):
+    def _async_request(self, fileobj, t, *args):
         # this method may be called from other threads (prefetch)
         self._lock.acquire()
         try:
             msg = Message()
             msg.add_int(self.request_number)
-            for item in arg:
-                if isinstance(item, long):
+            for item in args:
+                if isinstance(item, int64):
                     msg.add_int64(item)
                 elif isinstance(item, int):
                     msg.add_int(item)

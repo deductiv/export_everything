@@ -2,7 +2,7 @@
 
 # Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.2 (2023-03-15)
+# Version: 2.2.3 (2023-08-11)
 
 import random
 import sys
@@ -14,25 +14,56 @@ import stat
 import io
 from datetime import datetime
 
-from deductiv_helpers import setup_logger, str2bool, decrypt_with_secret, merge_two_dicts
-from splunk.clilib import cli_common as cli
+from deductiv_helpers import setup_logger, \
+	str2bool, \
+	decrypt_with_secret, \
+	merge_two_dicts, \
+	get_conf_stanza
 import splunk.entity as en
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 # Resolve conflicts with old Splunk libs
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib'))
 import splunklib.client as client
+try:
+	# AWS S3
+	import boto3
+	from botocore.client import ClientError
+	from botocore.config import Config
+	# These won't import on indexers
+	# SMB
+	from smb.SMBConnection import SMBConnection
+except:
+	pass
 
 os_platform = platform.system()
 py_major_ver = sys.version_info[0]
 # Import the correct version of platform-specific libraries
+path_prepend = ""
 if os_platform == 'Linux':
 	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_linux_x86_64')
-elif os_platform == 'Darwin': # Does not work with Splunk Python build. It requires code signing for libs.
-	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_darwin_x86_64')
 elif os_platform == 'Windows':
 	path_prepend = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib', 'py3_win_amd64')
-sys.path.append(path_prepend)
+
+if path_prepend != "":
+	sys.path.append(path_prepend)
+	try:
+		# These won't import on indexers
+		# Microsoft Azure
+		from azure.storage.filedatalake import DataLakeServiceClient
+		from azure.identity import ClientSecretCredential, AzureAuthorityHosts
+		from azure.storage.filedatalake import DataLakeServiceClient
+		from azure.storage.filedatalake import PathProperties
+		from azure.storage.blob import BlobServiceClient
+		from azure.storage.blob import BlobPrefix
+		# Box Cloud
+		from boxsdk import JWTAuth, Client, BoxAPIException
+		# SFTP
+		import paramiko
+		import pysftp
+	except:
+		pass
+
 
 app = 'export_everything'
 
@@ -43,7 +74,7 @@ proxy_exceptions = os.environ.get('NO_PROXY')
 
 random_number = str(random.randint(10000, 100000))
 
-config = cli.getConfStanza('ep_general','settings')
+config = get_conf_stanza('ep_general','settings')
 # Facility info - prepended to log lines
 facility = os.path.basename(__file__)
 facility = os.path.splitext(facility)[0]
@@ -105,7 +136,6 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias=None, log=
 					del config_data[guid][setting]
 				# Add the username/password/realm values to the credential
 				if 'credential' in setting:
-					#logger.debug("Found credential setting in stanza: %s/%s" % (guid, setting))
 					if setting_value in list(credentials.keys()):
 						for s in ['username', 'password', 'realm']:
 							if s in list(credentials[setting_value].keys()) and credentials[setting_value][s] is not None:
@@ -146,8 +176,6 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias=None, log=
 		raise Exception("Unable to find target configuration: " + repr(e))
 	
 def upload_azureblob_file(azure_client, container, local_file, full_remote_path, append_file):
-	from azure.storage.filedatalake import DataLakeServiceClient
-	from azure.storage.blob import BlobServiceClient
 	
 	# Split out the file path from the file name
 	remote_file_parts = full_remote_path.strip('/').replace('//', '/').split('/')
@@ -157,7 +185,6 @@ def upload_azureblob_file(azure_client, container, local_file, full_remote_path,
 		remote_prefix = '/'.join(remote_file_parts)
 	else:
 		remote_prefix = ''
-	#full_remote_path = full_remote_path.strip('/').replace('//', '/')
 
 	if isinstance(azure_client, DataLakeServiceClient):
 		# Connect to the file system
@@ -210,14 +237,12 @@ def upload_azureblob_file(azure_client, container, local_file, full_remote_path,
 			logger.debug(f'action=append_file, container={container}, folder="{remote_prefix}", file="{remote_filename}"')
 			# Upload content to append blob
 			with open(local_file, "rb") as data:
-				#blob_client.upload_blob(data, blob_type="AppendBlob")
 				container_client.upload_blob(name=full_remote_path, data=data, blob_type="AppendBlob", overwrite=False)
 			logger.debug(f'Exported events to Azure Blob. status=success, container={container}, folder="{remote_prefix}", file="{remote_filename}"')
 		else:
 			logger.debug(f'action=upload_file, container={container}, folder="{remote_prefix}", file="{remote_filename}"')
 			# Upload content to block blob
 			with open(local_file, "rb") as data:
-				#blob_client.upload_blob(data, blob_type="BlockBlob")
 				container_client.upload_blob(name=full_remote_path, data=data, blob_type="BlockBlob", overwrite=True)
 			logger.debug(f'Exported events to Azure Blob. status=success, container={container}, folder="{remote_prefix}", file="{remote_filename}"')
 	
@@ -225,17 +250,6 @@ def upload_azureblob_file(azure_client, container, local_file, full_remote_path,
 
 # Build the client object for Data Lake or Azure Blob
 def get_azureblob_client(blob_config): #, container_name):
-	global BlobServiceClient
-	global DataLakeServiceClient
-	global BlobPrefix
-	global BlobProperties
-	global FileSystemProperties
-	from azure.identity import ClientSecretCredential, AzureAuthorityHosts
-	from azure.storage.filedatalake import DataLakeServiceClient
-	from azure.storage.blob import BlobServiceClient
-	from azure.storage.blob import BlobPrefix
-	from azure.storage.blob import BlobProperties
-	from azure.storage.filedatalake import FileSystemProperties
 
 	# Do we need to get a credential for Azure AD?
 	if "azure_ad" in list(blob_config.keys()) and str2bool(blob_config["azure_ad"]):
@@ -280,7 +294,6 @@ def get_azureblob_client(blob_config): #, container_name):
 			return BlobServiceClient.from_connection_string(connection_string)
 
 def chonkyize_azure_blob(blob):
-	from azure.storage.filedatalake import PathProperties
 
 	if isinstance(blob, BlobPrefix):
 		# Blob folder
@@ -362,7 +375,6 @@ def get_azure_blob_directory(blob_config, container_folder_path):
 			logger.debug("Dict = " + str(azure_client.__dict__))
 		logger.debug("Container list: " + str(container_list))
 		for c in container_list:
-			#logger.debug("Container=" + str(c))
 			timestamp = c.last_modified
 			timestamp = round(timestamp.timestamp(), 0) if timestamp is not None else None
 			file_list.append( {
@@ -374,10 +386,6 @@ def get_azure_blob_directory(blob_config, container_folder_path):
 	return file_list
 
 def get_aws_connection(aws_config, log=True):
-	global boto3, Config
-	import boto3
-	from botocore.client import ClientError
-	from botocore.config import Config
 	
 	# Apply proxy settings to AWS config
 	proxy_definitions = {
@@ -454,7 +462,6 @@ def get_aws_connection(aws_config, log=True):
 
 def s3_folder_contents(client, bucket, prefix):
 	# Can't use list_objects_v2 - no owner returned
-	#logger.debug("Folder contents")
 	paginator = client.get_paginator('list_objects')
 	if len(prefix) > 0:
 		prefix = (prefix + '/').replace('//', '/')
@@ -462,7 +469,7 @@ def s3_folder_contents(client, bucket, prefix):
 		# Submit a separate request for each folder to get its attributes. 
 		# head_object doesn't work here, not specific enough.
 		for cp in result.get('CommonPrefixes', []):
-			content = { 
+			content = {
 				"Key": cp.get('Prefix'), 
 				"Size": 0,
 				"Owner": None,
@@ -473,14 +480,12 @@ def s3_folder_contents(client, bucket, prefix):
 			yield content
 
 		for content in result.get('Contents', []):
-			logger.debug(f"content = {content}")
 			content = yield_s3_object(content)
 			content["id"] = ('/' + bucket + '/' + content["id"]).replace('//', '/')
 			# We already retrieved the folders in the for-loop above.
-			#logger.debug(content["id"][-1])
 			if not content["isDir"] and not content["id"][-1] == '/':
 				yield content
-		
+	
 def yield_s3_object(content, is_directory=False):
 	timestamp = content.get('LastModified')
 	timestamp = timestamp.timestamp() if timestamp is not None else None
@@ -499,7 +504,7 @@ def yield_s3_object(content, is_directory=False):
 
 def get_aws_s3_directory(aws_config, bucket_folder_path):
 
-	logger.debug("Bucket folder path = " + bucket_folder_path)
+	logger.debug("Bucket folder path = %s", bucket_folder_path)
 	folder_path = bucket_folder_path.strip('/').split('/')
 	bucket_name = folder_path[0]
 	if bucket_name is None or len(bucket_name) == 0:
@@ -511,12 +516,12 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 		folder_prefix = '/'.join(folder_path[1:]).strip('/')
 	else:
 		folder_prefix = '/'
-	logger.debug("Folder Prefix = " + folder_prefix)
+	logger.debug("Folder Prefix = %s", folder_prefix)
 
 	try:
 		conn = get_aws_connection(aws_config)
 	except BaseException as e:
-		raise Exception("Could not connect to AWS: " + repr(e))
+		raise Exception("Could not connect to AWS: " + repr(e)) from e
 
 	file_list = []
 	if len(bucket_name) > 0:
@@ -542,9 +547,6 @@ def get_aws_s3_directory(aws_config, bucket_folder_path):
 	return file_list
 
 def get_sftp_connection(target_config):
-	import paramiko
-	global pysftp
-	import pysftp
 	
 	# Check to see if we have credentials
 	valid_settings = []
@@ -553,7 +555,6 @@ def get_sftp_connection(target_config):
 			if target_config[l].startswith('$'):
 				target_config[l] = decrypt_with_secret(target_config[l]).strip()
 			if len(target_config[l]) > 0:
-				#logger.debug("l.strip() = [" + target_config[l].strip() + "]")
 				valid_settings.append(l) 
 	if 'host' in valid_settings and 'port' in valid_settings:
 		# A target has been configured. Check for credentials.
@@ -639,14 +640,13 @@ def yield_sftp_object(content, folder_path):
 		return None
 
 def get_smb_directory(smb_config, folder_path = '/'):
-	global SMBConnection
-	from smb.SMBConnection import SMBConnection
 	
 	# Get the local client hostname
 	client_name = socket.gethostname()
 	# Delete any domain from the client hostname string
 	if '.' in client_name:
 		client_name = client_name[0:client_name.index('.')]
+	folder_path = folder_path.replace('\\', '/').replace('//', '/').rstrip('/')
 
 	valid_settings = []
 	for setting, value in list(smb_config.items()):
@@ -665,30 +665,10 @@ def get_smb_directory(smb_config, folder_path = '/'):
 					conn = SMBConnection(smb_config['credential_username'], smb_config['credential_password'], client_name, 
 						smb_config['host'], domain=domain, use_ntlm_v2=True, 
 						sign_options = SMBConnection.SIGN_WHEN_SUPPORTED, is_direct_tcp=True) 
-					connected = conn.connect(smb_config['host'], 445, timeout=5)
+					conn.connect(smb_config['host'], 445, timeout=5)
 					
 					if not smb_config['share_name'].endswith('$') and smb_config['share_name'] not in (s.name for s in conn.listShares(timeout=10)):
 						raise Exception("Unable to find the specified share name on the server")
-						
-					# Omitting this code because Splunk prohibits UDP socket functionality in appinspect
-					# Port 139 connection is dependent on NBNS protocol
-					'''
-					try:
-						# Try port 139 if that didn't work
-						conn = SMBConnection(target_config['credential_username'], target_config['credential_password'], client_name, 
-						target_config['host'], domain=domain, use_ntlm_v2=True,
-						sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
-						connected = conn.connect(target_config['host'], 139, timeout=5)
-					except BaseException as e139:
-						p139_error = repr(e139)
-						raise Exception("Errors connecting to host: \\nPort 139: %s\\nPort 445: %s" % (p139_error, p445_error))
-
-					conn = SMBConnection(smb_config['credential_username'], smb_config['credential_password'], client_name, 
-						smb_config['host'], domain=domain, use_ntlm_v2=True,
-						sign_options = SMBConnection.SIGN_WHEN_SUPPORTED) 
-					conn.connect(smb_config['host'], 139)
-
-					'''
 				
 				except BaseException as e445:
 					raise Exception("Could not connect to server on port 445: %s" % repr(e445))
@@ -710,7 +690,7 @@ def get_smb_directory(smb_config, folder_path = '/'):
 		raise Exception(repr(e))
 
 def yield_smb_object(content, folder_path):
-	folder_path = folder_path.rstrip('/').rstrip('\\')
+	folder_path = folder_path.replace('\\', '/').rstrip('/')
 	if content.filename not in [u'.', u'..']:
 		return {
 			"id": folder_path + '/' + content.filename,
@@ -725,7 +705,7 @@ def yield_smb_object(content, folder_path):
 		return None
 
 def get_box_connection(target_config):
-	from boxsdk import JWTAuth, Client, BoxAPIException
+
 	# Check to see if we have credentials
 	valid_settings = []
 	
@@ -780,7 +760,6 @@ def get_box_connection(target_config):
 		raise Exception("Could not find required configuration settings")
 
 def get_box_directory(target_config, folder_path):
-	from boxsdk import BoxAPIException
 	
 	# Let the exception pass through
 	client = get_box_connection(target_config)
@@ -810,7 +789,6 @@ def get_box_directory(target_config, folder_path):
 					# folder object is from the previous iteration
 					for item in folder_contents:
 						if item.type == 'folder':
-							#logger.debug('{0} {1} is named "{2}"'.format(item.type.capitalize(), item.id, item.name))
 							if subfolder_name == item.name:
 								logger.debug("Found a target folder ID: %s" % str(item.id))
 								box_folder_object = client.folder(folder_id=item.id)
@@ -818,31 +796,17 @@ def get_box_directory(target_config, folder_path):
 		
 		fields = ["id", "name", "owner", "content_modified_at", "item_collection", "owner", "size", "parent", "status"]
 		folder_data = box_folder_object.get_items(fields=fields)
-		#logger.debug(folder_data.__dict__)
 		file_list = []
-		#if hasattr(folder_data.item_collection, "item_collection"):
-		#	if hasattr(folder_data.item_collection, "entries"):
-		#		logger.debug("Has entries")
 		for item in folder_data:
-			#logger.debug(item.name)
-			#if item.type == 'file':
-				#logger.debug(item.status)
 			try:
-				#if item.item_status == "active":
 				entry = {
-					#"box_id": item.id,
 					"id": ('/' + '/'.join(subfolders) + '/' + item.name).replace('//', '/'),
-					#"id": item.id,
 					"name": item.name
-					#"parentId": ('/' + '/'.join(subfolders)).replace('//', '/')
 				}
 				if item.type == 'folder':
 					entry["isDir"] = True
-					#f = client.folder(item.id).get()
 				else:
 					entry["isDir"] = False
-					#f = client.file(item.id).get()
-				#entry["link"] = f.url
 				if hasattr(item, "owned_by"):
 					entry["owner"] = item.owned_by.login
 				entry_ts = item.content_modified_at
@@ -853,9 +817,6 @@ def get_box_directory(target_config, folder_path):
 				if hasattr(item, "parent"):
 					if hasattr(item.parent, "id"):
 						entry["parentId"] = item.parent.id
-				# Folder -or- active file
-				#if not hasattr(item, "status") or (hasattr(item, "status") and item.status == "active"):
-				#logger.debug(entry)
 				file_list.append(entry)
 
 			except BaseException as e:

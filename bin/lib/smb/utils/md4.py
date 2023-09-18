@@ -23,19 +23,6 @@
 #
 #====================================================================
 
-# MD4 validation data
-
-md4_test= [
-      ('', 0x31d6cfe0d16ae931b73c59d7e0c089c0),
-      ("a",   0xbde52cb31de33e46245e05fbdbd6fb24),
-      ("abc",   0xa448017aaf21d8525fc10ae87aa6729d),
-      ("message digest",   0xd9130a8164549fe818874806e1c7014b),
-      ("abcdefghijklmnopqrstuvwxyz",   0xd79e1c308aa5bbcdeea8ed63df412da9),
-      ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-       0x043f8582f241db351ce627e153e7f0e4),
-      ("12345678901234567890123456789012345678901234567890123456789012345678901234567890",
-      0xe33b4ddc9c38f2199c3e7b164fcc0536),
-     ]
 
 #====================================================================
 from .U32 import U32
@@ -200,7 +187,7 @@ class MD4:
         if (56 <= int(self.count)): padlen = U32(56 - int(self.count) + 64)
         else: padlen = U32(56 - int(self.count))
 
-        temp.update(int_array2str(padding[:int(padlen)]))
+        temp.update(bytes(padding[:int(padlen)]))
 
         s[0]= (oldlen1)        & U32(0xFF)
         s[1]=((oldlen1) >>  8) & U32(0xFF)
@@ -210,7 +197,7 @@ class MD4:
         s[5]=((oldlen2) >>  8) & U32(0xFF)
         s[6]=((oldlen2) >> 16) & U32(0xFF)
         s[7]=((oldlen2) >> 24) & U32(0xFF)
-        temp.update(int_array2str(s))
+        temp.update(bytes(s))
 
         res[ 0]= temp.A        & U32(0xFF)
         res[ 1]=(temp.A >>  8) & U32(0xFF)
@@ -229,7 +216,7 @@ class MD4:
         res[14]=(temp.D >> 16) & U32(0xFF)
         res[15]=(temp.D >> 24) & U32(0xFF)
 
-        return int_array2str(res).encode('UTF-16LE')
+        return bytes(res)
 
 #====================================================================
 # helpers
@@ -242,14 +229,6 @@ def ROL(x, n): return (((x) << n) | ((x) >> (32-n)))
 def f1(a, b, c, d, k, s, X): return ROL(a + F(b, c, d) + X[k], s)
 def f2(a, b, c, d, k, s, X): return ROL(a + G(b, c, d) + X[k] + U32(0x5a827999), s)
 def f3(a, b, c, d, k, s, X): return ROL(a + H(b, c, d) + X[k] + U32(0x6ed9eba1), s)
-
-#--------------------------------------------------------------------
-# helper function
-def int_array2str(array):
-        str = ''
-        for i in array:
-            str = str + chr(i)
-        return str
 
 #--------------------------------------------------------------------
 # To be able to use md4.new() instead of md4.MD4()

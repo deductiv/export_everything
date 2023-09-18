@@ -16,7 +16,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
 
 """
@@ -107,7 +107,7 @@ def GSSAuth(auth_method, gss_deleg_creds=True):
         raise ImportError("Unable to import a GSS-API / SSPI module!")
 
 
-class _SSH_GSSAuth(object):
+class _SSH_GSSAuth:
     """
     Contains the shared variables and methods of `._SSH_GSSAPI_OLD`,
     `._SSH_GSSAPI_NEW` and `._SSH_SSPI`.

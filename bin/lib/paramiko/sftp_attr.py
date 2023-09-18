@@ -14,18 +14,17 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Paramiko; if not, write to the Free Software Foundation, Inc.,
-# 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301 USA.
 
 import stat
 import time
 from paramiko.common import x80000000, o700, o70, xffffffff
-from paramiko.py3compat import long, b
 
 
-class SFTPAttributes(object):
+class SFTPAttributes:
     """
     Representation of the attributes of a file (or proxied file) for SFTP in
-    client or server mode.  It attemps to mirror the object returned by
+    client or server mode.  It attempts to mirror the object returned by
     `os.stat` as closely as possible, so it may have the following fields,
     with the same meanings as those returned by an `os.stat` object:
 
@@ -134,8 +133,8 @@ class SFTPAttributes(object):
             msg.add_int(self.st_mode)
         if self._flags & self.FLAG_AMTIME:
             # throw away any fractional seconds
-            msg.add_int(long(self.st_atime))
-            msg.add_int(long(self.st_mtime))
+            msg.add_int(int(self.st_atime))
+            msg.add_int(int(self.st_mtime))
         if self._flags & self.FLAG_EXTENDED:
             msg.add_int(len(self.attr))
             for key, val in self.attr.items():
@@ -205,15 +204,12 @@ class SFTPAttributes(object):
             # shouldn't really happen
             datestr = "(unknown date)"
         else:
-            if abs(time.time() - self.st_mtime) > 15552000:
-                # (15552000 = 6 months)
-                datestr = time.strftime(
-                    "%d %b %Y", time.localtime(self.st_mtime)
-                )
+            time_tuple = time.localtime(self.st_mtime)
+            if abs(time.time() - self.st_mtime) > 15_552_000:
+                # (15,552,000s = 6 months)
+                datestr = time.strftime("%d %b %Y", time_tuple)
             else:
-                datestr = time.strftime(
-                    "%d %b %H:%M", time.localtime(self.st_mtime)
-                )
+                datestr = time.strftime("%d %b %H:%M", time_tuple)
         filename = getattr(self, "filename", "?")
 
         # not all servers support uid/gid
@@ -240,4 +236,4 @@ class SFTPAttributes(object):
         )
 
     def asbytes(self):
-        return b(str(self))
+        return str(self).encode()

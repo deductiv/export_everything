@@ -4,7 +4,7 @@
 #
 # Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.2 (2023-03-15)
+# Version: 2.3.0 (2023-08-11)
 
 import json
 import fnmatch
@@ -28,7 +28,11 @@ delimiters = {
 }
 
 def annotate_last_item(gen):
-	prev_val = next(gen)
+	try:
+		prev_val = next(gen)
+	except StopIteration:
+		dhelp.eprint('StopIteration hit')
+		return
 	for val in gen:
 		yield False, prev_val
 		prev_val = val
@@ -42,8 +46,13 @@ def flush_buffer_gzip(string_list, output_file):
 	with gzip.open(output_file, "ab") as f:
 		f.writelines(string_list)
 
-def write_events_to_file(events, fields, local_output, outputformat, compression, append_chunk=False, finish=True, append_data=False):
+def write_events_to_file(events, fields, local_output, outputformat, compression, 
+			 blankfields, internalfields, datefields, append_chunk, finish, 
+			 append_data, sid):
 	logger = dhelp.setup_logging('export_everything')
+
+	if dhelp.is_search_finalizing(sid) and not finish:
+		return
 
 	# Buffer variables
 	output_file_buf = []
@@ -55,21 +64,52 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			output_file_buf.append('['.encode('utf-8'))
 		else:
 			output_file_buf.append(',\n'.encode('utf-8'))
-	
-	for last_event, event in annotate_last_item(events):
-		# Get the fields list for the event
-		# Filter the fields if fields= is supplied
-		if fields is not None:
-			event_keys = []
-			if type(fields) == str:
-				fields = [fields]
-			for k in list(event.keys()):
-				for f in fields:
-					if k == f or fnmatch.fnmatch(k, f):
-						event_keys.append(k)
-		else:
-			event_keys = list(event.keys())
 
+	# Splunk internal fields
+	internals = ['_bkt', '_cd', '_si', '_kv', '_serial', '_indextime', '_sourcetype', \
+				'splunk_server', 'splunk_server_group', 'punct', 'linecount', '_subsecond', \
+				'timestartpos', 'timeendpos', '_eventtype_color'] # eventtype, tag, tag::eventtype
+
+	dates = ['date_second', 'date_hour', 'date_minute', 'date_year', 'date_month', \
+	  			'date_mday', 'date_wday', 'date_zone']
+
+	event_keys = []
+	for last_event, event in annotate_last_item(events):
+		# The search is finalizing, but we aren't on the last chunk
+		# User or Splunk must have cancelled the job
+		if dhelp.is_search_finalizing(sid) and not finish:
+			break
+
+		if event_keys == []:
+			# Get the fields list for the event
+			# Filter the fields if fields= is supplied
+			if fields is not None:
+				if type(fields) == str:
+					fields = [fields]
+				for k in list(event.keys()):
+					for f in fields:
+						if k == f or fnmatch.fnmatch(k, f):
+							event_keys.append(k)
+			else:
+				event_keys = list(event.keys())
+				fields = []
+
+			# Remove the internal fields if they aren't explicitly included
+			if not internalfields:
+				# Filter internal fields unless explicitly specified
+				for internal_field in internals:
+					if internal_field in event_keys and not any(fnmatch.fnmatch(internal_field, specified_field) for specified_field in fields):
+						# Remove the field from the event_keys list
+						event_keys.remove(internal_field)
+			
+			# Remove the date fields if they aren't explicitly included
+			if not datefields:
+				# Filter internal fields unless explicitly specified
+				for date_field in dates:
+					if date_field in event_keys and not any(fnmatch.fnmatch(date_field, specified_field) for specified_field in fields):
+						# Remove the field from the event_keys list
+						event_keys.remove(date_field)
+			
 		# Pick the output format on the first event if one was not specified
 		if event_counter == 0:
 			if outputformat is None and '_raw' in event_keys:
@@ -122,6 +162,7 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			output_text = output_text[:-1]
 		elif outputformat == "kv":
 			for key, value in list(event.items()):
+				value = str(value)
 				if key in event_keys:
 					# Escape any double-quotes
 					if '"' in value:
@@ -131,14 +172,15 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 					# Quote the string if it has a space or separator
 					elif ' ' in value or '=' in value:
 						value = '"' + value + '"'
-
-					output_text += key + "=" + value + ' '
+					if blankfields or value != "":
+						output_text += key + "=" + value + ' '
 		elif outputformat == "json":
-			if fields is not None:
+			if fields is not None or not blankfields:
 				json_event = {}
 				for key in event_keys:
 					try:
-						json_event[key] = event[key]
+						if blankfields or event[key] != "":
+							json_event[key] = event[key]
 					except BaseException as e:
 						logger.debug("Exception writing field %s with value %s to output: %s", key, event[key], str(e))
 			else:
@@ -166,9 +208,9 @@ def write_events_to_file(events, fields, local_output, outputformat, compression
 			else:
 				flush_buffer(output_file_buf, local_output)
 			output_file_buf = []
-			
+
 		yield(event)
-	
+
 	# Make changes to the event for append_chunk=True or finish=True/None
 	if outputformat == 'json':
 		if isinstance(output_file_buf[-1], str):

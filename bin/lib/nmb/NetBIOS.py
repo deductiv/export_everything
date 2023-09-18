@@ -14,17 +14,13 @@ class NetBIOS(NBNS):
         :param boolean broadcast: A boolean flag to indicate if we should setup the listening UDP port in broadcast mode
         :param integer listen_port: Specifies the UDP port number to bind to for listening. If zero, OS will automatically select a free port number.
         """
-        
         self.broadcast = broadcast
-        #Commenting per Splunk requirements, UDP communication prohibited
-        # This code doesn't work now anyway but we need self.sock defined
-        #self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         if self.broadcast:
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         if listen_port:
             self.sock.bind(( '', listen_port ))
-        
+
     def close(self):
         """
         Close the underlying and free resources.

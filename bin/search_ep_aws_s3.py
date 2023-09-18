@@ -5,21 +5,23 @@
 # Export Splunk search results to AWS S3 - Search Command
 #
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.2 (2023-03-15)
+# Version: 2.3.0 (2023-08-11)
 
 import sys
 import os
 import random
 from deductiv_helpers import setup_logger, \
+	get_conf_stanza, \
+	get_conf_file, \
 	replace_keywords, \
 	search_console, \
+	is_search_finalizing, \
 	replace_object_tokens, \
 	recover_parameters, \
 	str2bool, \
 	log_proxy_settings
 from ep_helpers import get_config_from_alias, get_aws_connection
 import event_file
-from splunk.clilib import cli_common as cli
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 from splunklib.searchcommands import EventingCommand, dispatch, Configuration, Option, validators
@@ -35,54 +37,24 @@ class epawss3(EventingCommand):
 	Export Splunk events to AWS S3 (or compatible) over JSON or raw text.
 	'''
 
-	#Define Parameters
-	target = Option(
-		doc='''
-		**Syntax:** **target=***<target alias>*
-		**Description:** The name of the AWS target alias provided on the configuration dashboard
-		**Default:** The target configured as "Default" within the AWS S3 Setup page (if any)''',
-		require=False)
+	# Common file-based target parameters
+	target = Option(require=False)
+	outputfile = Option(require=False)
+	outputformat = Option(require=False)
+	fields = Option(require=False, validate=validators.List())
+	blankfields = Option(require=False, validate=validators.Boolean())
+	internalfields = Option(require=False, validate=validators.Boolean())
+	datefields = Option(require=False, validate=validators.Boolean())
+	compress = Option(require=False, validate=validators.Boolean())
 
-	bucket = Option(
-		doc='''
-		**Syntax:** **bucket=***<bucket name>*
-		**Description:** The name of the destination S3 bucket
-		**Default:** The bucket name from the AWS S3 Setup page (if any)''',
-		require=False)
-
-	outputfile = Option(
-		doc='''
-		**Syntax:** **outputfile=***<output path/filename>*
-		**Description:** The path and filename to be written to the S3 bucket
-		**Default:** The name of the user plus the timestamp and the output format, e.g. admin_1588000000.log
-			json=.json, csv=.csv, tsv=.tsv, pipe=.log, kv=.log, raw=.log''',
-		require=False)
-
-	outputformat = Option(
-		doc='''
-		**Syntax:** **outputformat=***[json|raw|kv|csv|tsv|pipe]*
-		**Description:** The format written for the output events/search results
-		**Default:** *csv*''',
-		require=False) 
-
-	fields = Option(
-		doc='''
-		**Syntax:** **fields=***"field1, field2, field3"*
-		**Description:** Limit the fields to be written to the S3 file
-		**Default:** All (Unspecified)''',
-		require=False, validate=validators.List()) 
-
-	compress = Option(
-		doc='''
-		**Syntax:** **compress=***[true|false]*
-		**Description:** Option to compress the output file into .gz format before uploading
-		**Default:** The setting from the target configuration, or True if .gz is in the filename ''',
-		require=False)
-
+	# Command-specific parameters
+	bucket = Option(require=False)
+	
 	# Validators found @ https://github.com/splunk/splunk-sdk-python/blob/master/splunklib/searchcommands/validators.py
 
 	@Configuration()
 	def transform(self, events):
+
 		if getattr(self, 'first_chunk', True):
 			setattr(self, 'first_chunk', False)
 			first_chunk = True
@@ -90,8 +62,8 @@ class epawss3(EventingCommand):
 			first_chunk = False
 		
 		try:
-			app_config = cli.getConfStanza('ep_general','settings')
-			cmd_config = cli.getConfStanzas('ep_aws_s3')
+			app_config = get_conf_stanza('ep_general','settings')
+			cmd_config = get_conf_file('ep_aws_s3')
 		except BaseException as e:
 			raise Exception("Could not read configuration: " + repr(e))
 
@@ -100,17 +72,16 @@ class epawss3(EventingCommand):
 		facility = os.path.splitext(facility)[0]
 		logger = setup_logger(app_config["log_level"], 'export_everything.log', facility)
 		ui = search_console(logger, self)
+		searchinfo = self._metadata.searchinfo
 
 		if first_chunk:
 			logger.info('AWS S3 Export search command initiated')
 			logger.debug('search_ep_aws_s3 command: %s', self)  # logs command line
 			log_proxy_settings(logger)
 
-		# Enumerate settings
-		app = self._metadata.searchinfo.app
-		user = self._metadata.searchinfo.username
-		dispatch = self._metadata.searchinfo.dispatch_dir
-		session_key = self._metadata.searchinfo.session_key
+		# Refuse to run more chunks if the search is being terminated
+		if is_search_finalizing(searchinfo.sid) and not self._finished:
+			ui.exit_error("Search terminated prematurely. No data was exported.")
 
 		if self.target is None and 'target=' in str(self):
 			recover_parameters(self)
@@ -119,13 +90,13 @@ class epawss3(EventingCommand):
 
 		# Build the configuration
 		try:
-			target_config = get_config_from_alias(session_key, cmd_config, stanza_guid_alias=self.target, log=first_chunk)
+			target_config = get_config_from_alias(searchinfo.session_key, cmd_config, stanza_guid_alias=self.target, log=first_chunk)
 			if target_config is None:
 				ui.exit_error("Unable to find target configuration (%s)." % self.target)
 		except BaseException as e:
 			ui.exit_error("Error reading target server configuration: " + repr(e))
 		
-		default_values = [None, '', '__default__', '*', ['*']]
+		default_values = [None, '', '__default__', ['__default__']]
 		if self.bucket in default_values:
 			if 'default_s3_bucket' in list(target_config.keys()):
 				t = target_config['default_s3_bucket']
@@ -139,19 +110,17 @@ class epawss3(EventingCommand):
 		# If the parameters are not supplied or blank (alert actions), supply defaults
 		self.outputformat = 'csv' if self.outputformat in default_values else self.outputformat
 		self.fields = None if self.fields in default_values else self.fields
-
-		# Read the compress value from the target config unless one was specified in the search
-		if self.compress is None or self.compress == '__default__':
-			try:
-				self.compress = str2bool(target_config['compress'])
-			except:
-				self.compress = False
+		self.blankfields = False if self.blankfields in default_values else self.blankfields
+		self.internalfields = False if self.internalfields in default_values else self.internalfields
+		self.datefields = False if self.datefields in default_values else self.datefields
+		self.compress = str2bool(target_config['compress']) if self.compress in default_values else self.compress
 
 		# First run and no remote output file string has been assigned
 		if not hasattr(self, 'remote_output_file'):
 			if self.outputfile in default_values:
 				# Boto is special. We need repr to give it the encoding it expects to match the hashing.
-				self.outputfile = repr('export_' + user + '___now__' + event_file.file_extensions[self.outputformat]).strip("'")
+				self.outputfile = repr("export_%s___now__%s" % (searchinfo.username, 
+							event_file.file_extensions[self.outputformat])).strip("'")
 			
 			# Replace keywords from output filename
 			self.outputfile = replace_keywords(self.outputfile)
@@ -171,7 +140,7 @@ class epawss3(EventingCommand):
 			# Use the random number to support running multiple outputs in a single search
 			random_number = str(random.randint(10000, 100000))
 			staging_filename = f"export_everything_staging_aws_s3_{random_number}.txt"
-			setattr(self, 'local_output_file', os.path.join(dispatch, staging_filename))
+			setattr(self, 'local_output_file', os.path.join(searchinfo.dispatch_dir, staging_filename))
 			if self.compress:
 				self.local_output_file = self.local_output_file + '.gz'
 
@@ -186,7 +155,7 @@ class epawss3(EventingCommand):
 				setattr(self, 's3', get_aws_connection(target_config))
 			except BaseException as e:
 				ui.exit_error( "Could not connect to AWS: " + repr(e))
-				
+
 		else:
 			# Persistent variable is populated from a prior chunk/iteration.
 			# Use the previous local output file and append to it.
@@ -196,7 +165,9 @@ class epawss3(EventingCommand):
 		logger.debug("Writing events. file=\"%s\", format=%s, compress=%s, fields=\"%s\"", \
 			self.local_output_file, self.outputformat, self.compress, \
 			self.fields if self.fields is not None else "")
-		for event in event_file.write_events_to_file(events, self.fields, self.local_output_file, self.outputformat, self.compress, append_chunk=append_chunk, finish=self._finished):
+		for event in event_file.write_events_to_file(events, self.fields, self.local_output_file,
+					self.outputformat, self.compress, self.blankfields, self.internalfields,
+					self.datefields, append_chunk, self._finished, False, searchinfo.sid):
 			yield event
 			self.event_counter += 1
 		
@@ -206,13 +177,16 @@ class epawss3(EventingCommand):
 			try:
 				with open(self.local_output_file, "rb") as f:
 					self.s3.upload_fileobj(f, self.bucket, self.remote_output_file)
+				logger.info("S3 export_status=success, app=%s, count=%s, bucket=%s, file_name=%s, file_size=%s, user=%s" % 
+							(searchinfo.app, self.event_counter, self.bucket, self.remote_output_file, 
+							os.stat(self.local_output_file).st_size, searchinfo.username))
 				self.s3 = None
-				logger.info("Successfully exported events to s3. app=%s count=%s bucket=%s file=%s user=%s" % (app, self.event_counter, self.bucket, self.remote_output_file, user))
-				os.remove(self.local_output_file)
 			except self.s3.exceptions.NoSuchBucket as e:
 				ui.exit_error(logger, "Error: No such bucket")
 			except BaseException as e:
 				ui.exit_error(logger, "Could not upload file to S3: " + repr(e))
+			finally:
+				os.remove(self.local_output_file)
 
 dispatch(epawss3, sys.argv, sys.stdin, sys.stdout, __name__)
 
