@@ -1,7 +1,7 @@
 {
   "author": "Deductiv, Inc.",
   "scripts": {
-    "dev": "NODE_ENV=development webpack serve --mode development --watch",
+    "dev": "NODE_ENV=development webpack --mode development --watch",
     "build": "NODE_ENV=production webpack --mode production",
     "docs": "NODE_ENV=production webpack --config docs.gen.webpack.config.js",
     "docs:start": "webpack serve --config docs.gen.webpack.config.js",
@@ -45,7 +45,7 @@
     "@babel/plugin-transform-runtime": "^7.22.10",
     "@babel/plugin-transform-spread": "^7.22.5",
     "@splunk/babel-preset": "^4.0.0",
-    "@splunk/webpack-configs": "^6.0.0",
+    "@splunk/webpack-configs": "^7.0.1",
     "babel-loader": "^9.1.3",
     "babel-plugin-syntax-dynamic-import": "^6.18.0",
     "babel-preset-es2015": "^6.24.1",

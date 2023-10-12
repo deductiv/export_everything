@@ -107,12 +107,12 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias=None, log=
 	credentials = {}
 	# Get all credentials for this app 
 	try:
-		entity = en.getEntity('/server',
+		entity = en.getEntity('/configs/conf-web',
 			'settings',
 			namespace='-',
 			sessionKey=session_key,
 			owner='-')
-		splunkd_port = entity["mgmtHostPort"]
+		splunkd_port = entity["mgmtHostPort"].split(':')[1]
 		service = client.connect(token=session_key, port=splunkd_port)
 		# Get all credentials in the secret store for this app
 		storage_passwords = service.storage_passwords

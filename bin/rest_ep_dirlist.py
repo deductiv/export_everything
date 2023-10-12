@@ -76,25 +76,29 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 
 		logger.debug('Started REST directory listing process')
 		session_key = self.sessionKey
-		entity = en.getEntity('/server',
+		entity = en.getEntity('/configs/conf-web',
 			'settings',
 			namespace='-',
 			sessionKey=session_key,
 			owner='-')
-		splunkd_port = entity["mgmtHostPort"]
+		splunkd_port = entity["mgmtHostPort"].split(':')[1]
 		try:
 
 			service = client.connect(token=session_key, port=splunkd_port)
 			# Get all credentials in the secret store for this app
 			credentials = {}
-			storage_passwords = service.storage_passwords
-			for credential in storage_passwords:
-				if credential.access.app == app:
-					credentials[credential._state.title] = {
-						'username': credential.content.get('username'),
-						'password': credential.content.get('clear_password'),
-						'realm':    credential.content.get('realm')
-					}
+			try:
+				storage_passwords = service.storage_passwords
+				for credential in storage_passwords:
+					if credential.access.app == app:
+						credentials[credential._state.title] = {
+							'username': credential.content.get('username'),
+							'password': credential.content.get('clear_password'),
+							'realm':    credential.content.get('realm')
+						}
+			except Exception as e:
+				return {'error': "Error accessing secret store: " + repr(e),
+					'status': 500} # This still returns 200
 			
 			config = {
 				"general": get_conf_stanza('ep_general','settings')
@@ -112,7 +116,8 @@ class RemoteDirectoryListingHandler(splunk.rest.BaseRestHandler):
 		
 		except BaseException as e:
 			logger.error("Could not read configuration: " + repr(e))
-			raise Exception("Could not read configuration: " + repr(e))
+			return {'error': "Could not read configuration: " + repr(e),
+					'status': 500} # This still returns 200
 		
 		logger.debug("Received connection from src_ip=%s user=%s" % (self.request['remoteAddr'], self.request['userId']))
 		# Check for permissions

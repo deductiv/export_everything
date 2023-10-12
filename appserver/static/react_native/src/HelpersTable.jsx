@@ -84,37 +84,36 @@ export function getMissingFormData (configFile, newData) {
 }
 
 // Download the data and push it into the corresponding state entry
-export function handleTablesRefresh (changeState, columns, isSplunkCloud) {
+export async function handleTablesRefresh (changeState, columns, isSplunkCloud) {
   changeState({ loadingConfig: true }, 'handleTablesRefresh')
   let newState = { loadingConfig: false }
 
   const tableList = Object.keys(columns)
   console.log('Refreshing tables: ' + JSON.stringify(tableList))
-  Promise.all(tableList.map((table) => {
-    const d = handleTableRefresh(changeState, columns, table, false)
-    return d
-  }))
-    .then((tableData) => {
-      // Convert array of single-item dicts to one dict
-      // Passwords a 3-item dict
-      tableData?.forEach((tableDict) => {
-        if (tableDict != null) {
-          for (const [key, value] of Object.entries(tableDict)) {
-            newState[key] = value
-          }
-        }
-      })
-      const newColumns = getColumns(
-        newState.users,
-        newState.roles,
-        newState.passwords,
-        isSplunkCloud
-      )
-      newState = { ...newState, columns: newColumns }
-      changeState({ ...newState }, 'handleTablesRefresh')
-      console.log('Refreshing tables complete')
-    })
-    .catch(err => console.log(err))
+  const tablePromises = tableList.map(table => handleTableRefresh(changeState, columns, table, false))
+  // Promise.all fails on first reject. Abstract the promises one layer to resolve them all.
+  const tablesResults = await Promise.all(tablePromises.map(p => p.catch(e => e)))
+  const tableData = tablesResults.filter(result => !(result instanceof Error))
+  // Convert array of single-item dicts to one dict
+  // Passwords a 3-item dict
+  tableData?.forEach((tableDict) => {
+    if (tableDict != null) {
+      for (const [key, value] of Object.entries(tableDict)) {
+        newState[key] = value
+      }
+    }
+  })
+  const newColumns = getColumns(
+    newState.users,
+    newState.roles,
+    newState.passwords,
+    isSplunkCloud
+  )
+  newState = { ...newState, columns: newColumns }
+  changeState({ ...newState }, 'handleTablesRefresh')
+  console.log('Refreshing tables complete')
+  // } )
+  // .catch(err => console.log(err))
 }
 
 // Download data for an individual table and update the state
