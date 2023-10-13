@@ -279,6 +279,10 @@ color: var(--level2-color) !important;
 padding: 0 3px !important;
 min-width: 30px;
 }
+/* Table action icons right-alignment */
+div[class^="actionicons-"] > div > div.MuiToolbar-root {
+  padding-right: 0px;
+}
 /* Action icons - disabled */
 .MuiIconButton-root.Mui-disabled {
 color: var(--level3-color) !important;
