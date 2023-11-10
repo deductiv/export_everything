@@ -1,9 +1,9 @@
-<form script="react/main_bootstrap.js" stylesheet="application.css" hideEdit="true" version="1.1">
+<form script="dist/main.js" stylesheet="application.css" hideEdit="true" version="1.1">
   <label>App Setup</label>
   <row>
     <panel>
       <html id="tab_container">
-        <div class="export_everything_setup"/>
+        <div id="root" class="export_everything_setup"/>
       </html>
     </panel>
   </row>

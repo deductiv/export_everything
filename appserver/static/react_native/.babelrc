@@ -1,0 +1,11 @@
+{
+  "presets": [
+    "@babel/env",
+    // "@babel/preset-typescript",
+    "@babel/preset-react"
+  ],
+  "plugins": [
+    "syntax-dynamic-import",
+    "@babel/plugin-transform-nullish-coalescing-operator"
+  ]
+}

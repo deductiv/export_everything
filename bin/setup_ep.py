@@ -3,7 +3,7 @@
 # Copyright 2023 Deductiv Inc.
 # REST endpoint for configuration
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.3.0 (2023-08-11)
+# Version: 2.4.0 (2023-09-12)
 
 import sys
 import os
@@ -68,24 +68,27 @@ class SetupApp(admin.MConfigHandler):
 
 		try:
 			
-			entity = en.getEntity('/server',
-			   'settings',
-			   namespace='-',
-			   sessionKey=self.session_key, 
-			   owner='-')
-			splunkd_port = entity["mgmtHostPort"]
+			entity = en.getEntity('/configs/conf-web',
+				'settings',
+				namespace='-',
+				sessionKey=self.session_key,
+				owner='-')
+			splunkd_port = entity["mgmtHostPort"].split(':')[1]
 			service = client.connect(token=self.session_key, port=splunkd_port)
 
-			# Get all credentials for this app
-			storage_passwords = service.storage_passwords
+			try:
+				# Get all credentials for this app
+				storage_passwords = service.storage_passwords
 
-			for credential in storage_passwords:
-				if credential.access.app == self.appName:
-					credentials[credential._state.title] = {
-						'username': credential.content.get('username'),
-						'password': credential.content.get('clear_password'),
-						'realm':    credential.content.get('realm')
-					}
+				for credential in storage_passwords:
+					if credential.access.app == self.appName:
+						credentials[credential._state.title] = {
+							'username': credential.content.get('username'),
+							'password': credential.content.get('clear_password'),
+							'realm':    credential.content.get('realm')
+						}
+			except Exception as e:
+				self.logger.warning("Could not access secret store: " + repr(e))
 
 		except BaseException as e:
 			self.logger.exception('Could not connect to service: %s' % e)

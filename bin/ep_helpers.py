@@ -2,7 +2,7 @@
 
 # Copyright 2023 Deductiv Inc.
 # Author: J.R. Murray <jr.murray@deductiv.net>
-# Version: 2.2.3 (2023-08-11)
+# Version: 2.4.0 (2023-09-12)
 
 import random
 import sys
@@ -107,12 +107,12 @@ def get_config_from_alias(session_key, config_data, stanza_guid_alias=None, log=
 	credentials = {}
 	# Get all credentials for this app 
 	try:
-		entity = en.getEntity('/server',
+		entity = en.getEntity('/configs/conf-web',
 			'settings',
 			namespace='-',
 			sessionKey=session_key,
 			owner='-')
-		splunkd_port = entity["mgmtHostPort"]
+		splunkd_port = entity["mgmtHostPort"].split(':')[1]
 		service = client.connect(token=session_key, port=splunkd_port)
 		# Get all credentials in the secret store for this app
 		storage_passwords = service.storage_passwords
