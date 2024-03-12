@@ -128,7 +128,7 @@ class ephec(StreamingCommand):
 				ui.exit_error("No host specified")
 
 			# Create HEC object
-			setattr(self, 'hec', http_event_collector(hec_token, hec_host, http_event_port=hec_port, http_event_server_ssl=hec_ssl))
+			setattr(self, 'hec', http_event_collector(hec_token, hec_host, http_event_port=hec_port, http_event_server_ssl=hec_ssl, log_level=app_config["log_level"]))
 			# Override the default logger for the HEC module
 			self.hec.log = logger
 
@@ -188,6 +188,7 @@ class ephec(StreamingCommand):
 						token_string = '$'+event_field+'$'
 						# Replace any tokens that show up in the user-supplied values
 						if token_string in meta_value:
+							event_field_value = str(event_field_value)
 							meta_value = meta_value.replace(token_string, event_field_value)
 							if meta_value == event_field_value and event_field in list(payload_event_src.keys()):
 								# Delete meta field from the payload event source
